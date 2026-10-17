@@ -32,7 +32,7 @@ import { claimRunner, readRunner, releaseRunner, replaceRunner, startedAtOf, wri
 import { registerAll } from "./lib/register.mjs";
 import { connectedText } from "./lib/read-text.mjs";
 import { VERSION } from "./lib/spec.mjs";
-import { maskedLines, maskWith, secretValues } from "./lib/env-secrets.mjs";
+import { credentialShaped, maskedLines, maskWith, secretValues } from "./lib/env-secrets.mjs";
 import { finished, unseenText } from "./lib/text.mjs";
 import { lockHolds, makeLock } from "./lib/lock.mjs";
 import { AS_HEADER, CAPTURED, makeCapture } from "./lib/replay.mjs";
@@ -261,6 +261,9 @@ let gate = null;
 const hold = () => { if (!gate) { let open; gate = new Promise((r) => { open = r; }); gate.open = () => { gate = null; open(); }; } };
 const release = () => gate?.open();
 const mask = (text) => maskWith(String(text ?? ""), secrets);
+// The route table is replayed, so a configuration word that is also a route word stays readable;
+// anything credential-shaped is masked here the same as everywhere.
+const maskRoutes = (text) => maskWith(String(text ?? ""), secrets.filter(credentialShaped));
 
 // ---- the wire
 let box = "";
@@ -574,7 +577,7 @@ async function verb(job) {
     // was not seen; a run says "not recorded", never that none ran.
     case "usage": return capture ? { ...JSON.parse(mask(JSON.stringify(capture.usage(b.turn, b.totals === true) ?? {}))), ...(launched && toolsKnown() ? { toolsRecorded: toolsRecorded() } : {}) } : {};
     // Every route your app holds, read by the hook off the app itself, masked like the meter.
-    case "routes": return capture ? JSON.parse(mask(JSON.stringify(capture.registry(app?.port)))) : {};
+    case "routes": return capture ? JSON.parse(maskRoutes(JSON.stringify(capture.registry(app?.port)))) : {};
     // A world is ended from this terminal, never from the cloud.
     case "destroy": return { ok: true };
     default: return { ok: true };
