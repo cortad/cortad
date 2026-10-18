@@ -31,10 +31,11 @@ Endpoints that answered (1):
     Passages handed to the model: 3.
     Problem at apps/api/src/agent/system.ts:30: The reply carried "</student_profile>", markup from the prompt your app sent the model.
     Last message: "and the second question?".
-Endpoints found in your code that have not answered yet (2):
+Endpoints found in your code that Cortad has seen no answer from yet (2):
   POST /api/homework/explain  apps/api/src/routes/homework.ts:18  Cortad's test request was answered with HTTP 500.
   POST /api/progress/summary  apps/api/src/routes/progress.ts:9  Needs a signed-in user.
 Send each one message as a user would, signed in where your app needs it, or call reach to send the request Cortad read for them.
+An endpoint that hands back a turn and answers afterwards stays on this list until Cortad has seen the answer its model wrote: the first reply alone does not take it off.
 A run plays 36 simulated users in about 6 minutes. About $0.38 on your OpenAI key.
 A run starts when the person presses Run on the card in the browser or asks you for one; if they say they pressed it, call run rather than ask them again.
 ```

@@ -30,7 +30,7 @@ import { changesOf, commandText, RELOADER, sourceOf } from "./lib/fresh.mjs";
 import { chainOf, elapsedMs, holderOf, listening, listenerOn, portInError, spawnTied, stopTree } from "./lib/proc.mjs";
 import { claimRunner, readRunner, releaseRunner, replaceRunner, startedAtOf, writeRunner } from "./lib/runner.mjs";
 import { registerAll } from "./lib/register.mjs";
-import { connectedText } from "./lib/read-text.mjs";
+import { CONNECTED, connectedText, NOT_RUNNING } from "./lib/read-text.mjs";
 import { VERSION } from "./lib/spec.mjs";
 import { credentialShaped, maskedLines, maskWith, secretValues } from "./lib/env-secrets.mjs";
 import { finished, unseenText } from "./lib/text.mjs";
@@ -822,9 +822,14 @@ function restartOnce(work) {
   })();
   return restartDone;
 }
+const SAVED_CODE = "starting your app again so it runs the code you saved, since it does not reload by itself";
+// Your app read its env files when it started and nothing reloads them, so a value saved into one is
+// a value it is not running on. A customer changed one and had to stop this command and run it again
+// for every change; one of his apps was left running each time.
+const SAVED_ENV = "starting your app again so it reads the value you saved in your env file, which your app reads only when it starts";
 // The same command again, for an app that does not reload on save. Only an app this program
 // started: one you started yourself is yours to restart. New requests wait at the gate meanwhile.
-function restartApp(why = "starting your app again so it runs the code you saved, since it does not reload by itself") {
+function restartApp(why = SAVED_CODE) {
   if (!launched || !child) return Promise.resolve({ error: "You started this app yourself, so restart it in your own terminal. Most dev servers reload on save." });
   return restartOnce(async () => {
     hold();
@@ -840,13 +845,20 @@ function restartApp(why = "starting your app again so it runs the code you saved
 const savedSinceStart = () => Boolean(loaded?.files) && changesOf({
   root, app: { startedAt: new Date(loaded.at).toISOString(), files: loaded.files }, skip: writtenPaths(writesDirOf(homeOf(project))),
 }).changed.length > 0;
+// An env file of the app's own, saved since it started: compared by the time on the file, since what
+// it holds is never read into this command's own record. An example file is nobody's settings.
+const envSavedSinceStart = () => Boolean(loaded?.own && loaded.at) && envFiles.some((f) => {
+  try { return !/\.(example|sample)$/.test(f) && statSync(f).mtimeMs > loaded.at; } catch { return false; }
+});
+// Why the app has to start again now, or nothing when it is running what is on disk.
+const whyRestart = () => (savedSinceStart() ? SAVED_CODE : envSavedSinceStart() ? SAVED_ENV : null);
 // Every save that changes what your app runs starts it again, when it does not reload by itself: an
 // agent that saved a fix and asked the app eight seconds later was answered by the old code. Looked
 // at again after each restart, for a save made while it was under way, and before the first wait too:
 // the app starts while the code is uploaded, and a save made before this watch began was otherwise never seen.
 async function restartOnSave() {
   while (!closing) {
-    while (!closing && launched && child && !appGone && !loaded?.reloads && savedSinceStart()) await restartApp();
+    for (let why = whyRestart(); !closing && launched && child && !appGone && !loaded?.reloads && why; why = whyRestart()) await restartApp(why);
     await sourceChanged();
   }
 }
@@ -1108,9 +1120,10 @@ async function appLife(firstStart) {
     failedWith(got.why, got.said);
     await call("POST", `/local/${box}/stopped`, { said: mask(got.said || got.why).slice(-2000) }).catch(() => {});
     say(got.why);
-    // Said with the same words the agent prompt waits for, so an agent holding the terminal reports
-    // the failure instead of waiting for a line that never comes.
-    if (first) say("your app did not start. Go back to the browser; it says what stopped it. Ctrl-C disconnects.");
+    // An agent holding this terminal watches for one of these two lines (skill/SKILL.md), so the
+    // failure carries a line of its own: it reports the failure instead of waiting for a line that
+    // never comes, and no reader takes it for the connected one.
+    if (first) say(NOT_RUNNING);
     await sourceChanged();
     become("starting");
     say("saw your change, starting your app again");
@@ -1128,7 +1141,7 @@ async function appLife(firstStart) {
   if (launched) say(`your app's output for this session is kept in ${bootLog}, with the values from your env files masked`);
   if (proxy) say(`send requests to port ${proxy.port}: it passes them to your app and Cortad sees each one. Requests sent straight to port ${app.port} are not seen`);
   for (const line of connectedText(machineOf())) say(line);
-  say("leave this open. Go back to the browser; Ctrl-C disconnects.");
+  say(CONNECTED);
   let downSince = 0;
   let toldDown = false;
   let appTold = true;
