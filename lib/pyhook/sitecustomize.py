@@ -1315,10 +1315,31 @@ def _install():
     # `later`, in the time its model took to answer it; a run's turn also gets the model's last words,
     # the answer the command hands the run. Only an answer settles it: a call that came back 2xx with
     # no words (a model asking for a tool) is a step, and the next call is waited for (lib/trace.cjs).
-    # ponytail: a fixed settle; after a step that answers in words, more than this of the app's own
-    # work before the next call cuts the answer at that step. A call whose words match only a request
-    # already settled is the evidence: a settle measured per door when one is seen.
+    # ponytail: a fixed settle where the work runs in threads; after a step that answers in words, more
+    # than this of the app's own work before the next call cuts the answer at that step. On asyncio the
+    # task that made the calls says when the work is done (working, below).
     settle_s = 5.0
+    # How long a task that made a request's calls may stay open after its last words before the turn is
+    # answered anyway: a worker the request started and never ends holds no run for longer.
+    open_task_s = 120.0
+
+    # The asyncio task a request's model call ran in, kept so the turn is answered when that work ends:
+    # Nitham's quick answer searches between its first reading and its check, past the settle, and the
+    # first reading was handed back while the check still ran. Only a task the request itself started,
+    # which carries its context: a worker started at boot serves every request and never ends.
+    def working(req):
+        aio = sys.modules.get("asyncio")
+        try:
+            task = aio.current_task() if aio else None
+        except RuntimeError:
+            task = None
+        if task is None or ctx.get() is not req or any(t is task for t in req.setdefault("tasks", [])):
+            return
+        req["tasks"].append(task)
+        task.add_done_callback(lambda _t: settle(req))
+
+    def open_tasks(req):
+        return [t for t in req.get("tasks", ()) if not t.done()]
 
     # The turn's answer is written once the calls are quiet even while a read the hook took for a fetch
     # of it is open (the person's page polling the sender): the answer is the model's words either way.
@@ -1337,10 +1358,20 @@ def _install():
     def settle(req):
         import threading
 
+        def arm(seconds):
+            req["settling"] = threading.Timer(seconds, quiet)
+            req["settling"].daemon = True
+            req["settling"].start()
+
         def quiet():
             try:
-                if not req.get("calls_open") and not req.get("waiting"):
-                    answered_later(req)
+                if req.get("calls_open") or req.get("waiting"):
+                    return
+                left = open_task_s - (time.time() * 1000 - req["said"][2]) / 1000
+                if open_tasks(req) and left > 0:
+                    arm(left)
+                    return
+                answered_later(req)
             except Exception:
                 pass
         was = req.get("settling")
@@ -1349,9 +1380,7 @@ def _install():
         said = req.get("said")
         if not said or (not said[1] and 200 <= said[0] < 300):
             return
-        req["settling"] = threading.Timer(settle_s, quiet)
-        req["settling"].daemon = True
-        req["settling"].start()
+        arm(0.5 if req.get("tasks") and not open_tasks(req) else settle_s)
 
     # Where the app's own code wrote the parts of this reply, under the id its exchange is written by.
     def written_at(req, steps):
@@ -1583,6 +1612,7 @@ def _install():
                     if not row.get("embedding"):
                         req["said"] = (row["status"], reply_text(events)[:model_words], now)
                         req["said_all"] = (req.get("said_all", []) + [req["said"][1]])[-12:]
+                    working(req)
                     settle(req)
             row.update(inside_of(req))
             if req and (req.get("kept") or req.get("turn")):

@@ -226,6 +226,12 @@ let secrets = [];
 // with how long the run waits for this reply; a reply with no answer says in the second why none came.
 // The wait here ends a few seconds before the run's own and the wire's hold, so the reason reaches it.
 const LATER_HEADER = "x-cortad-answer", LATER_MISSED = "x-cortad-later", LATER_MARGIN_MS = 5_000;
+// The app's own reply to a message it answers later, when it is a small JSON object: a receipt.
+const RECEIPT_MAX = 16_384;
+const receiptOf = (got) => {
+  if (got.truncated || !got.body || got.body.length > RECEIPT_MAX) return null;
+  try { const v = JSON.parse(got.body); return v && typeof v === "object" && !Array.isArray(v) ? v : null; } catch { return null; }
+};
 // The cookies each trial's own turns were handed, newest trials kept.
 const trialJars = new Map();
 // Endpoints that refused a new visitor: their trials carry the person's own session.
@@ -497,7 +503,10 @@ async function verb(job) {
         const said = capture ? await capture.answered(turn || headers["x-cortad-turn"], until, letGo) : null;
         if (letGo.aborted) return { error: "cancelled by the run" };
         if (!said?.reply.trim()) return { ...got, headers: { ...got.headers, [LATER_MISSED]: JSON.stringify(said ? { model: said.status } : { waited: Math.round((Date.now() - began) / 1000) }) } };
-        return { ...got, headers: { "content-type": "application/json" }, body: mask(JSON.stringify({ reply: said.reply })), truncated: false };
+        // The app's own reply rides beside the answer: the thread it opened is named there and nowhere
+        // else, and a run's next message on that conversation sends it back.
+        const own = receiptOf(got);
+        return { ...got, headers: { "content-type": "application/json" }, body: mask(JSON.stringify({ reply: said.reply, ...(own ? { receipt: own } : {}) })), truncated: false };
       };
       try { return await answered(await counted()); }
       catch (e) {
