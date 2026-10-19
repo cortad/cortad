@@ -589,9 +589,11 @@ async function verb(job) {
       return { ok: true };
     }
     case "restart": return restartApp();
-    // Your own pages, read here rather than in a world's shell, with this terminal's settings: the
-    // ones your app was started with.
-    case "sample": return { report: JSON.parse(mask(JSON.stringify(await sampleHere(b, { ...process.env }, root)))) };
+    // Your own pages, read here rather than in a world's shell, with the settings your app runs on:
+    // its own env files as its loader reads them, and this terminal's own values over those. Handed
+    // the terminal's alone, the reader had no address for a store whose address their app keeps in a
+    // file, and said it was not set. Values stay here; only rows of short fields go back.
+    case "sample": return { report: JSON.parse(mask(JSON.stringify(await sampleHere(b, modelHints(), root)))) };
     case "lock": return { locked: Array.isArray(b.hosts) ? b.hosts.length : 0 };
     // What your app spent on its providers, from the hook inside it. An app this command did not
     // start has no hook, and the empty answer says the meter is absent rather than that nothing was spent.
