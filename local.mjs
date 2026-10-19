@@ -16,7 +16,7 @@
 
 import { notAnApp, withoutStores } from "./lib/app-port.mjs";
 import { holdsKeys, secretEnvValues } from "./lib/keys.mjs";
-import { parseEnv } from "./lib/env-files.mjs";
+import { envFilesNamedIn, parseEnv } from "./lib/env-files.mjs";
 import { historyParts, repoFacts } from "./lib/commits.mjs";
 import { spawn, execFile, execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -32,7 +32,7 @@ import { claimRunner, readRunner, releaseRunner, replaceRunner, startedAtOf, wri
 import { registerAll } from "./lib/register.mjs";
 import { CONNECTED, connectedText, NOT_RUNNING } from "./lib/read-text.mjs";
 import { VERSION } from "./lib/spec.mjs";
-import { credentialShaped, maskedLines, maskWith, secretValues } from "./lib/env-secrets.mjs";
+import { credentialShaped, environmentSecrets, maskedLines, maskWith, secretValues } from "./lib/env-secrets.mjs";
 import { finished, unseenText } from "./lib/text.mjs";
 import { lockHolds, makeLock } from "./lib/lock.mjs";
 import { AS_HEADER, CAPTURED, makeCapture } from "./lib/replay.mjs";
@@ -169,7 +169,9 @@ const SKIP_FILE = /^\.env(\..*)?$|^\.envrc$|\.env$|\.(pem|key|p12|pfx|jks|keysto
 const EVALS = /(?:^|\/)(?:evals?|evaluations?|benchmarks?|gold(?:ens?)?|red[-_]?team)\/|(?:^|[\/._-])(?:evals?|evaluations?|gold(?:en)?|benchmarks?|fidelity|red[-_]?team|cases)(?:[._-][^\/]*)?$/i;
 const MAX_FILE = 25_000_000;
 const MAX_TOTAL = 256_000_000;
-const ENV_FILE = /^\.env(\.(local|staging|stage|development|dev|test|example|sample))?$/;
+// Any file dotenv and its kind read: .env and its suffixes, .envrc, and the api.env shape a folder
+// of per-service files uses. Read here only, to hide its values in what leaves; never sent.
+const ENV_FILE = /^\.env(\..+)?$|^[\w-]+\.env$|^\.envrc$/;
 
 function walk(dir, depth, out, envs, total) {
   let entries;
@@ -177,7 +179,11 @@ function walk(dir, depth, out, envs, total) {
   for (const e of entries) {
     const full = join(dir, e.name);
     if (e.isSymbolicLink()) continue;
-    if (e.isDirectory()) { if (depth < 12 && !SKIP_DIR.test(e.name)) total = walk(full, depth + 1, out, envs, total); continue; }
+    if (e.isDirectory()) {
+      if (depth < 12 && !SKIP_DIR.test(e.name)) total = walk(full, depth + 1, out, envs, total);
+      else envsIn(full, envs);
+      continue;
+    }
     if (ENV_FILE.test(e.name)) { envs.push(full); continue; }
     if (SKIP_FILE.test(e.name)) continue;
     let size;
@@ -188,6 +194,15 @@ function walk(dir, depth, out, envs, total) {
     total += size;
   }
   return total;
+}
+
+// Nothing inside a skipped folder is ever sent, but a folder called secrets, env or vendor is
+// exactly where a provisioned machine keeps its env file, and one we never read is one whose values
+// we cannot hide. Its own level only: this is a look for their settings, not a second walk.
+function envsIn(dir, envs) {
+  try {
+    for (const e of readdirSync(dir, { withFileTypes: true })) if (e.isFile() && ENV_FILE.test(e.name)) envs.push(join(dir, e.name));
+  } catch { /* a folder we may not read holds nothing for us */ }
 }
 
 // What git lists here: tracked files and new ones it would pick up, never an ignored one. A folder
@@ -919,8 +934,13 @@ const envFiles = [];
 const files = [];
 listed = gitListed();
 walk(root, 0, files, envFiles, 0);
-secrets = secretValues(envFiles);
-envKeys = secretEnvValues(envFiles, (f) => readFileSync(f, "utf8"));
+// Their own command says where the rest of their settings are, and the shell it runs in holds the
+// ones a provisioned machine applies there: both are read here, to hide their values and to know
+// where the app's model settings point. Neither is sent.
+for (const named of envFilesNamedIn(typed, appDir)) if (!envFiles.includes(named)) envFiles.push(named);
+const shellSecrets = environmentSecrets(process.env);
+secrets = secretValues(envFiles, shellSecrets);
+envKeys = [...secretEnvValues(envFiles, (f) => readFileSync(f, "utf8")), ...shellSecrets];
 const kept = [];
 for (let i = files.length - 1; i >= 0; i -= 1) if (carriesKey(files[i])) kept.unshift(...files.splice(i, 1));
 // --explain: what this would send and start, from this folder, and nothing else. No network, no
