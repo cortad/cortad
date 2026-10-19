@@ -1324,7 +1324,7 @@ def _install():
     open_task_s = 120.0
 
     # The asyncio task a request's model call ran in, kept so the turn is answered when that work ends:
-    # Nitham's quick answer searches between its first reading and its check, past the settle, and the
+    # One customer's quick answer searches between its first reading and its check, past the settle, and the
     # first reading was handed back while the check still ran. Only a task the request itself started,
     # which carries its context: a worker started at boot serves every request and never ends.
     def working(req):

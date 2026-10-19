@@ -56,3 +56,7 @@ Nothing about your environment is guessed or changed. Your app gets this termina
 - `$TMPDIR/cortad-<pid>/`    removed on exit
 
 macOS and Linux, Node 20 or later. No dependencies. What is sent and what stays on your machine: `npx cortad --explain`, and cortad.com/privacy.
+
+## Licence
+
+Yours to run and to read, for connecting your own app to Cortad. Not to redistribute or to rebuild as a service. See LICENSE.
