@@ -1,6 +1,6 @@
 {
   "name": "cortad",
-  "version": "0.4.5",
+  "version": "0.5.0",
   "description": "Connects the AI app on your machine to Cortad for test conversations, and gives your coding agent the MCP and skill to run them. No dependencies.",
   "bin": {
     "cortad": "local.mjs"
@@ -16,6 +16,7 @@
     "lib/contact-text.mjs",
     "lib/dissection-text.mjs",
     "lib/document.mjs",
+    "lib/doors.mjs",
     "lib/failed-text.mjs",
     "lib/files.mjs",
     "lib/fresh.mjs",

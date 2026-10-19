@@ -1,0 +1,34 @@
+{
+  "model": "haiku",
+  "rounds": 1,
+  "out": {
+    "six": [
+      {
+        "said": "I just rewrote the system prompt in this repo. Check how the AI behaves now.",
+        "called": "status",
+        "about": "repository",
+        "right": false
+      },
+      {
+        "said": "What did the run find?",
+        "called": null,
+        "about": null,
+        "right": false
+      }
+    ],
+    "twenty": [
+      {
+        "said": "I just rewrote the system prompt in this repo. Check how the AI behaves now.",
+        "called": "status",
+        "about": null,
+        "right": false
+      },
+      {
+        "said": "What did the run find?",
+        "called": "status",
+        "about": null,
+        "right": false
+      }
+    ]
+  }
+}
