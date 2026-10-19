@@ -22,6 +22,11 @@ const ROUNDS = Number(flag("rounds", 1));
 const MODEL = flag("model", "haiku");
 const ONLY = flag("only", null);
 const LIMIT = Number(flag("limit", SITUATIONS.length));
+// Both arms' instructions script the opening of a session, and that opening is a status call, so a
+// situation posed as the first message of one measures the script rather than which door matches the
+// moment. With --framed the same one line puts every situation mid-session, on both arms alike.
+const FRAMED = process.argv.includes("--framed");
+const FRAME = "This repository is already connected to Cortad and a run has already finished on it.";
 // Everything but the one server under test, so the agent answers with a Cortad call or with nothing.
 const OFF = ["Bash", "Read", "Write", "Edit", "Glob", "Grep", "WebFetch", "WebSearch", "TodoWrite", "Task", "NotebookEdit"];
 const EACH_MS = 120_000;
@@ -64,17 +69,20 @@ const ask = (prompt, config, calls) => new Promise((resolve) => {
   });
 });
 
+// One config and one record of calls an arm, truncated between situations, so every prompt in an arm
+// is byte for byte the one before it: the agent's own preamble is then read from its cache instead of
+// written again, which is most of what this costs.
 async function measure(arm, tools) {
   const toolsPath = join(dir, `${arm}-tools.json`);
   writeFileSync(toolsPath, JSON.stringify(tools));
+  const calls = join(dir, `${arm}-calls.jsonl`);
+  const config = join(dir, `${arm}.json`);
+  writeFileSync(config, JSON.stringify({ mcpServers: { cortad: { command: process.execPath, args: [join(HERE, "stub.mjs"), toolsPath, calls] } } }));
   const rows = [];
   for (let round = 1; round <= ROUNDS; round += 1) {
-    for (const [at, one] of SITUATIONS.slice(0, LIMIT).entries()) {
-      const calls = join(dir, `${arm}-${round}-${at}.jsonl`);
+    for (const one of SITUATIONS.slice(0, LIMIT)) {
       writeFileSync(calls, "");
-      const config = join(dir, `${arm}-${round}-${at}.json`);
-      writeFileSync(config, JSON.stringify({ mcpServers: { cortad: { command: process.execPath, args: [join(HERE, "stub.mjs"), toolsPath, calls] } } }));
-      const { made, cost } = await ask(one.said, config, calls);
+      const { made, cost } = await ask(FRAMED ? `${FRAME}\n\n${one.said}` : one.said, config, calls);
       const first = made[0] ?? null;
       const right = hit(arm, one, first);
       // The door it opened first, and whether it reached the answer at all in that turn.
@@ -108,6 +116,6 @@ for (const [arm, rows] of Object.entries(out)) {
   for (const r of rows.filter((r) => !r.reached)) console.log(`  miss  ${r.called ?? "nothing"}${r.about ? ` about ${r.about}` : ""}  <-  ${r.said}`);
 }
 console.log(`\nthe measuring itself cost $${spent.toFixed(2)} on ${MODEL}`);
-writeFileSync(join(ROOT, "twins", "doors", "measured.json"), `${JSON.stringify({ model: MODEL, rounds: ROUNDS, out }, null, 2)}\n`);
-console.log(`\nrecorded in twins/doors/measured.json; the agent's own scratch is ${dir}`);
+writeFileSync(join(ROOT, "twins", "doors", `measured${FRAMED ? "-framed" : ""}.json`), `${JSON.stringify({ model: MODEL, rounds: ROUNDS, framed: FRAMED, out }, null, 2)}\n`);
+console.log(`\nrecorded in twins/doors/measured${FRAMED ? "-framed" : ""}.json`);
 if (!process.env.KEEP) rmSync(dir, { recursive: true, force: true });
