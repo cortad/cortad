@@ -1,0 +1,443 @@
+{
+  "model": "haiku",
+  "rounds": 1,
+  "framed": true,
+  "out": {
+    "six": [
+      {
+        "said": "I just rewrote the system prompt in this repo. Check how the AI behaves now.",
+        "called": "status",
+        "about": "run",
+        "calls": 5,
+        "right": false,
+        "reached": true,
+        "cost": 0.07230679999999999
+      },
+      {
+        "said": "What did the run find?",
+        "called": "status",
+        "about": "run",
+        "calls": 5,
+        "right": true,
+        "reached": true,
+        "cost": 0.06041049999999999
+      },
+      {
+        "said": "Is the run finished yet?",
+        "called": "status",
+        "about": "run",
+        "calls": 2,
+        "right": true,
+        "reached": true,
+        "cost": 0.0279223
+      },
+      {
+        "said": "I changed the refund wording for finding:3. Did that fix it?",
+        "called": "verify",
+        "about": null,
+        "calls": 4,
+        "right": true,
+        "reached": true,
+        "cost": 0.0493179
+      },
+      {
+        "said": "What is happening to the AI in our live app right now?",
+        "called": "status",
+        "about": "production",
+        "calls": 5,
+        "right": true,
+        "reached": true,
+        "cost": 0.0776188
+      },
+      {
+        "said": "Something started going wrong for real users on Tuesday. What and why?",
+        "called": "status",
+        "about": "production",
+        "calls": 6,
+        "right": true,
+        "reached": true,
+        "cost": 0.15779369999999998
+      },
+      {
+        "said": "Set this up on our live app so we can see what real users are doing.",
+        "called": "status",
+        "about": "repository",
+        "calls": 4,
+        "right": false,
+        "reached": true,
+        "cost": 0.0767206
+      },
+      {
+        "said": "The check behind finding:2 is measuring something our product does not do at all.",
+        "called": "status",
+        "about": "findings",
+        "calls": 2,
+        "right": false,
+        "reached": false,
+        "cost": 0.0298189
+      },
+      {
+        "said": "Let the Cortad team know their findings output was confusing to read.",
+        "called": "tell",
+        "about": "status",
+        "calls": 1,
+        "right": true,
+        "reached": true,
+        "cost": 0.025578299999999998
+      },
+      {
+        "said": "How many live conversations mentioned refunds in the last 30 days? I want the count.",
+        "called": "status",
+        "about": "warehouse",
+        "calls": 6,
+        "right": true,
+        "reached": true,
+        "cost": 0.0732655
+      },
+      {
+        "said": "What does this app count as a successful session, and how often do people get there?",
+        "called": "status",
+        "about": "outcomes",
+        "calls": 4,
+        "right": true,
+        "reached": true,
+        "cost": 0.08262
+      },
+      {
+        "said": "I want our own service to get a POST whenever something goes wrong in the live app.",
+        "called": "status",
+        "about": "production",
+        "calls": 3,
+        "right": false,
+        "reached": false,
+        "cost": 0.0636319
+      },
+      {
+        "said": "I just opened this repo. Where are we?",
+        "called": "status",
+        "about": "run",
+        "calls": 6,
+        "right": false,
+        "reached": true,
+        "cost": 0.07715040000000001
+      },
+      {
+        "said": "Our /api/chat endpoint did not answer earlier. Try it again.",
+        "called": "status",
+        "about": "run",
+        "calls": 6,
+        "right": false,
+        "reached": true,
+        "cost": 0.04364900000000001
+      },
+      {
+        "said": "The AI here is not a chatbot: it reads uploaded documents and flags risk. Test that.",
+        "called": "status",
+        "about": "run",
+        "calls": 3,
+        "right": false,
+        "reached": false,
+        "cost": 0.0404991
+      },
+      {
+        "said": "How did the document test go?",
+        "called": "status",
+        "about": "run",
+        "calls": 4,
+        "right": true,
+        "reached": true,
+        "cost": 0.0556496
+      },
+      {
+        "said": "Give me every number the last run measured, not just the problems.",
+        "called": "status",
+        "about": "run",
+        "calls": 5,
+        "right": false,
+        "reached": true,
+        "cost": 0.10097329999999999
+      },
+      {
+        "said": "Try it again but only play 10 conversations, I do not want a big bill.",
+        "called": "status",
+        "about": "run",
+        "calls": 2,
+        "right": false,
+        "reached": true,
+        "cost": 0.0310577
+      },
+      {
+        "said": "Which rules is our prompt being checked against?",
+        "called": "status",
+        "about": "repository",
+        "calls": 3,
+        "right": true,
+        "reached": true,
+        "cost": 0.0343208
+      },
+      {
+        "said": "I think finishing signup should count as a win in this app. Put that forward.",
+        "called": "status",
+        "about": null,
+        "calls": 4,
+        "right": false,
+        "reached": true,
+        "cost": 0.0606335
+      },
+      {
+        "said": "Nothing has come back since I changed the retrieval. What is going on?",
+        "called": "status",
+        "about": "run",
+        "calls": 2,
+        "right": true,
+        "reached": true,
+        "cost": 0.0333291
+      },
+      {
+        "said": "finding:7 came back as cannot tell. Run it again.",
+        "called": "status",
+        "about": "findings",
+        "calls": 3,
+        "right": false,
+        "reached": true,
+        "cost": 0.051890900000000004
+      },
+      {
+        "said": "What would a full run on this repo cost us?",
+        "called": "status",
+        "about": "run",
+        "calls": 4,
+        "right": false,
+        "reached": true,
+        "cost": 0.0552519
+      },
+      {
+        "said": "Which of our prompt's rules has never once been broken in a run?",
+        "called": "status",
+        "about": "repository",
+        "calls": 4,
+        "right": true,
+        "reached": true,
+        "cost": 0.09282479999999999
+      }
+    ],
+    "twenty": [
+      {
+        "said": "I just rewrote the system prompt in this repo. Check how the AI behaves now.",
+        "called": "status",
+        "about": null,
+        "calls": 7,
+        "right": false,
+        "reached": true,
+        "cost": 0.11203019999999997
+      },
+      {
+        "said": "What did the run find?",
+        "called": "findings",
+        "about": null,
+        "calls": 4,
+        "right": true,
+        "reached": true,
+        "cost": 0.0585114
+      },
+      {
+        "said": "Is the run finished yet?",
+        "called": "run_status",
+        "about": null,
+        "calls": 4,
+        "right": true,
+        "reached": true,
+        "cost": 0.04709080000000001
+      },
+      {
+        "said": "I changed the refund wording for finding:3. Did that fix it?",
+        "called": "findings",
+        "about": null,
+        "calls": 4,
+        "right": false,
+        "reached": false,
+        "cost": 0.0374859
+      },
+      {
+        "said": "What is happening to the AI in our live app right now?",
+        "called": "intelligence",
+        "about": null,
+        "calls": 3,
+        "right": true,
+        "reached": true,
+        "cost": 0.0320598
+      },
+      {
+        "said": "Something started going wrong for real users on Tuesday. What and why?",
+        "called": "intelligence",
+        "about": null,
+        "calls": 5,
+        "right": true,
+        "reached": true,
+        "cost": 0.0627962
+      },
+      {
+        "said": "Set this up on our live app so we can see what real users are doing.",
+        "called": "status",
+        "about": null,
+        "calls": 4,
+        "right": false,
+        "reached": true,
+        "cost": 0.085739
+      },
+      {
+        "said": "The check behind finding:2 is measuring something our product does not do at all.",
+        "called": "findings",
+        "about": null,
+        "calls": 3,
+        "right": false,
+        "reached": true,
+        "cost": 0.0323578
+      },
+      {
+        "said": "Let the Cortad team know their findings output was confusing to read.",
+        "called": "feedback",
+        "about": "findings",
+        "calls": 1,
+        "right": true,
+        "reached": true,
+        "cost": 0.0243821
+      },
+      {
+        "said": "How many live conversations mentioned refunds in the last 30 days? I want the count.",
+        "called": "query",
+        "about": null,
+        "calls": 5,
+        "right": true,
+        "reached": true,
+        "cost": 0.09528130000000001
+      },
+      {
+        "said": "What does this app count as a successful session, and how often do people get there?",
+        "called": "status",
+        "about": null,
+        "calls": 5,
+        "right": false,
+        "reached": false,
+        "cost": 0.0761341
+      },
+      {
+        "said": "I want our own service to get a POST whenever something goes wrong in the live app.",
+        "called": "status",
+        "about": null,
+        "calls": 3,
+        "right": false,
+        "reached": false,
+        "cost": 0.0583177
+      },
+      {
+        "said": "I just opened this repo. Where are we?",
+        "called": "status",
+        "about": null,
+        "calls": 4,
+        "right": true,
+        "reached": true,
+        "cost": 0.057028600000000006
+      },
+      {
+        "said": "Our /api/chat endpoint did not answer earlier. Try it again.",
+        "called": "status",
+        "about": null,
+        "calls": 6,
+        "right": false,
+        "reached": false,
+        "cost": 0.0684641
+      },
+      {
+        "said": "The AI here is not a chatbot: it reads uploaded documents and flags risk. Test that.",
+        "called": "status",
+        "about": null,
+        "calls": 3,
+        "right": false,
+        "reached": false,
+        "cost": 0.05671999999999999
+      },
+      {
+        "said": "How did the document test go?",
+        "called": "status",
+        "about": null,
+        "calls": 2,
+        "right": false,
+        "reached": false,
+        "cost": 0.027497000000000004
+      },
+      {
+        "said": "Give me every number the last run measured, not just the problems.",
+        "called": "findings",
+        "about": null,
+        "calls": 5,
+        "right": true,
+        "reached": true,
+        "cost": 0.05054400000000001
+      },
+      {
+        "said": "Try it again but only play 10 conversations, I do not want a big bill.",
+        "called": "status",
+        "about": null,
+        "calls": 3,
+        "right": false,
+        "reached": true,
+        "cost": 0.057909
+      },
+      {
+        "said": "Which rules is our prompt being checked against?",
+        "called": "status",
+        "about": null,
+        "calls": 5,
+        "right": true,
+        "reached": true,
+        "cost": 0.08325370000000001
+      },
+      {
+        "said": "I think finishing signup should count as a win in this app. Put that forward.",
+        "called": "findings",
+        "about": null,
+        "calls": 5,
+        "right": false,
+        "reached": false,
+        "cost": 0.0575983
+      },
+      {
+        "said": "Nothing has come back since I changed the retrieval. What is going on?",
+        "called": "status",
+        "about": null,
+        "calls": 3,
+        "right": true,
+        "reached": true,
+        "cost": 0.0315072
+      },
+      {
+        "said": "finding:7 came back as cannot tell. Run it again.",
+        "called": "status",
+        "about": null,
+        "calls": 4,
+        "right": false,
+        "reached": false,
+        "cost": 0.0425055
+      },
+      {
+        "said": "What would a full run on this repo cost us?",
+        "called": "status",
+        "about": null,
+        "calls": 4,
+        "right": true,
+        "reached": true,
+        "cost": 0.041944
+      },
+      {
+        "said": "Which of our prompt's rules has never once been broken in a run?",
+        "called": "status",
+        "about": null,
+        "calls": 6,
+        "right": true,
+        "reached": true,
+        "cost": 0.0777391
+      }
+    ]
+  }
+}

@@ -15,7 +15,16 @@ npx cortad <code> --port 3000              an app already running: its replies a
 
 ## Your coding agent
 
-After that, your agent has the tools `status`, `reach`, `run`, `run_status`, `findings`, `verify`, `dispute`, `feedback`, `field_connect`, `field`, `world`, `world_status`, `test`, `connect`, `intelligence`, `incidents`, `outcomes`, `subscribe` and `query`. The same work as commands:
+After that, your agent has six tools, one for each thing it needs from Cortad:
+
+- `status` what to know about this app right now; with nothing asked for, whichever of the rest matters at this moment
+- `test` test what you just built
+- `verify` did your fix hold
+- `connect` connect the live app
+- `tell` a note to the Cortad team, what counts as a good ending here, or where to send each incident
+- `dispute` this check reads my app wrong
+
+The same work as commands:
 
 ```
 npx cortad status
