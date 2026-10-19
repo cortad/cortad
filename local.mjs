@@ -730,12 +730,13 @@ async function startProxied(up, waitMs) {
 
 async function start(waitMs) {
   const { cmd, lifted } = launched;
+  const cmdText = commandText(cmd, appDir);
   // The record of what the app writes opens with the app: the first run starts itself on the
   // server's side, with no verb here to mark it, and a restart mid-run keeps the record open.
   try { markRun(writesDirOf(homeOf(projectOf(root))), "session", { keep: true }); } catch { /* the app's writes go unrecorded */ }
   toolsAtStart = toolsNow();
   // Taken before the app reads a file: a save after this moment is a change it has not loaded.
-  const note = { own: true, at: Date.now(), reloads: RELOADER.test(commandText(cmd, appDir)), answered: false };
+  const note = { own: true, at: Date.now(), reloads: RELOADER.test(cmdText), answered: false };
   note.files = sourceOf(root, files);
   loaded = note;
   // The app gets this terminal's environment, as a start by hand would, its own request limits raised
@@ -779,8 +780,12 @@ async function start(waitMs) {
     const ports = await listening(mine.pid);
     // The socket can open before the server answers; the log line is the tiebreak among several.
     const plain = withoutStores(seen.replace(/\x1b\[[0-9;]*m/g, ""));
-    const said = [...plain.matchAll(/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1?\]):(\d{2,5})\b|\bport\s*[:=]?\s*(\d{4,5})\b/gi)].map((m) => Number(m[1] || m[2]));
-    for (const port of [...new Set([...(wantedPort ? [wantedPort] : []), ...said.reverse().filter((p) => ports.includes(p)), ...ports])]) {
+    const said = [...plain.matchAll(/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1?\]):(\d{2,5})\b|\bport\s*[:=]?\s*(\d{4,5})\b/gi)].map((m) => Number(m[1] || m[2])).reverse();
+    // A container publishes its port through the daemon, so nothing in this command's own process
+    // family listens on it and `ports` stays empty however long the wait runs. What the container
+    // said is then the only evidence there is, and `answers` still has to agree before it is used.
+    const alsoSaid = IN_CONTAINER.test(cmdText) ? said : [];
+    for (const port of [...new Set([...(wantedPort ? [wantedPort] : []), ...said.filter((p) => ports.includes(p)), ...ports, ...alsoSaid])]) {
       if (await answers(port)) {
         note.answered = true;
         if (loaded === note) noteApp();
