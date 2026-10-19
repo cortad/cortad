@@ -88,7 +88,7 @@ const stepDone = (line) => { clearStep(); say(line); };
 const words = own.filter((a, i) => !a.startsWith("-") && !["--port", "--start"].includes(own[i - 1] ?? ""));
 const USAGE = `usage: npx cortad <code from the connect screen> -- <how you start your app>   |   npx cortad <code> --port <port of your running app>   |   npx cortad --explain   |   npx cortad ${[...VERBS, "wait"].join(" | ")}`;
 if (!explain && !viaToken && words.length && !/^[A-Z0-9]{8}$/.test(code)) fail(USAGE);
-// Where Brainsless is. The host is not on the command line: a code cannot point at an impostor.
+// Where Cortad is. The host is not on the command line: a code cannot point at an impostor.
 const origin = new URL(process.env.CORTAD_ORIGIN || "https://cortad.com");
 // Ours, and only ours. brainsless.com is the same service under its earlier name and stays trusted
 // while people still hold links to it.
