@@ -1,10 +1,6 @@
-# Publishes cortad from this repository. Triggered by a version tag; npm accepts it through trusted
+# Publishes cortad from this repository with npm provenance: the release on npm links to the exact
+# commit and run that built it. Triggered by a version tag; npm accepts it through trusted
 # publishing (OIDC), so no npm token exists anywhere.
-#
-# No provenance. An attestation names a public source commit, and this repository is private: npm
-# took the tarball, said it was being processed, printed the version and exited 0, and the version
-# never appeared. 0.4.6 was the last one to land, hours before the repository was closed, and 0.4.7
-# and 0.5.0 both went out green into nothing. Provenance comes back the day the repository is public.
 name: Publish
 
 on:
@@ -31,4 +27,4 @@ jobs:
       # A prerelease (0.3.0-rc.1) goes out under the next tag, so a stack can walk it before a
       # customer's `npx cortad` resolves to it.
       - run: |
-          if node -p "require('./package.json').version" | grep -q -- -; then npm publish --access public --provenance=false --tag next; else npm publish --access public --provenance=false; fi
+          if node -p "require('./package.json').version" | grep -q -- -; then npm publish --access public --tag next; else npm publish --access public; fi
