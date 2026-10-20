@@ -88,12 +88,12 @@ const stepDone = (line) => { clearStep(); say(line); };
 const words = own.filter((a, i) => !a.startsWith("-") && !["--port", "--start"].includes(own[i - 1] ?? ""));
 const USAGE = `usage: npx cortad <code from the connect screen> -- <how you start your app>   |   npx cortad <code> --port <port of your running app>   |   npx cortad --explain   |   npx cortad ${[...VERBS, "wait"].join(" | ")}`;
 if (!explain && !viaToken && words.length && !/^[A-Z0-9]{8}$/.test(code)) fail(USAGE);
-// Where Brainsless is. The host is not on the command line: a code cannot point at an impostor.
+// Where Cortad is. The host is not on the command line: a code cannot point at an impostor.
 const origin = new URL(process.env.CORTAD_ORIGIN || "https://cortad.com");
-// Ours, and only ours. brainsless.com is the same service under its earlier name and stays trusted
-// while people still hold links to it.
-// The last is our own Pages project: its subdomains are our branch deploys, staging among them.
-const OURS = ["cortad.com", "brainsless.com", "brainsless-frontend.pages.dev"];
+// Ours, and only ours. The service's earlier name was dropped with its domain, and a domain we no
+// longer hold is a host somebody else can register and be trusted as us, so it is not on this list.
+// The second is our own Pages project: its subdomains are our branch deploys, staging among them.
+const OURS = ["cortad.com", "brainsless-frontend.pages.dev"];
 const trusted = (origin.protocol === "https:" && OURS.some((host) => origin.hostname === host || origin.hostname.endsWith(`.${host}`)))
   || origin.hostname === "localhost" || origin.hostname === "127.0.0.1";
 if (!trusted) fail(`refusing: ${origin.host} is not Cortad.`);
