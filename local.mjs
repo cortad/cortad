@@ -46,6 +46,7 @@ import { makeHeld } from "./lib/held.mjs";
 import { answerAsk, ASK, makeAutoReach, takeAsk } from "./lib/auto-reach.mjs";
 import { clientOriginOf, envOf, keysFromEnv } from "./lib/origins.mjs";
 import { mintJwt, signUpAndIn, testAccount } from "./lib/sign-in.mjs";
+import { clientRequestOf } from "./lib/browser-rung.mjs";
 import { layerOf, layerSaid } from "./lib/layer.mjs";
 import { grpcCall } from "./lib/grpc.mjs";
 
@@ -1307,6 +1308,7 @@ async function countedFetch(url, init) {
 // each endpoint a message by hand: a step on every connect, and the one an agent could not finish
 // when an endpoint's own model refused (Run waited on it for a day).
 let clientOrigin = { port: undefined, value: null };
+let browserSeen = null;
 const autoReach = makeAutoReach({
   status: async () => {
     const token = readToken(project);
@@ -1322,6 +1324,14 @@ const autoReach = makeAutoReach({
   // The sign-ins Cortad can make on this machine, his yes of 2026-10-24: a token signed with the
   // app's own secret from its env, then one test account on the app's own sign-up and sign-in doors.
   mint: async () => mintJwt(envOf(root)),
+  // The last rung: the request the app's own frontend makes, captured once per connection in a
+  // headless browser on this machine, when that frontend answers at the client origin.
+  browser: async () => {
+    if (!app?.port) return null;
+    const appOrigin = `http://${appHost === "::1" ? "[::1]" : appHost ?? "127.0.0.1"}:${app.port}`;
+    if (!browserSeen || Date.now() - browserSeen.at > 600_000) browserSeen = { at: Date.now(), got: await clientRequestOf({ clientOrigin: clientOrigin.value, appOrigin }).catch(() => null) };
+    return browserSeen.got;
+  },
   account: async (auth) => (app?.port ? signUpAndIn({ origin: `http://${appHost === "::1" ? "[::1]" : appHost ?? "127.0.0.1"}:${app.port}` }, auth, testAccount(homeOf(project)), countedFetch, { origin: clientOrigin.value }) : null),
   // Sent as the person's own request was, when one was seen: the sign-in it carried, kept here.
   signIn: async () => { const theirs = capture?.headers(CAPTURED); const name = theirs && Object.keys(theirs).find((k) => /^(?:authorization|cookie)$/i.test(k)); return name ? { name: name.toLowerCase(), value: theirs[name] } : null; },

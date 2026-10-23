@@ -1,6 +1,6 @@
 {
   "name": "cortad",
-  "version": "0.5.12",
+  "version": "0.5.13",
   "description": "Connects the AI app on your machine to Cortad for test conversations, and gives your coding agent the MCP and skill to run them. No dependencies.",
   "bin": {
     "cortad": "local.mjs"
@@ -40,6 +40,7 @@
     "lib/pyhook/cortad_sites.py",
     "lib/origins.mjs",
     "lib/sign-in.mjs",
+    "lib/browser-rung.mjs",
     "lib/reach.mjs",
     "lib/read-text.mjs",
     "lib/register.mjs",
@@ -84,5 +85,8 @@
   "devDependencies": {
     "@grpc/grpc-js": "^1.14.6",
     "@grpc/proto-loader": "^0.8.1"
+  },
+  "dependencies": {
+    "playwright-core": "1.64.1"
   }
 }
