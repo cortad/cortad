@@ -1022,7 +1022,8 @@ key = attach.data.key;
 // code that calls the model, the routes that reach it and the shapes they read, chosen by the read's
 // own parsers (lib/layer.mjs) and listed in this project's home for the agent to open. The rest of the
 // folder is never sent, and a read may not ask for it later (readable).
-if (attach.data.upload !== "tree") {
+// Only on the server's word: a server from before this answer sends none, and that is the tree.
+if (attach.data.upload === "layer") {
   step("choosing what to send: the prompts, the evals and the code that calls the model");
   const candidates = [];
   for (const rel of files) { let full; try { full = readFileSync(join(root, rel), "utf8"); } catch { continue; } candidates.push({ path: rel, head: full.slice(0, 4000), size: Buffer.byteLength(full), full }); }
