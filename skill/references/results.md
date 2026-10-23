@@ -35,7 +35,9 @@ Endpoints found in your code that Cortad has seen no answer from yet (2):
   POST /api/homework/explain  apps/api/src/routes/homework.ts:18  Cortad's test request was answered with HTTP 500.
   POST /api/progress/summary  apps/api/src/routes/progress.ts:9  Needs a signed-in user.
 Send each one message as a user would, signed in where your app needs it, or call reach to send the request Cortad read for them.
+One of them refused a visitor: ask the person for a test account to sign in as (an existing one; Cortad makes none), or whether to leave it out of the first run.
 An endpoint that hands back a turn and answers afterwards stays on this list until Cortad has seen the answer its model wrote: the first reply alone does not take it off.
+Which of these the first run tests is the person's choice: ask them, then call test with features naming the endpoints to keep; or they tick them on the card in the browser.
 A run plays 36 simulated users in about 6 minutes. About $0.38 on your OpenAI key.
 A run starts when the person presses Run on the card in the browser or asks you for one; if they say they pressed it, call run rather than ask them again.
 ```
