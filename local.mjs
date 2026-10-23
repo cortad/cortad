@@ -1040,8 +1040,9 @@ if (attach.data.upload === "layer") {
   const said = layerSaid(chosen);
   layer = { ...said, set: new Set(chosen.files) };
   const sentList = join(homeOf(project), "sent.json");
-  try { mkdirSync(homeOf(project), { recursive: true, mode: 0o700 }); writeFileSync(sentList, JSON.stringify({ ...said, files: chosen.files.map((f) => ({ path: f, why: chosen.why.get(f) })) }, null, 1), { mode: 0o600 }); } catch { /* the list is for reading; the send does not depend on it */ }
-  say(`sending the part of this code that is its AI, so simulated users can be written for it: ${said.prompts} prompts, ${said.modelCalls} model calls, ${said.evals} eval files, the routes that reach the model and the shapes they read. ${layer.set.size} of ${candidates.length} files; the list is at ${sentList}. The rest of this folder is not sent.`);
+  try { mkdirSync(homeOf(project), { recursive: true, mode: 0o700 }); writeFileSync(sentList, JSON.stringify({ ...said, files: chosen.files.map((f) => ({ path: f, why: chosen.why.get(f) })), leftOut: chosen.dropped ?? [] }, null, 1), { mode: 0o600 }); } catch { /* the list is for reading; the send does not depend on it */ }
+  const left = said.leftOut.files ? ` ${said.leftOut.files} large data and test files were left out to keep the upload under 16 MB; they are named in the list.` : "";
+  say(`sending the part of this code that is its AI, so simulated users can be written for it: ${said.prompts} prompts, ${said.modelCalls} model calls, ${said.evals} eval files, the routes that reach the model and the shapes they read. ${layer.set.size} of ${candidates.length} files; the list is at ${sentList}.${left} The rest of this folder is not sent.`);
 } else {
   say(`sending this folder's code as this project has before: ${files.length} files, env files and keys left out.`);
 }
