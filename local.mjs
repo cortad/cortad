@@ -44,6 +44,7 @@ import { downLine, makeHealth } from "./lib/health.mjs";
 import { markRun, writesDirOf, writtenPaths } from "./lib/writes.mjs";
 import { makeHeld } from "./lib/held.mjs";
 import { answerAsk, ASK, makeAutoReach, takeAsk } from "./lib/auto-reach.mjs";
+import { clientOriginOf, keysFromEnv } from "./lib/origins.mjs";
 import { layerOf, layerSaid } from "./lib/layer.mjs";
 import { grpcCall } from "./lib/grpc.mjs";
 
@@ -1304,6 +1305,7 @@ async function countedFetch(url, init) {
 // one again on demand. Until 2026-10-23 nothing was sent without the agent asking, and the agent sent
 // each endpoint a message by hand: a step on every connect, and the one an agent could not finish
 // when an endpoint's own model refused (Run waited on it for a day).
+let clientOrigin = { port: undefined, value: null };
 const autoReach = makeAutoReach({
   status: async () => {
     const token = readToken(project);
@@ -1312,14 +1314,18 @@ const autoReach = makeAutoReach({
   },
   runner: () => (became?.state === "up" && !restarting ? { state: "up", ...became.fields } : null),
   waiting: async () => (gate ? "Your app is being started again." : null),
-  origin: () => null,
+  // Sent as the app's own client sends it: the client origin the code names (read once per app
+  // port, from this folder, never sent on), else the app's own origin.
+  origin: () => { const port = app?.port ?? null; if (clientOrigin.port !== port) clientOrigin = { port, value: clientOriginOf(root, { port }) ?? (port ? `http://localhost:${port}` : null) }; return clientOrigin.value; },
+  keys: () => keysFromEnv(root),
   // Sent as the person's own request was, when one was seen: the sign-in it carried, kept here.
   signIn: async () => { const theirs = capture?.headers(CAPTURED); const name = theirs && Object.keys(theirs).find((k) => /^(?:authorization|cookie)$/i.test(k)); return name ? { name: name.toLowerCase(), value: theirs[name] } : null; },
   stampOf: (m) => { try { return m.file ? String(statSync(join(root, m.file)).mtimeMs) : ""; } catch { return ""; } },
   // A round of this command's own stops between two sends for an agent's ask, and for a run: its
   // requests are the app's to answer first, and on an app that serves one request at a time a test
   // request of ours in the queue is a reply the run waits for.
-  asked: () => existsSync(join(homeOf(project), ASK)) || answering > 0,
+  asked: () => existsSync(join(homeOf(project), ASK)),
+  busy: () => answering > 0,
   report: async (answers) => {
     if (!answers.length && reachedBox === box) return true;
     const to = box;
