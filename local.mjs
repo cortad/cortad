@@ -44,7 +44,8 @@ import { downLine, makeHealth } from "./lib/health.mjs";
 import { markRun, writesDirOf, writtenPaths } from "./lib/writes.mjs";
 import { makeHeld } from "./lib/held.mjs";
 import { answerAsk, ASK, makeAutoReach, takeAsk } from "./lib/auto-reach.mjs";
-import { clientOriginOf, keysFromEnv } from "./lib/origins.mjs";
+import { clientOriginOf, envOf, keysFromEnv } from "./lib/origins.mjs";
+import { mintJwt, signUpAndIn, testAccount } from "./lib/sign-in.mjs";
 import { layerOf, layerSaid } from "./lib/layer.mjs";
 import { grpcCall } from "./lib/grpc.mjs";
 
@@ -1318,6 +1319,10 @@ const autoReach = makeAutoReach({
   // port, from this folder, never sent on), else the app's own origin.
   origin: () => { const port = app?.port ?? null; if (clientOrigin.port !== port) clientOrigin = { port, value: clientOriginOf(root, { port }) ?? (port ? `http://localhost:${port}` : null) }; return clientOrigin.value; },
   keys: () => keysFromEnv(root),
+  // The sign-ins Cortad can make on this machine, his yes of 2026-10-24: a token signed with the
+  // app's own secret from its env, then one test account on the app's own sign-up and sign-in doors.
+  mint: async () => mintJwt(envOf(root)),
+  account: async (auth) => (app?.port ? signUpAndIn({ origin: `http://${appHost === "::1" ? "[::1]" : appHost ?? "127.0.0.1"}:${app.port}` }, auth, testAccount(homeOf(project)), countedFetch, { origin: clientOrigin.value }) : null),
   // Sent as the person's own request was, when one was seen: the sign-in it carried, kept here.
   signIn: async () => { const theirs = capture?.headers(CAPTURED); const name = theirs && Object.keys(theirs).find((k) => /^(?:authorization|cookie)$/i.test(k)); return name ? { name: name.toLowerCase(), value: theirs[name] } : null; },
   stampOf: (m) => { try { return m.file ? String(statSync(join(root, m.file)).mtimeMs) : ""; } catch { return ""; } },

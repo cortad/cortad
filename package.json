@@ -1,6 +1,6 @@
 {
   "name": "cortad",
-  "version": "0.5.11",
+  "version": "0.5.12",
   "description": "Connects the AI app on your machine to Cortad for test conversations, and gives your coding agent the MCP and skill to run them. No dependencies.",
   "bin": {
     "cortad": "local.mjs"
@@ -39,6 +39,7 @@
     "lib/pyhook/cortad_tied.py",
     "lib/pyhook/cortad_sites.py",
     "lib/origins.mjs",
+    "lib/sign-in.mjs",
     "lib/reach.mjs",
     "lib/read-text.mjs",
     "lib/register.mjs",
