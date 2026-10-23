@@ -1,79 +1,80 @@
 {
-  "name": "cortad",
-  "version": "0.5.0",
-  "description": "Connects the AI app on your machine to Cortad for test conversations, and gives your coding agent the MCP and skill to run them. No dependencies.",
-  "bin": {
-    "cortad": "local.mjs"
-  },
-  "type": "module",
-  "files": [
-    "README.md",
-    "lib/app-port.mjs",
-    "lib/auto-reach.mjs",
-    "lib/calls.mjs",
-    "lib/cli.mjs",
-    "lib/commits.mjs",
-    "lib/contact-text.mjs",
-    "lib/dissection-text.mjs",
-    "lib/document.mjs",
-    "lib/doors.mjs",
-    "lib/failed-text.mjs",
-    "lib/files.mjs",
-    "lib/fresh.mjs",
-    "lib/health.mjs",
-    "lib/held.mjs",
-    "lib/home.mjs",
-    "lib/env-files.mjs",
-    "lib/env-secrets.mjs",
-    "lib/keys.mjs",
-    "lib/lock.mjs",
-    "lib/mcp.mjs",
-    "lib/numbers-text.mjs",
-    "lib/proc.mjs",
-    "lib/proof.mjs",
-    "lib/proxy.mjs",
-    "lib/pyhook/sitecustomize.py",
-    "lib/pyhook/cortad_tied.py",
-    "lib/pyhook/cortad_sites.py",
-    "lib/reach.mjs",
-    "lib/read-text.mjs",
-    "lib/register.mjs",
-    "lib/replay.mjs",
-    "lib/runner.mjs",
-    "lib/sample.mjs",
-    "lib/spec.mjs",
-    "lib/start.mjs",
-    "lib/stick.mjs",
-    "lib/switches.mjs",
-    "lib/tether.mjs",
-    "lib/text.mjs",
-    "lib/tied.cjs",
-    "lib/trace.cjs",
-    "lib/wire.cjs",
-    "lib/verbs.mjs",
-    "lib/intel-text.mjs",
-    "lib/writes.mjs",
-    "lib/words.mjs",
-    "local.mjs",
-    "skill/SKILL.md",
-    "skill/references/results.md"
-  ],
-  "scripts": {
-    "test": "node --test lib/*.test.mjs"
-  },
-  "engines": {
-    "node": ">=20"
-  },
-  "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://cortad.com",
-  "publishConfig": {
-    "access": "public"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/brainsless/cortad.git"
-  },
-  "bugs": {
-    "url": "https://github.com/brainsless/cortad/issues"
-  }
+ "name": "cortad",
+ "version": "0.5.1",
+ "description": "Connects the AI app on your machine to Cortad for test conversations, and gives your coding agent the MCP and skill to run them. No dependencies.",
+ "bin": {
+  "cortad": "local.mjs"
+ },
+ "type": "module",
+ "files": [
+  "README.md",
+  "lib/app-port.mjs",
+  "lib/auto-reach.mjs",
+  "lib/calls.mjs",
+  "lib/cli.mjs",
+  "lib/commits.mjs",
+  "lib/contact-text.mjs",
+  "lib/dissection-text.mjs",
+  "lib/document.mjs",
+  "lib/doors.mjs",
+  "lib/failed-text.mjs",
+  "lib/files.mjs",
+  "lib/fresh.mjs",
+  "lib/health.mjs",
+  "lib/held.mjs",
+  "lib/home.mjs",
+  "lib/env-files.mjs",
+  "lib/env-secrets.mjs",
+  "lib/layer.mjs",
+  "lib/keys.mjs",
+  "lib/lock.mjs",
+  "lib/mcp.mjs",
+  "lib/numbers-text.mjs",
+  "lib/proc.mjs",
+  "lib/proof.mjs",
+  "lib/proxy.mjs",
+  "lib/pyhook/sitecustomize.py",
+  "lib/pyhook/cortad_tied.py",
+  "lib/pyhook/cortad_sites.py",
+  "lib/reach.mjs",
+  "lib/read-text.mjs",
+  "lib/register.mjs",
+  "lib/replay.mjs",
+  "lib/runner.mjs",
+  "lib/sample.mjs",
+  "lib/spec.mjs",
+  "lib/start.mjs",
+  "lib/stick.mjs",
+  "lib/switches.mjs",
+  "lib/tether.mjs",
+  "lib/text.mjs",
+  "lib/tied.cjs",
+  "lib/trace.cjs",
+  "lib/wire.cjs",
+  "lib/verbs.mjs",
+  "lib/intel-text.mjs",
+  "lib/writes.mjs",
+  "lib/words.mjs",
+  "local.mjs",
+  "skill/SKILL.md",
+  "skill/references/results.md"
+ ],
+ "scripts": {
+  "test": "node --test lib/*.test.mjs"
+ },
+ "engines": {
+  "node": ">=20"
+ },
+ "license": "SEE LICENSE IN LICENSE",
+ "homepage": "https://cortad.com",
+ "publishConfig": {
+  "access": "public"
+ },
+ "repository": {
+  "type": "git",
+  "url": "git+https://github.com/brainsless/cortad.git"
+ },
+ "bugs": {
+  "url": "https://github.com/brainsless/cortad/issues"
+ }
 }

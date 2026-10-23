@@ -59,6 +59,12 @@ The hooks run after an edit and on your next message: the first names the prompt
 
 Nothing about your environment is guessed or changed. Your app gets this terminal's environment and its own request limits raised for the session, by name; its env files are read only to hide their values in what leaves this machine. Nothing is copied or started beside it: test conversations write where your app writes, after your yes in the browser.
 
+## What leaves this machine
+
+The part of the code that is its AI, chosen by the same parsers that read it: the prompts, the evals, the code that calls the model, the routes that reach it and the shapes they read, with the README, the manifests and the schema. The command prints the counts before it sends anything, and the list of files with the reason each was chosen is written to `~/.cortad/<project>/sent.json`. Nothing else in the folder is sent, and a read may not ask for it afterwards. Env files are read only to hide their values; keys never leave. A project that connected before 2026-10-23 sent its whole tree and goes on doing so, so its read and its history stand.
+
+After the connect, the command sends each AI endpoint one test request built from what was read, from this machine to your app on its port, and the conversations of a run go the same way. The exchanges, the model calls your app made and the replies are what Cortad judges; `--explain` prints what would be sent and started without sending anything.
+
 ## Files it creates
 
 - `~/.cortad/<project>/`     the key, the start command, the last tree digest, which process holds your app up, your app's output in `app.log`, the sign-in your own request carried, the run it asked for last, in `news.txt` the line a finished run left for your agent, removed once the agent has it, and in `heard.txt` the ids of the runs your agent has read

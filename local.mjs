@@ -44,6 +44,7 @@ import { downLine, makeHealth } from "./lib/health.mjs";
 import { markRun, writesDirOf, writtenPaths } from "./lib/writes.mjs";
 import { makeHeld } from "./lib/held.mjs";
 import { answerAsk, ASK, makeAutoReach, takeAsk } from "./lib/auto-reach.mjs";
+import { layerOf, layerSaid } from "./lib/layer.mjs";
 
 const argv = process.argv.slice(2);
 // The two faces a coding agent uses after the first connect (lib/cli.mjs): the MCP server the
@@ -237,6 +238,9 @@ function carriesKey(rel) {
 }
 
 let secrets = [];
+// The AI layer this folder sends in place of its tree (lib/layer.mjs), once chosen: what it held and
+// the set of files, which is also every file a read may ask this machine for afterwards.
+let layer = null;
 // A run's request to an endpoint your app answers later carries the first (src/customer/endpoint.ts),
 // with how long the run waits for this reply; a reply with no answer says in the second why none came.
 // The wait here ends a few seconds before the run's own and the wire's hold, so the reason reaches it.
@@ -355,6 +359,7 @@ const readable = (p) => {
   const home = realpathSync(root);
   if (!landed.startsWith(home + sep) || ENV_FILE.test(basename(landed)) || SECRET_PATH.test(landed)) return null;
   const rel = relative(home, landed);
+  if (layer && !layer.set.has(rel)) return null;
   return shareable(rel) && !carriesKey(rel) ? landed : null;
 };
 // A shell line runs with a plain environment: the app's own process reads its .env itself, and
@@ -1012,18 +1017,38 @@ if (!viaToken && !code && !attach?.ok) {
 if (!attach.ok) fail(attach.data?.error ?? `could not sign in (${attach.status})`);
 box = attach.data.box;
 key = attach.data.key;
+// What this folder sends. A folder that sent its whole tree before goes on doing so: its read, its code
+// versions and its history stay as they are. A new one sends its AI layer: the prompts, the evals, the
+// code that calls the model, the routes that reach it and the shapes they read, chosen by the read's
+// own parsers (lib/layer.mjs) and listed in this project's home for the agent to open. The rest of the
+// folder is never sent, and a read may not ask for it later (readable).
+if (attach.data.upload !== "tree") {
+  step("choosing what to send: the prompts, the evals and the code that calls the model");
+  const candidates = [];
+  for (const rel of files) { let full; try { full = readFileSync(join(root, rel), "utf8"); } catch { continue; } candidates.push({ path: rel, head: full.slice(0, 4000), size: Buffer.byteLength(full), full }); }
+  const chosen = layerOf(candidates);
+  const said = layerSaid(chosen);
+  layer = { ...said, set: new Set(chosen.files) };
+  const sentList = join(homeOf(project), "sent.json");
+  try { mkdirSync(homeOf(project), { recursive: true, mode: 0o700 }); writeFileSync(sentList, JSON.stringify({ ...said, files: chosen.files.map((f) => ({ path: f, why: chosen.why.get(f) })) }, null, 1), { mode: 0o600 }); } catch { /* the list is for reading; the send does not depend on it */ }
+  say(`sending the part of this code that is its AI, so simulated users can be written for it: ${said.prompts} prompts, ${said.modelCalls} model calls, ${said.evals} eval files, the routes that reach the model and the shapes they read. ${layer.set.size} of ${candidates.length} files; the list is at ${sentList}. The rest of this folder is not sent.`);
+} else {
+  say(`sending this folder's code as this project has before: ${files.length} files, env files and keys left out.`);
+}
+// What goes up. `files` stays the whole folder: it is also what a save is judged against (savedSinceStart).
+const sending = layer ? files.filter((rel) => layer.set.has(rel)) : files;
 // Taken once the code is accepted: a mistyped one never ends a runner that was working.
 if (!viaToken) await holdProject();
 writeFileSync(bootLog, "", { mode: 0o600 });
 
 const list = join(work, "files.txt");
-writeFileSync(list, files.join("\n") + "\n");
+writeFileSync(list, sending.join("\n") + "\n");
 // Which code this is, from what the files say rather than from the archive: gzip stamps the time into
 // every archive, so the same folder packed twice never matched and every reconnect bought a whole new
 // read of code that had not changed, emptying the page's counts and its price while it ran.
 const treeDigest = (() => {
   const h = createHash("sha256");
-  for (const rel of [...files].sort()) {
+  for (const rel of [...sending].sort()) {
     let body = Buffer.alloc(0);
     try { body = readFileSync(join(root, rel)); } catch { continue; }
     h.update(rel).update("\0").update(createHash("sha256").update(body).digest("hex")).update("\n");
@@ -1062,7 +1087,7 @@ async function sendTree() {
     // row exists, kept in ~/.cortad for the runs a coding agent asks for on later days. A connect by a
     // code asks too, since the code may be another account's: the key kept from the account before
     // signed the coding agent's tools into that one, its runs and its counts.
-    const put = await call("PUT", `/local/${box}/tree?part=${Math.floor(off / PART)}&last=${last ? 1 : 0}${last ? `&digest=${treeDigest}${head ? `&head=${head}` : ""}` : ""}`, bytes.subarray(off, off + PART),
+    const put = await call("PUT", `/local/${box}/tree?part=${Math.floor(off / PART)}&last=${last ? 1 : 0}${last ? `&digest=${treeDigest}${head ? `&head=${head}` : ""}${layer ? `&layer=1&files=${layer.files}&prompts=${layer.prompts}&calls=${layer.modelCalls}&evals=${layer.evals}` : ""}` : ""}`, bytes.subarray(off, off + PART),
       { raw: true, timeoutMs: 120_000, ...(last && !viaToken && (!stored || code) ? { headers: { "x-cortad-machine": hostname().slice(0, 80) } } : {}) }).catch((err) => ({ ok: false, status: 0, err }));
     if (!put.ok) return put;
     if (last) {
@@ -1086,7 +1111,7 @@ if (!sent.ok) sent.err ? unreachable(sent.err) : fail(sent.data?.error ?? `uploa
 async function sendHistory() {
   const last = await call("GET", `/local/${box}/commits/last`);
   if (!last.ok) return;
-  const keeps = (rel) => { const parts = rel.split("/"); return !parts.slice(0, -1).some((d) => SKIP_DIR.test(d)) && !SKIP_FILE.test(parts.at(-1)) && !ENV_FILE.test(parts.at(-1)) && !kept.includes(rel); };
+  const keeps = (rel) => { const parts = rel.split("/"); return !parts.slice(0, -1).some((d) => SKIP_DIR.test(d)) && !SKIP_FILE.test(parts.at(-1)) && !ENV_FILE.test(parts.at(-1)) && !kept.includes(rel) && (!layer || layer.set.has(rel)); };
   const parts = historyParts(root, typeof last.data?.sha === "string" ? last.data.sha : null, { keep: keeps, holdsKey: (line) => holdsKeys(line, envKeys) });
   for (const [i, commits] of parts.entries()) {
     const put = await call("PUT", `/local/${box}/commits`, { commits, ...(i === 0 ? { repo: repoFacts(root) } : {}) }, { timeoutMs: 120_000 });
@@ -1262,9 +1287,12 @@ async function countedFetch(url, init) {
     return new Response(body.byteLength ? body : null, { status: res.status, statusText: res.statusText, headers: res.headers });
   } finally { answering -= 1; }
 }
-// The agent's `reach`: a request Cortad builds from what it read, sent from here to the app on its
-// port, only when the agent asks for it (lib/auto-reach.mjs). Nothing is sent to the app on Cortad's
-// own account: the one request that proves an endpoint is the one the person or their agent sends.
+// The test request that proves an endpoint: built by Cortad from what it read, sent from here to the
+// app on its port (lib/auto-reach.mjs). Sent by this command as soon as the app is up and the read
+// names the endpoint, once per endpoint and again when its file changes; the agent's `reach` sends
+// one again on demand. Until 2026-10-23 nothing was sent without the agent asking, and the agent sent
+// each endpoint a message by hand: a step on every connect, and the one an agent could not finish
+// when an endpoint's own model refused (Run waited on it for a day).
 const autoReach = makeAutoReach({
   status: async () => {
     const token = readToken(project);
@@ -1277,7 +1305,10 @@ const autoReach = makeAutoReach({
   // Sent as the person's own request was, when one was seen: the sign-in it carried, kept here.
   signIn: async () => { const theirs = capture?.headers(CAPTURED); const name = theirs && Object.keys(theirs).find((k) => /^(?:authorization|cookie)$/i.test(k)); return name ? { name: name.toLowerCase(), value: theirs[name] } : null; },
   stampOf: (m) => { try { return m.file ? String(statSync(join(root, m.file)).mtimeMs) : ""; } catch { return ""; } },
-  asked: () => existsSync(join(homeOf(project), ASK)),
+  // A round of this command's own stops between two sends for an agent's ask, and for a run: its
+  // requests are the app's to answer first, and on an app that serves one request at a time a test
+  // request of ours in the queue is a reply the run waits for.
+  asked: () => existsSync(join(homeOf(project), ASK)) || answering > 0,
   report: async (answers) => {
     if (!answers.length && reachedBox === box) return true;
     const to = box;
@@ -1292,9 +1323,17 @@ const autoReach = makeAutoReach({
 // The connection the server last heard what the agent's requests met; a reattach is a new one.
 let reachedBox = "";
 async function reachLoop() {
+  // A round of this command's own runs when the last one said to look again; an agent's ask is taken
+  // the second it is left and never waits for one.
+  let roundAt = 0;
   for (; !closing; await new Promise((r) => setTimeout(r, 1000))) {
     const ask = takeAsk(homeOf(project));
-    if (!ask) continue;
+    if (!ask) {
+      if (Date.now() < roundAt || !app?.port || answering > 0 || gate) continue;
+      const out = await autoReach(null).catch(() => null);
+      roundAt = Date.now() + (out?.wait ?? 30_000);
+      continue;
+    }
     const out = await autoReach(ask).catch(() => null);
     try { answerAsk(homeOf(project), ask.id, out?.text ?? "Nothing was sent.\nnext: status"); } catch { /* the agent's wait runs out */ }
   }
