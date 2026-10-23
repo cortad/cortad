@@ -1,6 +1,6 @@
 {
  "name": "cortad",
- "version": "0.5.5",
+ "version": "0.5.6",
  "description": "Connects the AI app on your machine to Cortad for test conversations, and gives your coding agent the MCP and skill to run them. No dependencies.",
  "bin": {
   "cortad": "local.mjs"
@@ -20,12 +20,14 @@
   "lib/failed-text.mjs",
   "lib/files.mjs",
   "lib/fresh.mjs",
+  "lib/grpc.mjs",
   "lib/health.mjs",
   "lib/held.mjs",
   "lib/home.mjs",
   "lib/env-files.mjs",
   "lib/env-secrets.mjs",
   "lib/layer.mjs",
+  "lib/py/pyreach.py",
   "lib/keys.mjs",
   "lib/lock.mjs",
   "lib/mcp.mjs",
@@ -76,5 +78,9 @@
  },
  "bugs": {
   "url": "https://github.com/brainsless/cortad/issues"
+ },
+ "devDependencies": {
+  "@grpc/grpc-js": "^1.14.6",
+  "@grpc/proto-loader": "^0.8.1"
  }
 }

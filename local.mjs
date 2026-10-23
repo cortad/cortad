@@ -45,6 +45,7 @@ import { markRun, writesDirOf, writtenPaths } from "./lib/writes.mjs";
 import { makeHeld } from "./lib/held.mjs";
 import { answerAsk, ASK, makeAutoReach, takeAsk } from "./lib/auto-reach.mjs";
 import { layerOf, layerSaid } from "./lib/layer.mjs";
+import { grpcCall } from "./lib/grpc.mjs";
 
 const argv = process.argv.slice(2);
 // The two faces a coding agent uses after the first connect (lib/cli.mjs): the MCP server the
@@ -429,6 +430,14 @@ async function verb(job) {
         }
       }
       const method = String(b.method ?? "GET").toUpperCase();
+      // A gRPC door: dialled with the app's own @grpc/grpc-js and its .proto files (lib/grpc.mjs); the
+      // reply comes back as JSON text the way an HTTP door's body does.
+      if (method === "GRPC") {
+        try {
+          const out = await grpcCall({ path, body: b.body, headers, port: app.port, appDir, root });
+          return { status: out.status, headers: { "content-type": out.type }, body: mask(out.text), truncated: false };
+        } finally { held.done(job.id); }
+      }
       const init = { method, headers, redirect: "manual" };
       // Speaking as one of several customers, the ids in the body are that customer's own.
       const body = spokenAs ? capture?.bodyAs(spokenAs, `${method} ${path.split("?")[0]}`, b.body) ?? b.body : b.body;
