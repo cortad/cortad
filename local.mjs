@@ -17,6 +17,7 @@
 import { notAnApp, withoutStores } from "./lib/app-port.mjs";
 import { holdsKeys, secretEnvValues } from "./lib/keys.mjs";
 import { envFilesNamedIn, parseEnv } from "./lib/env-files.mjs";
+import { startCause } from "./lib/start-cause.mjs";
 import { historyParts, repoFacts } from "./lib/commits.mjs";
 import { spawn, execFile, execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -45,7 +46,7 @@ import { markRun, writesDirOf, writtenPaths } from "./lib/writes.mjs";
 import { makeHeld } from "./lib/held.mjs";
 import { answerAsk, ASK, makeAutoReach, takeAsk } from "./lib/auto-reach.mjs";
 import { clientOriginOf, envOf, keysFromEnv } from "./lib/origins.mjs";
-import { mintJwt, signUpAndIn, testAccount } from "./lib/sign-in.mjs";
+import { forgetSignIn, keptSignIn, mintJwt, rememberSignIn, signUpAndIn, testAccount } from "./lib/sign-in.mjs";
 import { clientRequestOf } from "./lib/browser-rung.mjs";
 import { layerOf, layerSaid } from "./lib/layer.mjs";
 import { grpcCall } from "./lib/grpc.mjs";
@@ -691,7 +692,8 @@ async function startApp() {
 function whyNot(up) {
   const h = up.held;
   if (h) return `port ${h.port} is in use by another program (pid ${h.pid}${h.command ? `, ${h.command}` : ""}), so your app cannot listen there. Stop that program and save a file here, and your app is started again by itself; or run this command with --port ${h.port} to use the one running as it is.`;
-  return `${up.exited !== null ? "your app stopped before it answered" : "your app did not answer within three minutes"}. What it printed is above, and it is your app's own output. Fix it and save a file here: your app is started again by itself with the same command.`;
+  const cause = startCause(up.tail);
+  return `${up.exited !== null ? "your app stopped before it answered" : "your app did not answer within three minutes"}. ${cause ? `${cause}. ` : ""}What it printed is above, and it is your app's own output. Fix it and save a file here: your app is started again by itself with the same command.`;
 }
 
 // What the running app was started from, noted in app.json for the verbs, which run in another
@@ -1324,6 +1326,10 @@ const autoReach = makeAutoReach({
   // The sign-ins Cortad can make on this machine, his yes of 2026-10-24: a token signed with the
   // app's own secret from its env, then one test account on the app's own sign-up and sign-in doors.
   mint: async () => mintJwt(envOf(root)),
+  // The sign-in that worked last time, kept in this folder's ~/.cortad so a restart costs no endpoint a request again.
+  kept: async () => keptSignIn(homeOf(project)),
+  onSignedIn: (as) => rememberSignIn(homeOf(project), as),
+  onKeptRefused: () => forgetSignIn(homeOf(project)),
   // The last rung: the request the app's own frontend makes, captured once per connection in a
   // headless browser on this machine, when that frontend answers at the client origin.
   browser: async () => {
