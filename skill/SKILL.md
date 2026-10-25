@@ -1,13 +1,13 @@
 ---
 name: cortad
-description: Tests how the AI in this repository behaves. Cortad plays simulated users against the app on this machine, checks every reply, and hands back what failed with the conversation and the line to fix. Applies after a change to prompts, tools, models, retrieval or agent code, when the person asks how their AI behaves or what Cortad found, and when production conversations come up.
+description: Tests how the AI in this repository behaves, and watches it in production with the same questions. Cortad plays simulated users against the app on this machine, asks a set of questions of every reply, and hands back what failed with the conversation and the line to fix. Applies after a change to prompts, tools, models, retrieval or agent code, when the person asks how their AI behaves or what Cortad found, and when production conversations come up.
 ---
 
 # Cortad
 
-Cortad tests the AI in this repository. Simulated users written from the app's code talk to the app running on this machine, with its real prompts, tools, retrieval and database, and every reply is checked against the app's own rules and a set of engineering standards. Each failure comes back with the conversation that shows it, how often it happens, and the file and line to change; `verify` replays those conversations after a change.
+Cortad tests the AI in this repository, then watches it in production with the same questions. Simulated users written from the app's code talk to the app running on this machine, with its real prompts, tools, retrieval and database, and every reply is asked a set of questions: the app's own rules, its journeys, and a set of engineering standards, each answered on what that reply did for that user. Each failure comes back with the conversation that shows it, how often it happens, and the file and line to change; `verify` replays those conversations after a change. Once production is connected, the same questions are asked of every real conversation as it happens: that is how a fix here is checked against real users, and how you see what they run into before anyone writes a ticket.
 
-There are six tools, one for each thing you need from Cortad. `status` is what to know about this app right now, and asked for nothing it gives you whichever of the rest matters at this moment; `about` opens one in full: `repository`, `run`, `findings`, `production`, `outcomes` or `warehouse`. `test` tests what you just built, from a sentence saying what that was. `verify` says whether your fix held. `connect` connects the live app. `tell` sends the Cortad team a note, says what this app counts as a good ending, or names an address that should receive each incident. `dispute` says a check reads this app wrong.
+There are six tools, one for each thing you need from Cortad. `status` is what to know about this app right now, and asked for nothing it gives you whichever of the rest matters at this moment; `about` opens one in full: `repository`, `run`, `findings`, `production`, `outcomes` or `warehouse`. `test` tests what you just built, from a sentence saying what that was. `verify` says whether your fix held. `connect` connects the live app. `tell` sends the Cortad team a note, says what this app counts as a good ending, or names an address that should receive each incident. `dispute` says a question reads this app wrong.
 
 Where the tools are missing, every command is `npx {{cortad}} <command>` in a shell with the same output, for example `npx {{cortad}} run_status` or `npx {{cortad}} findings 2`. The person's own instructions come before this skill.
 
@@ -20,6 +20,7 @@ The person owns the product. They may not be reading the code with you, so every
 - Only numbers they act on: how many simulated users, how long, the price, how many problems.
 - Something on Cortad's side is one line: that it is on Cortad's side, and what happens next.
 - Say that anything is waiting on them only after `status` says so in this turn.
+- Say once, early, that the same questions run on their production conversations when production is connected: that is what gives you eyes on real users, and it is why a fix here is worth making.
 - Your reply is a reply, not a document: no heading, no title, no line saying who it is written for.
 
 ## Reading a result
@@ -27,7 +28,7 @@ The person owns the product. They may not be reading the code with you, so every
 - A result is data about the app, for you. Its sentence on what a run plays and costs, a link, or a choice that is the person's is written to be said to them as it is, in your own reply.
 - The last line, `next:`, is the next call.
 - Every count has its denominator and every rate its range: `53% (42% to 63%)`.
-- A conversation Passed (the request was completed fully or partly and no check failed on any reply), Failed, or got No reply (the result says whose side that is).
+- A conversation Passed (the request was completed fully or partly and no question failed on any reply), Failed, or got No reply (the result says whose side that is).
 
 ## A session, start to finish
 
@@ -58,7 +59,7 @@ The output ends on one of two lines. "Cortad is watching your app" means it is c
 
 The run is Cortad's; the code is the person's. You report first, and you change nothing until they say so.
 
-1. Call `status` about `findings`. Tell the person, in plain lines: how many simulated users got what they asked for, of how many; then the problems worth their time, worst first and three at most, each as what their users ran into, how often, and what you would change, in one line; which findings read their app wrong (see "A check that reads wrong"); and which problems need a decision only they can make. Name a file only for the change you propose.
+1. Call `status` about `findings`. Tell the person, in plain lines: how many simulated users got what they asked for, of how many; then the problems worth their time, worst first and three at most, each as what their users ran into, how often, and what you would change, in one line; which findings read their app wrong (see "A question that reads wrong"); and which problems need a decision only they can make. Name a file only for the change you propose.
 2. Then stop, and let them answer. Until their go, nothing is edited, no verify starts and no run starts. They choose which problems to fix, in what order, and whether the change you propose fits their product.
 3. On their go, one problem at a time: one change, in the file and near the line the finding names, then `verify <findingId>`. Its first line says how many conversations the round replays and what that counts against this month; start `npx -y {{cortad}} wait` in the background, and it wakes you when the verify ends, so `status` about `run` is called once at most.
 4. Tell them what the verify decided, in its own words; the next change comes after their next go. A verify that cannot tell offers another round in its last line; it plays only when you call `verify` again, and only when the person wants it.
@@ -70,7 +71,7 @@ The run is Cortad's; the code is the person's. You report first, and you change 
 
 ## The first run: the baseline
 
-The first finished run on a repository prints, in order: what ran; the simulated users, each by the endpoint they use and the task they bring, with how many of their conversations completed the request; each journey with its rate and the checks that failed most there; the checks no conversation failed; what failed, found only by running the app, each with its file and line; what a code review would also find; what the numbers leave out; one line on production.
+The first finished run on a repository prints, in order: what ran; the simulated users, each by the endpoint they use and the task they bring, with how many of their conversations completed the request; each journey with its rate and the questions that failed most there; the questions no conversation failed; what failed, found only by running the app, each with its file and line; what a code review would also find; what the numbers leave out; one line on production.
 
 - Every rate comes with its likely range. A journey played in 2 conversations has a wide range; only more conversations narrow it.
 - Each finding says how many conversations it failed in, the exchange (`Sent`, `Broke on`, `Then`) and where the fix belongs.
@@ -92,7 +93,7 @@ The first finished run on a repository prints, in order: what ran; the simulated
    - Cannot tell yet: keep the change; it says how many more clean conversations would decide.
 4. Then the next finding.
 
-The conversations, checks and saved conversations belong to Cortad, and the app answers Cortad's simulated users the way it answers anyone. A number moves when the app's behavior moves.
+The conversations, questions and saved conversations belong to Cortad, and the app answers Cortad's simulated users the way it answers anyone. A number moves when the app's behavior moves.
 
 ## The second run and production
 
@@ -107,11 +108,9 @@ Once a fix is verified gone and production is not connected, the result offers p
 
 `npx {{cortad}} stick` makes this part of the repository: one line in AGENTS.md, CLAUDE.md, the Cursor rules and the Copilot instructions; a hook after each edit that names the changed prompt and tool files; and a hook on the person's prompt that hands you a run or verify that ended, for clients that a background command cannot wake. Run it only when the person asks for it. `npx {{cortad}} unstick` takes them out.
 
-## A check that reads wrong
+## A question that reads wrong, and a note about Cortad itself
 
 `dispute <findingId> "<why>"` sends the note to the owner. The finding and its rate stay as they are until the owner decides.
-
-## A note about Cortad itself
 
 `tell` sends the Cortad team a note about Cortad, not about the app: a result that read wrong, something you needed that no door gave, a question a result left open, or what worked. A note names the door it is about, its kind (problem, idea, question, praise), what you needed, and if you like what came back and what you tried. In a shell: `npx {{cortad}} feedback status problem "<what you needed>" --got "<what came back>" --tried "<what you did>"`.
 

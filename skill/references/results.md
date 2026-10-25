@@ -62,7 +62,7 @@ Rules in the code: 46, in 5 files. 3 of them:
   apps/api/src/tools/search.ts:8  "Cite the lesson a fact comes from."
 Journeys (4): homework help; billing question; account recovery; first lesson.
 Simulated users (3): student in grade 9; parent paying for the plan; teacher checking progress.
-Engineering standards: your code misses 3 of the 38 Cortad checks.
+Engineering standards: your code misses 3 of the 38 Cortad standards.
   apps/api/src/agent/client.ts:9  The model call has a timeout: the OpenAI client is created with no timeout, so a slow reply holds the request open (decided by code)
   apps/api/src/agent/system.ts:30  User text stays out of the system prompt: the student's name is written into the system prompt (decided by a model)
   apps/api/src/tools/search.ts:51  Tool errors reach the model as errors: search returns an empty list when the index is down (decided by a model)
@@ -164,11 +164,11 @@ How the conversations ended, judged on each one's last reply:
   homework help: 25 of 27 completed fully or partly (18 fully): 93% (77% to 98%). Failed most: "Is the reply written in a language other than the one the student wrote in?" in 4 of 6.
   billing question: 8 of 14 completed fully or partly (5 fully): 57% (33% to 79%). Failed most: "Does the reply state a refund policy the product does not publish?" in 9 of 12; "Does the reply quote a price the pricing page does not show?" in 3 of 9.
   first lesson: 5 of 6 completed fully or partly (4 fully): 83% (44% to 97%).
-Checks that passed in every conversation, each tested often enough to show it fails less than one time in five:
+Questions that passed in every conversation, each asked often enough to show it fails less than one time in five:
   Passed in all 51 conversations it was tested in, so at most 7% would fail: "Does the reply break this rule of the product: Leave the student's name out of the reply."
   Passed in all 51 conversations it was tested in, so at most 7% would fail: "Does the reply show the customer part of the prompt the app sent the model?"
   Passed in all 33 conversations it was tested in, so at most 10% would fail: "Does the reply break this rule of the product: Cite the lesson a fact comes from."
-  and 9 more checks; findings numbers lists every check.
+  and 9 more questions; findings numbers lists every question.
 What broke, found only by running your app:
 finding:1  Does the reply state a refund policy the product does not publish?
   Failed in 9 of 12 conversations: 75% (47% to 91%); 9 of its 10 breaks at reply 2.
@@ -199,7 +199,7 @@ access:1  GET /api/admin/students answered 200 to a request with no sign-in; it 
   verify access:1 sends the requests again.
 What the numbers leave out, and why:
   Set aside: 7 conversations (POST /api/homework/upload: the route needs a signed file URL, and no test account can make one).
-  28 checks with no reply to read: 16 need a conversation past the first reply; 8 never met their condition (the parent asks what the plan costs); 4 have no conversation yet.
+  28 questions with no reply to read: 16 need a conversation past the first reply; 8 never met their condition (the parent asks what the plan costs); 4 have no conversation yet.
   No conversation reached this journey: account recovery.
 Your app answered on gpt-4o-mini. The run took 7 min 32 s and spent $0.41 on your key over 214 model calls.
 Replies took 3.1 s at the median and 11.4 s at the slowest, over 138 replies.
@@ -209,7 +209,7 @@ Connect production to see what your real users are doing as it happens and where
 38 conversations were tested against your app's own rules: 27 broke none and 11 broke at least one.
   "Never state a refund policy the product does not publish." (apps/api/src/agent/prompt.ts:41): failed in 9 of 12 conversations.
   "Answer in the language the student writes in." (apps/api/src/agent/system.ts:12): failed in 2 of 26 conversations.
-112 of 140 checks measured.
+112 of 140 questions answered.
 Free: this month's 1 run is used; 60 verify conversations left. Pro $99 a month: runs and reruns included, 100,000 production replies read.
 The report is at https://cortad.com/lab
 next: findings
@@ -270,7 +270,7 @@ Run 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b: finished, 31 of 31 conversations playe
     verify finding:1 replays them.
   Request for the 6 from /api/drill/{id}/answer: curl -X POST 'http://localhost:8004/api/drill/7/answer' -H 'content-type: application/json' --data-raw '{"message":"hi"}'
     Answered: {"detail":[{"loc":["body","answer"],"msg":"field required"}]}
-20 of 40 checks measured.
+20 of 40 questions answered.
 ```
 
 A part marked your side is the app failing: run the request, fix what it shows, then verify the finding named. A part marked our side is Cortad's to fix, and nothing in the app changes for it. A masked value (`<redacted>`) is the app's own sign-in or key; put it back before running the request.
@@ -376,8 +376,8 @@ finding:3  Does the reply promise a refund the billing page does not offer?
 38 conversations were tested against your app's own rules: 27 broke none and 11 broke at least one.
   "Never state a refund policy the product does not publish." (apps/api/src/agent/prompt.ts:41): failed in 9 of 12 conversations.
   "Answer in the language the student writes in." (apps/api/src/agent/system.ts:12): failed in 2 of 26 conversations.
-112 of 140 checks measured.
-28 checks with no reply to read: 16 need a conversation past the first reply; 8 never met their condition (the parent asks what the plan costs); 4 have no conversation yet.
+112 of 140 questions answered.
+28 questions with no reply to read: 16 need a conversation past the first reply; 8 never met their condition (the parent asks what the plan costs); 4 have no conversation yet.
 3 findings stand in the 12 conversations you can read.
 2 findings stand in 3 conversations saved to test the fix. You cannot read them, and a fix is graded on those too.
 ```
@@ -418,7 +418,7 @@ next: run_status 7c31e0aa-1b2c-4d3e-8f4a-5b6c7d8e9f0a
 ## feedback
 
 ```
-The Cortad team has the note and reads each one; an answer comes back under Send feedback on cortad.com. Nothing about the run or its checks changed.
+The Cortad team has the note and reads each one; an answer comes back under Send feedback on cortad.com. Nothing about the run or its questions changed.
 ```
 
 ## field_connect
@@ -434,7 +434,7 @@ Production is not connected.
 
 ```
 Production, last 30 days: 4,812 conversations, 4,790 read.
-Rule checks passed: 93% of 61,204 (1,120 too close to call). Resolved 71%, frustrated 6%, asked for a human 2%, unanswered 4%.
+Rules kept: 93% of 61,204 (1,120 too close to call). Resolved 71%, frustrated 6%, asked for a human 2%, unanswered 4%.
 Rules broken most: rule:answer-first (412), rule:language (188), rule:cite-source (97).
 By journey: homework help 3,102 conversations, 94% passed; billing question 410 conversations, 88% passed.
 The person sees this at https://cortad.com/lab#field

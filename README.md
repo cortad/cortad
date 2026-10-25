@@ -22,7 +22,7 @@ After that, your agent has six tools, one for each thing it needs from Cortad:
 - `verify` did your fix hold
 - `connect` connect the live app
 - `tell` a note to the Cortad team, what counts as a good ending here, or where to send each incident
-- `dispute` this check reads my app wrong
+- `dispute` this question reads my app wrong
 
 The same work as commands:
 
