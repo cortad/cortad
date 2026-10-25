@@ -78,10 +78,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/brainsless/cortad.git"
+    "url": "git+https://github.com/cortad/cortad.git"
   },
   "bugs": {
-    "url": "https://github.com/brainsless/cortad/issues"
+    "url": "https://github.com/cortad/cortad/issues"
   },
   "devDependencies": {
     "@grpc/grpc-js": "^1.14.6",
