@@ -56,9 +56,9 @@ test("a run that finds a broken rule prints the card and leaves a failing exit c
 
   assert.equal(code, 1, "a broken rule must fail the command, so CI can gate on it");
   assert.match(stdout, /wants a refund from January/);
-  assert.match(stdout, /your rule: Never promises a refund past 30 days/);
+  assert.match(stdout, /it broke\n    Never promises a refund past 30 days/);
   assert.match(stdout, /your app answered, and that is the break/);
-  assert.match(stdout, /1 of your own rules broke across 2 conversations/);
+  assert.match(stdout, /1 of 2 conversations went wrong, on 1 check,/);
   assert.match(stdout, /2 conversations written for this app and played on this machine/);
 });
 

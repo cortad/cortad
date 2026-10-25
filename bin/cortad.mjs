@@ -12,11 +12,13 @@ import { HostedError, offline, ORIGIN, writeUsers } from "../lib/hosted.mjs";
 import { bold, CLOSING, dim, report } from "../lib/report.mjs";
 
 const argv = process.argv.slice(2);
+// Every flag here takes a value, so the word after one is never the command.
+const TAKES_VALUE = new Set(["-n", "--conversations", "--judge", "--schema"]);
 const flag = (name, fallback) => {
   const at = argv.indexOf(name);
   return at === -1 ? fallback : argv[at + 1];
 };
-const verb = argv.find((a) => !a.startsWith("-")) ?? "run";
+const verb = argv.find((a, i) => !a.startsWith("-") && !TAKES_VALUE.has(argv[i - 1])) ?? "run";
 const file = resolve(flag("--schema", SCHEMA_FILE));
 const die = (message) => { console.error(`\n  ${message}\n`); process.exit(1); };
 
@@ -88,15 +90,16 @@ for (const one of played) {
   if (!checks.length) continue;
   let rulings;
   try { rulings = await rule(judge, one.transcript, checks); } catch (e) { die(e.message); }
-  for (const r of rulings.filter((x) => x.broke)) {
-    broke.push({
-      title: one.title,
-      rule: r.require,
-      said: one.transcript[r.turn - 2]?.text ?? one.transcript[0].text,
-      reply: one.transcript[r.turn - 1].text,
-      evidence: r.evidence,
-    });
-  }
+  const failed = rulings.filter((x) => x.broke);
+  if (!failed.length) continue;
+  // The card is the conversation, so it is placed at the first reply that broke something.
+  const at = Math.min(...failed.map((f) => f.turn));
+  broke.push({
+    title: one.title,
+    said: one.transcript[at - 2]?.text ?? one.transcript[0].text,
+    reply: one.transcript[at - 1].text,
+    failed: failed.map((f) => ({ require: f.require, evidence: f.evidence })),
+  });
 }
 
 console.log(report({ broke, played: played.length - errors.length, conversations: cases.length, errors, judgeName: judge.name }));
