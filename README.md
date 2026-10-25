@@ -57,7 +57,9 @@ It exits non-zero when a rule broke, so it gates a pull request as it is.
 }
 ```
 
-`{{message}}` is where the user's words go. Use `{{messages}}` instead where your endpoint takes the whole turn list, and conversations keep going instead of stopping at one turn. `{{thread}}` in the url or body is a fresh id per conversation, for an app that holds the thread on its side.
+`{{message}}` is where the user's words go.
+
+Conversations keep going past one turn when the tool can carry the thread. Two ways, pick the one your endpoint already uses: `{{messages}}` where it takes the whole turn list, or `{{thread}}` in the url or body where it takes an id and holds the history itself. With neither, every conversation is a single frontal question, and that is not where an assistant usually breaks.
 
 `reply` is dotted keys and array indexes into your app's answer.
 
@@ -67,7 +69,7 @@ You can fill the file yourself in two minutes. Or install the skill and let the 
 npx cortad init
 ```
 
-then tell your agent: *fill in cortad.json from this codebase.*
+then tell your agent: *fill in cortad.json from this codebase.* The package ships a skill at `skill/SKILL.md` that teaches Claude Code and Cursor to do it unprompted.
 
 ## The judge
 
@@ -88,15 +90,15 @@ With the default judge, two things go to `open.cortad.com`:
 1. Your `cortad.json`, so the conversations can be written for your app.
 2. Each conversation and the checks on it, so it can be judged.
 
-Your code does not. Your keys do not. Your environment does not. The conversations and the verdicts are kept and used to make this better.
+Your source does not. Your environment does not. The conversations and the verdicts are kept and used to make this better.
 
-```
-CORTAD_OFFLINE=1 npx cortad --judge ollama/qwen3
-```
+Note what that first item means: `endpoint.headers` is part of `cortad.json`, so anything you put there, including a bearer token for a staging endpoint, is sent with it. Point it at a local app, or use a token minted for this and nothing else.
 
-sends nothing at all. Everything then runs on your machine, and the conversations are the ones you wrote in `cortad.json`.
+`CORTAD_OFFLINE=1` sends nothing anywhere. Because we are the ones who write the conversations, there is then nothing to play, and the command says so and stops rather than quietly calling home.
 
-Five runs a day per machine are free. Past that, bring a judge.
+`--judge ollama/qwen3` keeps the judging on your machine, but the conversations are still written by us.
+
+Five runs a day per machine are free. The limit is on writing the conversations, so bringing your own judge does not lift it.
 
 ## In CI
 
