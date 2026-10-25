@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cortad.com/cortad.schema.json",
+  "title": "cortad.json",
+  "description": "What a run needs to know about an app: where to send a message, where the reply is, and the rules the app is supposed to keep.",
+  "type": "object",
+  "required": ["app", "endpoint", "rules"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "app": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000,
+      "description": "One sentence on what this app does for the people who use it."
+    },
+    "endpoint": {
+      "type": "object",
+      "required": ["url", "body", "reply"],
+      "additionalProperties": false,
+      "properties": {
+        "url": {
+          "type": "string",
+          "pattern": "^https?://",
+          "description": "Where a message is sent. {{thread}} is replaced by a fresh id per conversation."
+        },
+        "method": { "enum": ["POST", "PUT", "PATCH", "GET"], "default": "POST" },
+        "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+        "body": {
+          "description": "The request this endpoint takes. Put {{message}} where the user's words go, or {{messages}} where the whole turn list goes."
+        },
+        "reply": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Where the reply sits in the answer, as dotted keys and array indexes: choices.0.message.content"
+        }
+      }
+    },
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "items": { "type": "string", "minLength": 1, "maxLength": 1000 },
+      "description": "Every rule this app is supposed to keep, in the words its own prompt uses."
+    },
+    "tools": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "required": ["name", "does"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "does": { "type": "string", "minLength": 1, "maxLength": 500 }
+        }
+      }
+    },
+    "users": {
+      "type": "array",
+      "maxItems": 100,
+      "items": { "type": "string", "minLength": 1, "maxLength": 1000 },
+      "description": "Who uses this app, one sentence each."
+    }
+  }
+}

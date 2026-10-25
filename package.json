@@ -1,0 +1,15 @@
+{
+  "name": "cortad",
+  "version": "1.0.0",
+  "description": "Plays people against your AI app and tells you which of your own rules it broke.",
+  "type": "module",
+  "bin": { "cortad": "bin/cortad.mjs" },
+  "files": ["bin", "lib", "skill", "cortad.schema.json", "README.md"],
+  "engines": { "node": ">=20" },
+  "license": "Apache-2.0",
+  "homepage": "https://cortad.com",
+  "repository": { "type": "git", "url": "git+https://github.com/cortad/cortad.git" },
+  "keywords": ["llm", "evals", "agents", "testing", "red-team", "simulation"],
+  "scripts": { "test": "node --test test/*.test.mjs" },
+  "publishConfig": { "access": "public" }
+}
