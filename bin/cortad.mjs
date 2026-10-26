@@ -53,7 +53,7 @@ const HELP = `
   CORTAD_OFFLINE=1                send nothing anywhere, and run nothing
 
   It exits non-zero when a rule broke, and when your app answered nothing.
-  https://github.com/cortad/cli
+  https://github.com/cortad/cortad
 `;
 
 if (argv.includes("--help") || argv.includes("-h") || verb === "help") { console.log(HELP); process.exit(0); }

@@ -9,7 +9,7 @@ Runs conversations against this repository's AI and reports the rules it broke.
 
 ## First time in a repository
 
-1. Run `npx github:cortad/cli init`. It writes `cortad.json`.
+1. Run `npx github:cortad/cortad init`. It writes `cortad.json`.
 2. Fill it in from the code. Do not guess any of it:
    - `app`: one sentence on what this app does for the people who use it.
    - `endpoint.url`: the route the app's own client posts a chat message to, on the port the dev server uses.
@@ -22,12 +22,12 @@ Runs conversations against this repository's AI and reports the rules it broke.
 
 ## Running it
 
-The app must be up first. Then `npx github:cortad/cli`.
+The app must be up first. Then `npx github:cortad/cortad`.
 
 It exits non-zero when a rule broke, and when the app answered nothing, so it works as a gate.
 
-- `npx github:cortad/cli -n 40` runs more conversations.
-- `npx github:cortad/cli --judge ollama/qwen3` judges on this machine instead.
+- `npx github:cortad/cortad -n 40` runs more conversations.
+- `npx github:cortad/cortad --judge ollama/qwen3` judges on this machine instead.
 - `CORTAD_OFFLINE=1` sends nothing anywhere. The conversations are written by Cortad, so with it set there are none to play and the command says so and stops.
 
 ## Reading what comes back

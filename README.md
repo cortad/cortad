@@ -38,8 +38,8 @@
 Your app needs to be running. Then, in its repository:
 
 ```sh
-npx github:cortad/cli init     # writes cortad.json
-npx github:cortad/cli          # plays the conversations, prints what broke
+npx github:cortad/cortad init     # writes cortad.json
+npx github:cortad/cortad          # plays the conversations, prints what broke
 ```
 
 No account. No sign-up. No key, unless you want to bring your own judge.
@@ -114,8 +114,8 @@ The package ships a skill at [`skill/SKILL.md`](skill/SKILL.md) that teaches Cla
 By default the conversations are judged by Cortad, hosted, with no key and no account.
 
 ```sh
-npx github:cortad/cli --judge ollama/qwen3      # on your machine
-npx github:cortad/cli --judge openai/gpt-5      # your key, any OpenAI-compatible provider
+npx github:cortad/cortad --judge ollama/qwen3      # on your machine
+npx github:cortad/cortad --judge openai/gpt-5      # your key, any OpenAI-compatible provider
 ```
 
 ```sh
@@ -149,7 +149,7 @@ Five runs a day per machine are free. The limit is on writing the conversations,
 ```yaml
 - run: npm run dev &
 - run: npx wait-on http://localhost:3000
-- run: npx github:cortad/cli -n 30
+- run: npx github:cortad/cortad -n 30
 ```
 
 ## What this does not do
