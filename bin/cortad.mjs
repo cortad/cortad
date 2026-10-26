@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Plays people against your app and tells you which of your own rules it broke.
 //
-//   npx cortad init        writes cortad.json for you or your coding agent to fill
-//   npx cortad             plays the conversations and prints what broke
+//   cortad init        writes cortad.json for you or your coding agent to fill
+//   cortad             plays the conversations and prints what broke
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { readSchema, SCHEMA_FILE, SKELETON } from "../lib/schema.mjs";
@@ -40,8 +40,8 @@ if (verb === "init") {
 const HELP = `
   cortad      plays people against your AI app and tells you which of your own rules it broke
 
-  npx cortad init                 writes cortad.json for you or your coding agent to fill
-  npx cortad                      plays the conversations and prints what broke
+  cortad init                     writes cortad.json for you or your coding agent to fill
+  cortad                          plays the conversations and prints what broke
 
   -n <number>                     how many conversations to play (default 20)
   --judge <model>                 judge with your own model instead of ours
@@ -53,7 +53,7 @@ const HELP = `
   CORTAD_OFFLINE=1                send nothing anywhere, and run nothing
 
   It exits non-zero when a rule broke, and when your app answered nothing.
-  https://github.com/cortad/cortad
+  https://github.com/cortad/cli
 `;
 
 if (argv.includes("--help") || argv.includes("-h") || verb === "help") { console.log(HELP); process.exit(0); }
@@ -61,8 +61,8 @@ if (argv.includes("--version") || argv.includes("-v")) {
   console.log(JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version);
   process.exit(0);
 }
-if (verb !== "run") die(`no such command: ${verb}. Try: npx cortad init, npx cortad, or npx cortad --help`);
-if (!existsSync(file)) die(`no ${SCHEMA_FILE} here. Run npx cortad init to write one.`);
+if (verb !== "run") die(`no such command: ${verb}. Try: cortad init, cortad, or cortad --help`);
+if (!existsSync(file)) die(`no ${SCHEMA_FILE} here. Run cortad init to write one.`);
 
 // Offline means offline, and it is settled before anything else so no path can reach the wire.
 // The conversations are written by us, so there is nothing to play without that call, and sending
