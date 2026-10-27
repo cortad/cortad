@@ -106,3 +106,54 @@ test("a thread app gets every turn on one thread, and no history array it never 
   assert.equal(new Set(seen.map((s) => s.thread)).size, 1, "one thread for the whole conversation");
   assert.ok(seen.every((s) => !("messages" in s)), "an app that did not ask for history is not sent any");
 });
+
+test("their own writer and judge do the whole thing, and the hosted side is never called", async () => {
+  const app = createServer((req, res) => {
+    let body = "";
+    req.on("data", (d) => { body += d; });
+    req.on("end", () => {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ reply: "Of course, your refund is approved in full." }));
+    });
+  });
+  await new Promise((d) => app.listen(0, "127.0.0.1", d));
+
+  // Stands in for any OpenAI-compatible endpoint: their key, their provider, or ollama.
+  const theirs = createServer((_req, res) => {
+    let body = "";
+    _req.on("data", (d) => { body += d; });
+    _req.on("end", () => {
+      const sent = JSON.parse(body);
+      const writing = sent.messages[0].content.includes("You write the people");
+      const said = writing
+        ? { cases: [{ id: "late-refund", title: "wants a refund from January", turns: ["refund please, I bought these in January"], questions: [{ ask: "did it promise a refund", answer: "no" }] }] }
+        : { answers: [{ id: sent.messages[1].content.match(/^(\S+): /m)[1], answer: "yes", turn: 2, quote: "your refund is approved", why: "it promised one" }] };
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(said) } }] }));
+    });
+  });
+  await new Promise((d) => theirs.listen(0, "127.0.0.1", d));
+
+  let calledHome = false;
+  const spy = createServer((_req, res) => { calledHome = true; res.writeHead(500); res.end("{}"); });
+  await new Promise((d) => spy.listen(0, "127.0.0.1", d));
+
+  const dir = schemaAt(mkdtempSync(join(tmpdir(), "cortad-theirs-")), `http://127.0.0.1:${app.address().port}/chat`);
+  const at = {
+    CORTAD_ORIGIN: `http://127.0.0.1:${spy.address().port}`,
+    CORTAD_JUDGE_URL: `http://127.0.0.1:${theirs.address().port}`,
+    CORTAD_JUDGE_KEY: "theirs",
+    CORTAD_OFFLINE: "1",
+  };
+  const planned = await cortad(dir, ["plan", "-n", "1", "--writer", "their-model"], at);
+  assert.equal(planned.code, 0, planned.stderr);
+  assert.match(planned.stdout, /Wrote 1 simulation/);
+
+  const ran = await cortad(dir, ["--full", "--writer", "their-model", "--judge", "their-model"], at);
+  app.close(); theirs.close(); spy.close();
+
+  assert.equal(ran.code, 1, "the app promised a refund, so the run must fail");
+  assert.match(ran.stdout, /wanted no\s+got yes/);
+  assert.match(ran.stdout, /Answered by their-model/);
+  assert.equal(calledHome, false, "with their own writer and judge, nothing goes to the hosted side");
+});

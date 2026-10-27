@@ -13,13 +13,17 @@ import { HostedError, offline, ORIGIN } from "../lib/hosted.mjs";
 import { plan } from "../lib/cli/plan.mjs";
 import { run } from "../lib/cli/run.mjs";
 import { held, whatToVerify } from "../lib/cli/verify.mjs";
+import { replay } from "../lib/cli/replay.mjs";
 import { report, bold, dim, green, red } from "../lib/report.mjs";
 import { coverage } from "../lib/changed.mjs";
 import { last } from "../lib/run.mjs";
 import { read } from "../lib/suite/files.mjs";
+import { asJson } from "../lib/out/json.mjs";
+import { asJunit } from "../lib/out/junit.mjs";
+import { asSarif } from "../lib/out/sarif.mjs";
 
 const argv = process.argv.slice(2);
-const TAKES_VALUE = new Set(["-n", "--judge", "--schema", "--changed"]);
+const TAKES_VALUE = new Set(["-n", "--judge", "--writer", "--schema", "--changed", "--junit", "--sarif"]);
 const MOST = 50;
 const flag = (name, fallback) => {
   const at = argv.indexOf(name);
@@ -42,11 +46,17 @@ const HELP = `
   cortad --changed <files>        plays only what reaches the files you edited
   cortad verify                   plays the ones that failed, says whether the fix held
   cortad coverage                 says which of your files the simulations reach
+  cortad replay <run>             answers a kept run again, without touching your app
 
   -n <number>                     how many simulations to write (default 20, most ${MOST})
+  --writer <model>                write the simulations with your own model
+  --writer ollama/<model>         write them on this machine
   --judge <model>                 answer the questions with your own model
   --judge ollama/<model>          answer them on this machine
   --schema <path>                 a config somewhere other than ./${SCHEMA_FILE}
+  --json                          the whole run on stdout, for anything that reads JSON
+  --junit <path>                   write JUnit XML, for your CI's test panel
+  --sarif <path>                   write SARIF, so a failure lands on a line in the pull request
 
   CORTAD_JUDGE_KEY                the key for your judge
   CORTAD_JUDGE_URL                where that key goes (default https://openrouter.ai/api/v1)
@@ -98,11 +108,17 @@ if (verb === "coverage") {
 }
 
 if (verb === "plan") {
-  if (offline()) die(`CORTAD_OFFLINE is set, and the simulations are written by ${new URL(ORIGIN()).host}. Nothing was sent.`);
+  const writer = flag("--writer");
+  const ours = !writer || writer === "cortad";
+  if (offline() && ours) {
+    die(`CORTAD_OFFLINE is set, and the simulations are written by ${new URL(ORIGIN()).host} unless you name your own model: --writer ollama/<model>. Nothing was sent.`);
+  }
   const want = Math.max(1, Math.min(MOST, Number(flag("-n", 20)) || 20));
-  console.log(`\n  ${dim(`Your rules and this app's description go to ${new URL(ORIGIN()).host} so the simulations can be\n  written. Nothing else leaves this machine: not your code, not your keys, not your environment.`)}\n`);
+  if (ours) {
+    console.log(`\n  ${dim(`Your rules and this app's description go to ${new URL(ORIGIN()).host} so the simulations can be\n  written. Nothing else leaves this machine: not your code, not your keys, not your environment.`)}\n`);
+  }
   let written;
-  try { written = await plan({ schema, count: want }); } catch (e) {
+  try { written = await plan({ schema, count: want, writer }); } catch (e) {
     if (e instanceof HostedError && e.status === 429) die(`${e.message}. A run on an unchanged ${SCHEMA_FILE} does not spend one.`);
     die(e.message);
   }
@@ -111,6 +127,16 @@ if (verb === "plan") {
     "", "  They are yours. Open one, change who shows up or what is asked, and commit it.",
     "  Then: cortad"].join("\n"));
   process.exit(0);
+}
+
+if (verb === "replay") {
+  const at = argv.find((a, i) => a.endsWith(".json") && !TAKES_VALUE.has(argv[i - 1]) && a !== verb);
+  if (!at) die("name the run to replay: cortad replay cortad/runs/0003.json");
+  if (!existsSync(at)) die(`no run at ${at}`);
+  const again = await replay({ at, judgeName: flag("--judge") });
+  console.log(report(again));
+  console.log("");
+  process.exit(again.counted.broke ? 1 : 0);
 }
 
 if (verb === "verify") {
@@ -171,6 +197,17 @@ if (result.kind === "nothing" && changed.length) {
 }
 if (result.kind === "nothing") die(`nothing in the ${plays} set. Try cortad --all, or set "tier" in a simulation file.`);
 
-console.log(report(result));
-console.log("");
+const junitAt = flag("--junit");
+if (junitAt) writeFileSync(resolve(junitAt), asJunit(result));
+const sarifAt = flag("--sarif");
+if (sarifAt) writeFileSync(resolve(sarifAt), asSarif(result));
+
+if (has("--json")) {
+  console.log(asJson(result));
+} else {
+  console.log(report(result));
+  console.log("");
+  if (junitAt) console.log(dim(`  JUnit written to ${junitAt}\n`));
+  if (sarifAt) console.log(dim(`  SARIF written to ${sarifAt}\n`));
+}
 process.exit(result.counted.broke || result.run.conversations.length === result.errors.length ? 1 : 0);

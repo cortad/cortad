@@ -1,0 +1,62 @@
+name: Cortad
+description: Runs a simulation against your AI app and reports which questions it answered the wrong way.
+author: Cortad
+
+inputs:
+  plays:
+    description: 'smoke, all, or full. Default all: the set a pull request should hold.'
+    required: false
+    default: all
+  changed:
+    description: Comma-separated files to scope the run to. Leave empty to run the whole set.
+    required: false
+    default: ''
+  judge:
+    description: A model of your own to answer the questions. Leave empty to use Cortad.
+    required: false
+    default: ''
+  schema:
+    description: Where cortad.json is.
+    required: false
+    default: cortad.json
+  sarif:
+    description: Where to write SARIF. Upload it and each failure lands on a line in the diff.
+    required: false
+    default: cortad.sarif
+  junit:
+    description: Where to write JUnit XML.
+    required: false
+    default: cortad.junit.xml
+  version:
+    description: Which version of the command to run.
+    required: false
+    default: latest
+
+outputs:
+  sarif:
+    description: The SARIF file that was written.
+    value: ${{ inputs.sarif }}
+  junit:
+    description: The JUnit file that was written.
+    value: ${{ inputs.junit }}
+
+runs:
+  using: composite
+  steps:
+    # The app has to be up already. Starting it here would hide the one failure that matters most:
+    # an app that never answered, which is not a pass.
+    - shell: bash
+      env:
+        CORTAD_JUDGE_KEY: ${{ env.CORTAD_JUDGE_KEY }}
+        CORTAD_JUDGE_URL: ${{ env.CORTAD_JUDGE_URL }}
+      run: |
+        set -o pipefail
+        args=(--schema "${{ inputs.schema }}" --sarif "${{ inputs.sarif }}" --junit "${{ inputs.junit }}")
+        case "${{ inputs.plays }}" in
+          smoke) ;;
+          full) args+=(--full) ;;
+          *) args+=(--all) ;;
+        esac
+        [ -n "${{ inputs.changed }}" ] && args+=(--changed "${{ inputs.changed }}")
+        [ -n "${{ inputs.judge }}" ] && args+=(--judge "${{ inputs.judge }}")
+        npx --yes cortad@${{ inputs.version }} "${args[@]}"
