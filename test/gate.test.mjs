@@ -28,13 +28,13 @@ const cortad = (dir, args, env = {}) =>
     .then((r) => ({ ...r, code: 0 }))
     .catch((e) => ({ stdout: e.stdout ?? "", stderr: e.stderr ?? "", code: e.code }));
 
-test("offline sends nothing and runs nothing, instead of writing users over the wire", async () => {
+test("offline sends nothing and writes nothing, instead of writing simulations over the wire", async () => {
   const dir = schemaAt(mkdtempSync(join(tmpdir(), "cortad-gate-")), "http://127.0.0.1:1/chat");
   let reached = false;
   const spy = createServer((_req, res) => { reached = true; res.writeHead(500); res.end("{}"); });
   await new Promise((d) => spy.listen(0, "127.0.0.1", d));
 
-  const { stderr, code } = await cortad(dir, [], {
+  const { stderr, code } = await cortad(dir, ["plan"], {
     CORTAD_OFFLINE: "1",
     CORTAD_ORIGIN: `http://127.0.0.1:${spy.address().port}`,
   });
@@ -50,12 +50,14 @@ test("an app that never answers fails the command, so a dead app cannot pass a g
   const hosted = createServer((req, res) => {
     res.writeHead(200, { "content-type": "application/json" });
     res.end(JSON.stringify(req.url === "/users"
-      ? { cases: [{ id: "a", title: "t", turns: ["hi"], checks: [{ id: "c", require: "r" }] }] }
-      : { rulings: [] }));
+      ? { cases: [{ id: "a", title: "t", turns: ["hi"], questions: [{ ask: "did it answer", answer: "yes" }] }] }
+      : { answers: [] }));
   });
   await new Promise((d) => hosted.listen(0, "127.0.0.1", d));
 
-  const { stdout, code } = await cortad(dir, [], { CORTAD_ORIGIN: `http://127.0.0.1:${hosted.address().port}` });
+  const at = { CORTAD_ORIGIN: `http://127.0.0.1:${hosted.address().port}` };
+  await cortad(dir, ["plan", "-n", "1"], at);
+  const { stdout, code } = await cortad(dir, ["--full"], at);
   hosted.close();
 
   assert.equal(code, 1, "zero conversations answered is not a pass");
@@ -63,12 +65,12 @@ test("an app that never answers fails the command, so a dead app cannot pass a g
   assert.match(stdout, /POST http:\/\/127\.0\.0\.1:1\/chat is not answering.*Is your app up\?/);
 });
 
-test("help and version answer instead of complaining about a missing schema", async () => {
+test("help and version answer instead of complaining about a missing config", async () => {
   const dir = mkdtempSync(join(tmpdir(), "cortad-gate-"));
   for (const args of [["--help"], ["-h"], ["help"]]) {
     const { stdout, code } = await cortad(dir, args);
     assert.equal(code, 0, `${args} should exit clean`);
-    assert.match(stdout, /plays people against your AI app/);
+    assert.match(stdout, /says what your change did/);
   }
   const { stdout, code } = await cortad(dir, ["--version"]);
   assert.equal(code, 0);

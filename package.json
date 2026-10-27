@@ -10,6 +10,7 @@
     "bin",
     "lib",
     "skill",
+    "docs/simulations.md",
     "cortad.schema.json",
     "README.md",
     "LICENSE"

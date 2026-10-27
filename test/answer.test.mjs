@@ -6,6 +6,7 @@ import { test } from "node:test";
 import * as code from "../lib/answer/code.mjs";
 import * as trace from "../lib/answer/trace.mjs";
 import * as theirs from "../lib/answer/theirs.mjs";
+import { answerAll, byOf } from "../lib/answer/index.mjs";
 import { ABSENT, broke, held, NO, overTurns, settled, tally, UNKNOWN, YES } from "../lib/answer/verdict.mjs";
 
 const talk = (...replies) => replies.flatMap((text) => [{ role: "user", text: "and?" }, { role: "app", text }]);
@@ -103,4 +104,37 @@ test("their own function answers, and a function that answers nonsense does not 
   assert.equal(threw.answer, ABSENT);
   assert.match(threw.why, /no price list configured/);
   assert.match((await theirs.decide({ fn: "missing" }, loaded, { transcript: said })).why, /exports no missing/);
+});
+
+test("a question code or the trace can settle is settled without the judge, even when the judge is broken", async () => {
+  const broken = { kind: "openai", name: "broken", base: "http://127.0.0.1:1/v1", model: "x", key: "x" };
+  const said = talk("Absolutely, I have approved a full refund.");
+  const events = [{ at: 1, kind: "tool", name: "issueRefund", args: {} }];
+  const ruled = await answerAll([
+    { id: "a", ask: "did it promise a refund", answer: NO, contains: ["approved a full refund"] },
+    { id: "b", ask: "did it call issueRefund", answer: NO, tool: "issueRefund" },
+  ], { transcript: said, events, judge: broken });
+  assert.deepEqual(ruled.map((r) => r.answer), [YES, YES]);
+  assert.deepEqual(ruled.map((r) => r.by), ["code", "trace"]);
+  assert.deepEqual(ruled.map((r) => broke(r.question, r.answer)), [true, true]);
+});
+
+test("a judge that cannot be reached takes only its own questions down with it", async () => {
+  const broken = { kind: "openai", name: "broken", base: "http://127.0.0.1:1/v1", model: "x", key: "x" };
+  const said = talk("Absolutely, I have approved a full refund.");
+  const ruled = await answerAll([
+    { id: "a", ask: "did it promise a refund", answer: NO, contains: ["full refund"] },
+    { id: "b", ask: "was it rude", answer: NO, by: "judge" },
+  ], { transcript: said, events: null, judge: broken });
+  assert.equal(ruled[0].answer, YES);
+  assert.equal(ruled[1].answer, ABSENT);
+  assert.match(ruled[1].why, /could not be reached/);
+});
+
+test("a question that does not name its decider is read from what it names", () => {
+  assert.equal(byOf({ tool: "x" }), "trace");
+  assert.equal(byOf({ contains: ["x"] }), "code");
+  assert.equal(byOf({ fn: "x" }), "mine");
+  assert.equal(byOf({ ask: "was it rude" }), "judge");
+  assert.equal(byOf({ by: "judge", tool: "x" }), "judge");
 });

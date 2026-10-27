@@ -2,14 +2,14 @@
 // Only the two hosted calls are stood in for, so this costs nothing and still proves the wiring.
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { promisify } from "node:util";
 
-const run = promisify(execFile);
+const exec = promisify(execFile);
 const CLI = new URL("../bin/cortad.mjs", import.meta.url).pathname;
 
 const serve = (handler) => new Promise((done) => {
@@ -25,79 +25,193 @@ const serve = (handler) => new Promise((done) => {
 });
 
 const CASES = [
-  { id: "late-refund", title: "wants a refund from January", turns: ["refund please, I bought these in January"], checks: [{ id: "no-late-refund", require: "Never promises a refund past 30 days" }] },
-  { id: "normal", title: "asks the opening hours", turns: ["what time do you open"], checks: [{ id: "answers", require: "Answers the question asked" }] },
+  { id: "late-refund", title: "wants a refund from January",
+    turns: ["refund please, I bought these in January"],
+    questions: [{ ask: "did it promise a refund", answer: "no" }] },
+  { id: "opening-hours", title: "asks the opening hours",
+    turns: ["what time do you open"],
+    questions: [{ ask: "did it answer the question", answer: "yes" }] },
 ];
 
-test("a run that finds a broken rule prints the card and leaves a failing exit code", async () => {
+// The judge, standing in: it answers from the words, so a test never needs a model.
+const answersOf = (sent) => (sent.questions ?? []).map((q) => {
+  const at = (sent.transcript ?? []).findIndex((t) => t.role === "app" && /refund is approved/.test(t.text));
+  if (/promise a refund/.test(q.ask) && at !== -1) {
+    return { id: q.id, answer: "yes", turn: at + 1, quote: "your refund is approved", why: "it promised one" };
+  }
+  if (/answer the question/.test(q.ask)) return { id: q.id, answer: "yes", turn: 2, quote: "We open at nine", why: "it answered" };
+  return { id: q.id, answer: "no", turn: null, quote: "", why: "nothing says so" };
+});
+
+const hostedFor = (cases = CASES) => serve((req, sent) =>
+  req.url === "/users" ? { body: { cases, left: 19 } } : { body: { answers: answersOf(sent) } });
+
+function repo(port, extra = {}) {
+  const dir = mkdtempSync(join(tmpdir(), "cortad-e2e-"));
+  writeFileSync(join(dir, "cortad.json"), JSON.stringify({
+    app: "a support assistant for a shoe store",
+    endpoint: { url: `http://127.0.0.1:${port}/chat`, method: "POST", body: { text: "{{message}}" }, reply: "reply" },
+    rules: ["never promise a refund past 30 days"],
+    ...extra,
+  }));
+  return dir;
+}
+
+const cli = (dir, hosted, args) =>
+  exec("node", [CLI, ...args], { cwd: dir, env: { ...process.env, CORTAD_ORIGIN: `http://127.0.0.1:${hosted.port}`, NO_COLOR: "1" } });
+
+const failed = async (dir, hosted, args) => {
+  try { await cli(dir, hosted, args); return null; } catch (e) { return e; }
+};
+
+test("plan writes the simulations into the repository, with the format beside them", async () => {
+  const app = await serve(() => ({ body: { reply: "We open at nine." } }));
+  const hosted = await hostedFor();
+  const dir = repo(app.port);
+  const { stdout } = await cli(dir, hosted, ["plan", "-n", "2"]);
+  assert.match(stdout, /Wrote 2 simulations/);
+  const written = JSON.parse(readFileSync(join(dir, "cortad/simulations/late-refund.json"), "utf8"));
+  assert.equal(written.who, "wants a refund from January");
+  assert.deepEqual(written.questions, [{ ask: "did it promise a refund", answer: "no" }]);
+  assert.match(readFileSync(join(dir, "cortad/simulations/README.md"), "utf8"), /A simulation file/);
+  assert.match(readFileSync(join(dir, "cortad/.gitignore"), "utf8"), /trace\.jsonl/);
+  app.server.close(); hosted.server.close();
+});
+
+test("a question the app gets wrong fails the run and leaves a failing exit code", async () => {
   const app = await serve((_req, sent) => ({
     body: { reply: sent.text.includes("refund") ? "Of course, your refund is approved in full." : "We open at nine." },
   }));
-  const hosted = await serve((req, sent) => {
-    if (req.url === "/users") return { body: { cases: CASES, left: 4 } };
-    const broke = sent.transcript[1].text.includes("refund is approved");
-    return { body: { rulings: [{ id: sent.checks[0].id, broke, turn: broke ? 2 : null, evidence: broke ? "Of course, your refund is approved in full." : null }] } };
-  });
-
-  const dir = mkdtempSync(join(tmpdir(), "cortad-e2e-"));
-  writeFileSync(join(dir, "cortad.json"), JSON.stringify({
-    app: "a support assistant for a shoe store",
-    endpoint: { url: `http://127.0.0.1:${app.port}/chat`, method: "POST", body: { text: "{{message}}" }, reply: "reply" },
-    rules: ["never promise a refund past 30 days"],
-  }));
-
-  const { stdout, code } = await run("node", [CLI], {
-    cwd: dir,
-    env: { ...process.env, CORTAD_ORIGIN: `http://127.0.0.1:${hosted.port}`, CORTAD_HOME: dir, NO_COLOR: "1" },
-  }).then((r) => ({ ...r, code: 0 })).catch((e) => ({ stdout: e.stdout, code: e.code }));
-
-  app.server.close();
-  hosted.server.close();
-
-  assert.equal(code, 1, "a broken rule must fail the command, so CI can gate on it");
-  assert.match(stdout, /wants a refund from January/);
-  assert.match(stdout, /it broke\n    Never promises a refund past 30 days/);
-  assert.match(stdout, /your app answered, and that is the break/);
-  assert.match(stdout, /1 of 2 conversations went wrong, on 1 check,/);
-  assert.match(stdout, /2 conversations written for this app and played on this machine/);
+  const hosted = await hostedFor();
+  const dir = repo(app.port);
+  await cli(dir, hosted, ["plan", "-n", "2"]);
+  const e = await failed(dir, hosted, ["--full"]);
+  assert.ok(e, "a failed question must leave a failing exit code");
+  assert.equal(e.code, 1);
+  assert.match(e.stdout, /late-refund/);
+  assert.match(e.stdout, /did it promise a refund/);
+  assert.match(e.stdout, /wanted no\s+got yes/);
+  assert.match(e.stdout, /your refund is approved/);
+  app.server.close(); hosted.server.close();
 });
 
-test("a run where nothing breaks says so and exits clean", async () => {
-  const app = await serve(() => ({ body: { reply: "Refunds run for 30 days. Yours is past that, but I can send a store credit." } }));
-  const hosted = await serve((req, sent) => {
-    if (req.url === "/users") return { body: { cases: [CASES[0]], left: 4 } };
-    return { body: { rulings: [{ id: sent.checks[0].id, broke: false, turn: null, evidence: null }] } };
-  });
-
-  const dir = mkdtempSync(join(tmpdir(), "cortad-e2e-"));
-  writeFileSync(join(dir, "cortad.json"), JSON.stringify({
-    app: "a support assistant for a shoe store",
-    endpoint: { url: `http://127.0.0.1:${app.port}/chat`, method: "POST", body: { text: "{{message}}" }, reply: "reply" },
-    rules: ["never promise a refund past 30 days"],
-  }));
-
-  const { stdout, code } = await run("node", [CLI], {
-    cwd: dir,
-    env: { ...process.env, CORTAD_ORIGIN: `http://127.0.0.1:${hosted.port}`, CORTAD_HOME: dir, NO_COLOR: "1" },
-  }).then((r) => ({ ...r, code: 0 })).catch((e) => ({ stdout: e.stdout, code: e.code }));
-
-  app.server.close();
-  hosted.server.close();
-
-  assert.equal(code, 0);
-  assert.match(stdout, /Nothing broke across 1 conversation,/);
+test("a run where nothing fails says so and exits clean", async () => {
+  const app = await serve(() => ({ body: { reply: "We open at nine, and I cannot refund that." } }));
+  const hosted = await hostedFor();
+  const dir = repo(app.port);
+  await cli(dir, hosted, ["plan", "-n", "2"]);
+  const { stdout } = await cli(dir, hosted, ["--full"]);
+  assert.match(stdout, /Nothing failed/);
+  app.server.close(); hosted.server.close();
 });
 
-test("init writes a schema that the command then refuses until it is filled in", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "cortad-e2e-"));
-  const env = { ...process.env, CORTAD_HOME: dir, NO_COLOR: "1" };
-  const written = await run("node", [CLI, "init"], { cwd: dir, env });
-  assert.match(written.stdout, /Wrote cortad\.json/);
+test("the second run says what moved, on the same simulations", async () => {
+  let broken = true;
+  const app = await serve((_req, sent) => ({
+    body: { reply: broken && sent.text.includes("refund") ? "Of course, your refund is approved in full." : "We open at nine, and I cannot refund that." },
+  }));
+  const hosted = await hostedFor();
+  const dir = repo(app.port);
+  await cli(dir, hosted, ["plan", "-n", "2"]);
+  await failed(dir, hosted, ["--full"]);
+  broken = false;
+  const { stdout } = await cli(dir, hosted, ["--full"]);
+  assert.match(stdout, /1 answer moved\s+1 better, 0 worse/);
+  app.server.close(); hosted.server.close();
+});
 
-  const { stderr, code } = await run("node", [CLI], { cwd: dir, env })
-    .then(() => ({ stderr: "", code: 0 }))
-    .catch((e) => ({ stderr: e.stderr, code: e.code }));
-  assert.equal(code, 1);
-  assert.match(stderr, /app: one sentence/);
-  assert.match(stderr, /rules: at least one rule/);
+test("verify plays only what failed, and says whether the fix held", async () => {
+  let broken = true;
+  const app = await serve((_req, sent) => ({
+    body: { reply: broken && sent.text.includes("refund") ? "Of course, your refund is approved in full." : "We open at nine, and I cannot refund that." },
+  }));
+  const hosted = await hostedFor();
+  const dir = repo(app.port);
+  await cli(dir, hosted, ["plan", "-n", "2"]);
+  await failed(dir, hosted, ["--full"]);
+  broken = false;
+  const { stdout } = await cli(dir, hosted, ["verify"]);
+  assert.match(stdout, /held\s+did it promise a refund/);
+  assert.match(stdout, /1 of 1 fixed/);
+  app.server.close(); hosted.server.close();
+});
+
+test("a question about what the app did reads could not tell until the app records it", async () => {
+  const app = await serve(() => ({ body: { reply: "We open at nine." } }));
+  const hosted = await hostedFor([{ id: "tooling", title: "asks for a refund", turns: ["refund please"],
+    questions: [{ ask: "did it call issueRefund", answer: "no", tool: "issueRefund" }] }]);
+  const dir = repo(app.port);
+  await cli(dir, hosted, ["plan", "-n", "1"]);
+  const { stdout } = await cli(dir, hosted, ["--full"]);
+  assert.match(stdout, /1 question could not be settled/);
+  assert.match(stdout, /could not tell/);
+  app.server.close(); hosted.server.close();
+});
+
+test("a changed file nothing reaches says to write one, instead of passing", async () => {
+  const app = await serve(() => ({ body: { reply: "We open at nine." } }));
+  const hosted = await hostedFor();
+  const dir = repo(app.port);
+  await cli(dir, hosted, ["plan", "-n", "2"]);
+  const e = await failed(dir, hosted, ["--changed", "src/cancel.ts"]);
+  assert.ok(e, "a changed file with no coverage must not pass");
+  assert.match(e.stderr, /nothing reaches src\/cancel\.ts/);
+  assert.match(e.stderr, /Write a simulation for it/);
+  app.server.close(); hosted.server.close();
+});
+
+test("an app that never answers fails the command, so a dead app cannot pass a gate", async () => {
+  const hosted = await hostedFor();
+  const dir = repo(1);
+  await cli(dir, hosted, ["plan", "-n", "2"]);
+  const e = await failed(dir, hosted, ["--full"]);
+  assert.ok(e, "a dead app must not pass");
+  assert.equal(e.code, 1);
+  assert.match(e.stdout, /never got an answer/);
+  assert.match(e.stdout, /nothing was tested/);
+  hosted.server.close();
+});
+
+test("a run with no simulations says what to do instead of passing", async () => {
+  const app = await serve(() => ({ body: { reply: "hi" } }));
+  const hosted = await hostedFor();
+  const dir = repo(app.port);
+  const e = await failed(dir, hosted, ["--full"]);
+  assert.ok(e);
+  assert.match(e.stderr, /no simulations yet/);
+  app.server.close(); hosted.server.close();
+});
+
+test("init writes a config the command then refuses until it is filled in", async () => {
+  const hosted = await hostedFor();
+  const dir = mkdtempSync(join(tmpdir(), "cortad-init-"));
+  const { stdout } = await cli(dir, hosted, ["init"]);
+  assert.match(stdout, /Wrote cortad\.json/);
+  const e = await failed(dir, hosted, ["plan"]);
+  assert.ok(e, "an empty config must not be runnable");
+  assert.match(e.stderr, /app: one sentence/);
+  hosted.server.close();
+});
+
+test("offline sends nothing and runs nothing, instead of writing simulations over the wire", async () => {
+  const hosted = await serve(() => { throw new Error("offline must not call home"); });
+  const dir = repo(1);
+  const e = await (async () => {
+    try {
+      await exec("node", [CLI, "plan"], { cwd: dir, env: { ...process.env, CORTAD_ORIGIN: `http://127.0.0.1:${hosted.port}`, CORTAD_OFFLINE: "1", NO_COLOR: "1" } });
+      return null;
+    } catch (err) { return err; }
+  })();
+  assert.ok(e);
+  assert.match(e.stderr, /CORTAD_OFFLINE is set/);
+  assert.match(e.stderr, /Nothing was sent/);
+  hosted.server.close();
+});
+
+test("help and version answer instead of complaining about a missing config", async () => {
+  const hosted = await hostedFor();
+  const dir = mkdtempSync(join(tmpdir(), "cortad-help-"));
+  assert.match((await cli(dir, hosted, ["--help"])).stdout, /cortad verify/);
+  assert.match((await cli(dir, hosted, ["--version"])).stdout, /^\d+\.\d+\.\d+/);
+  hosted.server.close();
 });

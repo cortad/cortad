@@ -1,147 +1,176 @@
 #!/usr/bin/env node
-// Plays people against your app and tells you which of your own rules it broke.
+// Runs a simulation against the app on this machine and says what your change did.
 //
-//   cortad init        writes cortad.json for you or your coding agent to fill
-//   cortad             plays the conversations and prints what broke
+//   cortad init        finds your app's AI and writes cortad.json
+//   cortad plan        writes the simulations into cortad/simulations
+//   cortad             plays them and prints what moved
+//   cortad verify      plays the ones that failed and says whether the fix held
+//   cortad coverage    says which of your files the simulations reach
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { readSchema, SCHEMA_FILE, SKELETON } from "../lib/schema.mjs";
-import { multiTurn, playAll } from "../lib/play.mjs";
-import { pickJudge, rule } from "../lib/judge.mjs";
-import { HostedError, offline, ORIGIN, writeUsers } from "../lib/hosted.mjs";
-import { bold, CLOSING, dim, report } from "../lib/report.mjs";
+import { HostedError, offline, ORIGIN } from "../lib/hosted.mjs";
+import { plan } from "../lib/cli/plan.mjs";
+import { run } from "../lib/cli/run.mjs";
+import { held, whatToVerify } from "../lib/cli/verify.mjs";
+import { report, bold, dim, green, red } from "../lib/report.mjs";
+import { coverage } from "../lib/changed.mjs";
+import { last } from "../lib/run.mjs";
+import { read } from "../lib/suite/files.mjs";
 
 const argv = process.argv.slice(2);
-// Every flag here takes a value, so the word after one is never the command.
-const TAKES_VALUE = new Set(["-n", "--conversations", "--judge", "--schema"]);
-// What the service will write in one go. Asking for more than this used to be accepted and then
-// silently cut, so the number a person typed and the number they got disagreed.
+const TAKES_VALUE = new Set(["-n", "--judge", "--schema", "--changed"]);
 const MOST = 50;
 const flag = (name, fallback) => {
   const at = argv.indexOf(name);
   return at === -1 ? fallback : argv[at + 1];
 };
+const has = (name) => argv.includes(name);
 const verb = argv.find((a, i) => !a.startsWith("-") && !TAKES_VALUE.has(argv[i - 1])) ?? "run";
 const file = resolve(flag("--schema", SCHEMA_FILE));
 const die = (message) => { console.error(`\n  ${message}\n`); process.exit(1); };
+const say = (message) => console.log(`\n${message}\n`);
+
+const HELP = `
+  cortad      runs a simulation against your AI app and says what your change did
+
+  cortad init                     finds your app's AI and writes ${SCHEMA_FILE}
+  cortad plan                     writes the simulations into cortad/simulations
+  cortad                          plays the small set and prints what moved
+  cortad --all                    plays everything but the set held for a release
+  cortad --full                   plays everything
+  cortad --changed <files>        plays only what reaches the files you edited
+  cortad verify                   plays the ones that failed, says whether the fix held
+  cortad coverage                 says which of your files the simulations reach
+
+  -n <number>                     how many simulations to write (default 20, most ${MOST})
+  --judge <model>                 answer the questions with your own model
+  --judge ollama/<model>          answer them on this machine
+  --schema <path>                 a config somewhere other than ./${SCHEMA_FILE}
+
+  CORTAD_JUDGE_KEY                the key for your judge
+  CORTAD_JUDGE_URL                where that key goes (default https://openrouter.ai/api/v1)
+  CORTAD_OFFLINE=1                send nothing anywhere
+
+  It exits non-zero when a question failed, and when your app answered nothing.
+  https://github.com/cortad/cortad
+`;
+
+if (has("--help") || has("-h") || verb === "help") { console.log(HELP); process.exit(0); }
+if (has("--version") || has("-v")) {
+  console.log(JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version);
+  process.exit(0);
+}
 
 if (verb === "init") {
   if (existsSync(file)) die(`${file} is already here.`);
   writeFileSync(file, `${JSON.stringify(SKELETON, null, 2)}\n`);
-  console.log(`
-  Wrote ${SCHEMA_FILE}.
+  say(`  Wrote ${SCHEMA_FILE}.
 
   Fill it in yourself, or hand it to the coding agent in this repository:
 
-      Fill in cortad.json from this codebase: what this app does, the endpoint
-      its chat goes to and the body that endpoint takes, and every rule the
-      system prompt tells the model to keep.
-`);
+      Fill in cortad.json from this codebase: what this app does, the endpoint its
+      chat goes to and the body that endpoint takes, and every rule the system
+      prompt tells the model to keep.
+
+  Then: cortad plan`);
   process.exit(0);
 }
 
-const HELP = `
-  cortad      plays people against your AI app and tells you which of your own rules it broke
-
-  cortad init                     writes cortad.json for you or your coding agent to fill
-  cortad                          plays the conversations and prints what broke
-
-  -n <number>                     how many conversations to play (default 20, most 50)
-  --judge <model>                 judge with your own model instead of ours
-  --judge ollama/<model>          judge on this machine
-  --schema <path>                 a schema somewhere other than ./cortad.json
-
-  CORTAD_JUDGE_KEY                the key for your judge
-  CORTAD_JUDGE_URL                where that key goes (default https://openrouter.ai/api/v1)
-  CORTAD_OFFLINE=1                send nothing anywhere, and run nothing
-
-  It exits non-zero when a rule broke, and when your app answered nothing.
-  https://github.com/cortad/cortad
-`;
-
-if (argv.includes("--help") || argv.includes("-h") || verb === "help") { console.log(HELP); process.exit(0); }
-if (argv.includes("--version") || argv.includes("-v")) {
-  console.log(JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version);
-  process.exit(0);
-}
-if (verb !== "run") die(`no such command: ${verb}. Try: cortad init, cortad, or cortad --help`);
 if (!existsSync(file)) die(`no ${SCHEMA_FILE} here. Run cortad init to write one.`);
-
-// Offline means offline, and it is settled before anything else so no path can reach the wire.
-// The conversations are written by us, so there is nothing to play without that call, and sending
-// the schema anyway would make the promise on the tin a lie.
-if (offline()) {
-  die(`CORTAD_OFFLINE is set, and the conversations are written by ${new URL(ORIGIN()).host}, so there are none to play.
-  Nothing was sent. Unset CORTAD_OFFLINE to run.`);
-}
-
 let schema;
 try { schema = readSchema(readFileSync(file, "utf8")); } catch (e) { die(e.message); }
 
-let judge;
-try { judge = pickJudge(flag("--judge")); } catch (e) { die(e.message); }
+if (verb === "coverage") {
+  const reached = coverage(last());
+  if (!reached.length) {
+    say(`  Nothing is recorded yet, so which files your simulations reach is unknown.
 
-const count = Math.max(1, Math.min(MOST, Number(flag("-n", flag("--conversations", 20))) || 20));
-
-console.log(`
-  ${bold(schema.app)}
-  ${dim(`${schema.rules.length} ${schema.rules.length === 1 ? "rule" : "rules"} to hold, judged by ${judge.name}`)}
-`);
-
-if (!offline()) {
-  console.log(dim(`  Your rules and this app's description go to ${new URL(ORIGIN()).host} so the conversations
-  can be written. Nothing else leaves this machine: not your code, not your keys, not
-  your environment. Set CORTAD_OFFLINE=1 to send nothing at all.
-`));
+  One line in your dev server, then run again:
+      import { record } from "cortad/trace"; record();`);
+    process.exit(0);
+  }
+  // No denominator: how many files their AI runs through is theirs to know, and inventing one would
+  // be a number with nothing behind it.
+  say([`  ${bold(`${reached.length === 1 ? "One file is" : `${reached.length} files are`} reached by a conversation`)}`, "",
+    ...reached.map((r) => `  ${String(r.count).padStart(4)}  ${r.file}`)].join("\n"));
+  process.exit(0);
 }
 
-let cases;
-try {
-  cases = await writeUsers(schema, count);
-} catch (e) {
-  if (e instanceof HostedError && e.status === 429) die(`${e.message}. Try again tomorrow: the limit is on writing the conversations, and your own judge does not lift it.`);
-  die(e.message);
+if (verb === "plan") {
+  if (offline()) die(`CORTAD_OFFLINE is set, and the simulations are written by ${new URL(ORIGIN()).host}. Nothing was sent.`);
+  const want = Math.max(1, Math.min(MOST, Number(flag("-n", 20)) || 20));
+  console.log(`\n  ${dim(`Your rules and this app's description go to ${new URL(ORIGIN()).host} so the simulations can be\n  written. Nothing else leaves this machine: not your code, not your keys, not your environment.`)}\n`);
+  let written;
+  try { written = await plan({ schema, count: want }); } catch (e) {
+    if (e instanceof HostedError && e.status === 429) die(`${e.message}. A run on an unchanged ${SCHEMA_FILE} does not spend one.`);
+    die(e.message);
+  }
+  say([`  ${bold(`Wrote ${written.length} simulations into cortad/simulations`)}`, "",
+    ...written.map((w) => `  ${w.tier.padEnd(9)} ${w.id}  ${dim(`${w.questions} ${w.questions === 1 ? "question" : "questions"}`)}`),
+    "", "  They are yours. Open one, change who shows up or what is asked, and commit it.",
+    "  Then: cortad"].join("\n"));
+  process.exit(0);
 }
 
-if (!multiTurn(schema.endpoint)) {
-  console.log(dim(`  Each conversation is one turn, because nothing here carries the ones before it. Put
-  {{messages}} where your endpoint takes the turn list, or {{thread}} where it takes an id
-  and keeps the history itself. Single turns miss what breaks on the fourth one.
-`));
-}
+if (verb === "verify") {
+  const want = whatToVerify();
+  // Neither of these is a failure, so neither leaves a failing exit code: a gate that goes red
+  // because there was nothing to check is a gate nobody keeps.
+  if (want.kind === "nothing-kept") { say("  No run is kept here yet. Run cortad first."); process.exit(0); }
+  if (want.kind === "nothing-failed") { say("  Nothing failed in the last run, so there is nothing to verify."); process.exit(0); }
 
-const live = process.stdout.isTTY;
-const played = await playAll(schema.endpoint, cases, {
-  onDone: (_r, done, all) => { if (live) process.stdout.write(`\r  ${done} of ${all} conversations played`); },
-});
-if (live) process.stdout.write(`\r${" ".repeat(40)}\r`);
-
-const byId = new Map(cases.map((c) => [c.id, c]));
-const broke = [];
-const errors = played.filter((p) => p.error);
-for (const one of played) {
-  if (one.error) continue;
-  const checks = byId.get(one.id)?.checks ?? [];
-  if (!checks.length) continue;
-  let rulings;
-  try { rulings = await rule(judge, one.transcript, checks); } catch (e) { die(e.message); }
-  const failed = rulings.filter((x) => x.broke);
-  if (!failed.length) continue;
-  // The card is the conversation, so it is placed at the first reply that broke something.
-  const at = Math.min(...failed.map((f) => f.turn));
-  broke.push({
-    title: one.title,
-    said: one.transcript[at - 2]?.text ?? one.transcript[0].text,
-    reply: one.transcript[at - 1].text,
-    failed: failed.map((f) => ({ require: f.require, evidence: f.evidence })),
+  const live = process.stdout.isTTY;
+  const again = await run({
+    schema,
+    plays: "full",
+    only: want.ids,
+    judgeName: flag("--judge"),
+    onDone: (_r, done, all) => { if (live) process.stdout.write(`\r  ${done} of ${all} played again`); },
   });
+  if (live) process.stdout.write(`\r${" ".repeat(40)}\r`);
+  if (again.kind !== "ran") die("the simulations that failed are no longer in cortad/simulations.");
+
+  const ruled = held(want.before, again.run);
+  const gone = ruled.filter((r) => r.held);
+  say([
+    ...ruled.map((r) => `  ${r.held ? green("held") : red("still failing")}   ${r.ask}  ${dim(r.conversation)}`),
+    "",
+    `  ${bold(`${gone.length} of ${ruled.length} fixed`)}.`,
+  ].join("\n"));
+  process.exit(gone.length === ruled.length ? 0 : 1);
 }
 
-const answered = played.length - errors.length;
-console.log(report({ broke, played: answered, conversations: cases.length, errors, judgeName: judge.name }));
+if (verb !== "run") die(`no such command: ${verb}. Try: cortad init, cortad plan, cortad, cortad verify, or cortad --help`);
+
+const judgeName = flag("--judge");
+const changed = (flag("--changed") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+const plays = has("--full") ? "full" : has("--all") ? "all" : "smoke";
+const live = process.stdout.isTTY;
+const onDone = (_r, done, all) => { if (live) process.stdout.write(`\r  ${done} of ${all} played`); };
+const clearLine = () => { if (live) process.stdout.write(`\r${" ".repeat(40)}\r`); };
+
+async function once(options) {
+  const result = await run({ schema, onDone, ...options });
+  clearLine();
+  return result;
+}
+
+const suite = read();
+if (suite.problems.length) die(`these simulations cannot be read:\n\n  ${suite.problems.join("\n\n  ")}`);
+if (!suite.simulations.length) die(`no simulations yet. Run cortad plan to write the first ones, or add a file to cortad/simulations.`);
+
+const result = await once({ plays, changed: changed.length ? changed : null, judgeName });
+
+if (result.kind === "nothing" && changed.length) {
+  const bare = result.scoped?.bare ?? changed;
+  die(`nothing reaches ${bare.join(", ")}.
+
+  Write a simulation for it in cortad/simulations and run again.
+  The format is in cortad/simulations/README.md${result.scoped?.traced ? "" : "\n\n  Nothing is recorded yet either, so which files a conversation reaches is unknown.\n  One line in your dev server: import { record } from \"cortad/trace\"; record();"}`);
+}
+if (result.kind === "nothing") die(`nothing in the ${plays} set. Try cortad --all, or set "tier" in a simulation file.`);
+
+console.log(report(result));
 console.log("");
-console.log(CLOSING(cases.length));
-console.log("");
-// Nothing judged is not nothing wrong. A gate that goes green because the app never answered is
-// worse than no gate, so the only clean exit is one where conversations were played and held.
-process.exit(broke.length || answered === 0 ? 1 : 0);
+process.exit(result.counted.broke || result.run.conversations.length === result.errors.length ? 1 : 0);
