@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { test } from "node:test";
 import { MESSAGE } from "../lib/schema.mjs";
-import { MESSAGES, multiTurn, playAll, playCase } from "../lib/play.mjs";
+import { fill, MESSAGES, multiTurn, playAll, playCase } from "../lib/play.mjs";
 
 const appOn = (handler) => new Promise((done) => {
   const server = createServer((req, res) => {
@@ -72,4 +72,9 @@ test("every conversation comes back, in the order they were asked for", async ()
   server.close();
   assert.deepEqual(played.map((p) => p.id), cases.map((c) => c.id));
   assert.deepEqual(played.map((p) => p.transcript[1].text), cases.map((_, i) => `m${i}`));
+});
+
+test("the placeholder is replaced however deep it sits", () => {
+  assert.deepEqual(fill({ a: [{ b: MESSAGE }], c: "x" }, { message: "hi" }), { a: [{ b: "hi" }], c: "x" });
+  assert.equal(fill(`prefix ${MESSAGE}`, { message: "hi" }), "prefix hi");
 });

@@ -132,7 +132,7 @@ With the default judge, two things go to `open.cortad.com`:
 1. Your `cortad.json`, so the conversations can be written for your app.
 2. Each conversation and the checks on it, so it can be judged.
 
-Your source does not. Your environment does not. The conversations and the verdicts are kept and used to make this better.
+Your source does not. Your environment does not.
 
 Note what the first item means: `endpoint.headers` is part of `cortad.json`, so anything you put there, a bearer token for a staging endpoint included, is sent with it. Point this at a local app, or use a token minted for this and nothing else.
 

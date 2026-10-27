@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { MESSAGE, problems, readSchema, replyAt, SKELETON, withMessage } from "../lib/schema.mjs";
+import { MESSAGE, problems, readSchema, replyAt, SKELETON } from "../lib/schema.mjs";
 
 const good = {
   app: "a support assistant for a shoe store",
@@ -29,11 +30,6 @@ test("a url that is not http is refused", () => {
   assert.ok(problems({ ...good, endpoint: { ...good.endpoint, url: "localhost:3000" } }).some((p) => p.startsWith("endpoint.url:")));
 });
 
-test("the placeholder is replaced however deep it sits", () => {
-  assert.deepEqual(withMessage({ a: [{ b: MESSAGE }], c: "x" }, "hi"), { a: [{ b: "hi" }], c: "x" });
-  assert.equal(withMessage(`prefix ${MESSAGE}`, "hi"), "prefix hi");
-});
-
 test("the reply path walks objects and arrays, and nothing else is a reply", () => {
   assert.equal(replyAt({ choices: [{ message: { content: "yes" } }] }, "choices.0.message.content"), "yes");
   assert.equal(replyAt({ choices: [] }, "choices.0.message.content"), null);
@@ -42,4 +38,14 @@ test("the reply path walks objects and arrays, and nothing else is a reply", () 
 
 test("broken JSON says so by name", () => {
   assert.throws(() => readSchema("{"), /cortad\.json is not valid JSON/);
+});
+
+test("the address init writes is the address the schema answers at", () => {
+  const published = JSON.parse(readFileSync(new URL("../cortad.schema.json", import.meta.url), "utf8"));
+  assert.equal(SKELETON.$schema, published.$id);
+});
+
+test("a body that takes the whole turn list is accepted, which is what the README documents", () => {
+  const list = { ...good, endpoint: { ...good.endpoint, body: { messages: "{{messages}}" } } };
+  assert.deepEqual(problems(list), []);
 });

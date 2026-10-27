@@ -14,6 +14,9 @@ import { bold, CLOSING, dim, report } from "../lib/report.mjs";
 const argv = process.argv.slice(2);
 // Every flag here takes a value, so the word after one is never the command.
 const TAKES_VALUE = new Set(["-n", "--conversations", "--judge", "--schema"]);
+// What the service will write in one go. Asking for more than this used to be accepted and then
+// silently cut, so the number a person typed and the number they got disagreed.
+const MOST = 50;
 const flag = (name, fallback) => {
   const at = argv.indexOf(name);
   return at === -1 ? fallback : argv[at + 1];
@@ -43,7 +46,7 @@ const HELP = `
   cortad init                     writes cortad.json for you or your coding agent to fill
   cortad                          plays the conversations and prints what broke
 
-  -n <number>                     how many conversations to play (default 20)
+  -n <number>                     how many conversations to play (default 20, most 50)
   --judge <model>                 judge with your own model instead of ours
   --judge ollama/<model>          judge on this machine
   --schema <path>                 a schema somewhere other than ./cortad.json
@@ -78,7 +81,7 @@ try { schema = readSchema(readFileSync(file, "utf8")); } catch (e) { die(e.messa
 let judge;
 try { judge = pickJudge(flag("--judge")); } catch (e) { die(e.message); }
 
-const count = Math.max(1, Math.min(200, Number(flag("-n", flag("--conversations", 20))) || 20));
+const count = Math.max(1, Math.min(MOST, Number(flag("-n", flag("--conversations", 20))) || 20));
 
 console.log(`
   ${bold(schema.app)}
@@ -88,8 +91,7 @@ console.log(`
 if (!offline()) {
   console.log(dim(`  Your rules and this app's description go to ${new URL(ORIGIN()).host} so the conversations
   can be written. Nothing else leaves this machine: not your code, not your keys, not
-  your environment. The conversations and the verdicts are kept and used to make this
-  better. Set CORTAD_OFFLINE=1 to send nothing at all.
+  your environment. Set CORTAD_OFFLINE=1 to send nothing at all.
 `));
 }
 

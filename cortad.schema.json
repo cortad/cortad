@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://cortad.com/cortad.schema.json",
+  "$id": "https://raw.githubusercontent.com/cortad/cortad/main/cortad.schema.json",
   "title": "cortad.json",
   "description": "What a run needs to know about an app: where to send a message, where the reply is, and the rules the app is supposed to keep.",
   "type": "object",

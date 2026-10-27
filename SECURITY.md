@@ -17,10 +17,6 @@ Your source is not sent. Your environment is not sent. There is no account and n
 
 `CORTAD_OFFLINE=1` sends nothing anywhere. Because the conversations are written by us, there is then nothing to play, and the command says so and stops rather than quietly calling home.
 
-## What is kept
-
-The conversations and the verdicts, against that random id, and used to make the tool better.
-
 ## The thing to be careful about
 
 `endpoint.headers` is part of `cortad.json`, and `cortad.json` is sent. If you put a bearer token there to reach a protected endpoint, that token is sent with it. Point the tool at an app on your own machine, or use a credential minted for this and nothing else, scoped to nothing you would mind rotating.
