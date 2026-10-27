@@ -25,18 +25,10 @@ jobs:
           node-version: "24"
           registry-url: "https://registry.npmjs.org"
           package-manager-cache: false
-      # 2026-10-27: this does not publish yet and the reason is not in this file. npm's trusted
-      # publisher for the package names this repository and this workflow and reads Valid, the job
-      # can mint an id token, npm is new enough, and npm still never asks for one: it stops at
-      # ENEEDAUTH. Either NPM_TOKEN reaches this job, or someone publishes 1.0.0 by hand once.
-      - run: npm install -g npm@latest
-      - run: npm --version
       - name: The tag is the version in package.json
         run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
       - run: npm test
       # A prerelease (0.3.0-rc.1) goes out under the next tag, so a stack can walk it before a
       # customer's `npx cortad` resolves to it.
-      - env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
+      - run: |
           if node -p "require('./package.json').version" | grep -q -- -; then npm publish --access public --tag next; else npm publish --access public; fi
