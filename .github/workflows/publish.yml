@@ -31,6 +31,10 @@ jobs:
       # no token here, and there is not meant to be.
       - run: npm install -g npm@latest
       - run: npm --version
+      - name: Can this job mint an OIDC token
+        run: |
+          echo "id-token endpoint present: ${ACTIONS_ID_TOKEN_REQUEST_URL:+yes}${ACTIONS_ID_TOKEN_REQUEST_URL:-no}"
+          echo "registry: $(npm config get registry)"
       - name: The tag is the version in package.json
         run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
       - run: npm test
