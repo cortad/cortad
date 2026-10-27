@@ -26,6 +26,7 @@
   <a href="#a-simulation">Simulations</a> ·
   <a href="#how-a-question-is-answered">Questions</a> ·
   <a href="#after-a-change">After a change</a> ·
+  <a href="#your-own-eval-files">Your evals</a> ·
   <a href="#in-ci">CI</a> ·
   <a href="#what-leaves-your-machine">Privacy</a> ·
   <a href="https://cortad.com">cortad.com</a>
@@ -157,6 +158,34 @@ says so rather than drawing a line.
 Which file a conversation reaches is read off what your app recorded, not guessed from names. A file
 nothing reaches fails the run and says to write a simulation for it, instead of passing on coverage
 that does not exist.
+
+## Your own eval files
+
+```sh
+npx cortad evals
+```
+
+A file is read when three or more of its rows name something someone asked and something the answer
+has to do. A short expectation becomes a question code answers with no model involved; a long one
+becomes a question asked against the reference. Every simulation it writes carries the file and the
+row it came from, so a failure has an address in your repository.
+
+Nothing is guessed. A file that only has inputs is not read at all.
+
+## Question packs
+
+A pack is a file of questions for a kind of app: refunds and returns, citation and jurisdiction,
+clinical guidance and referral.
+
+```sh
+npx cortad packs add ./refunds.json
+npx cortad packs add https://example.com/refunds.json
+npx cortad packs
+```
+
+Every question in an installed pack is asked of every conversation. The ones that do not apply
+answer `did not come up` and leave the count, so there is no matcher to get wrong. A pack cannot
+name a function in your repository: a file from somewhere else does not get to run your code.
 
 ## Three sets
 

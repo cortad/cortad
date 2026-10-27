@@ -18,7 +18,8 @@ import { configFrom, findApp } from "../lib/cli/init.mjs";
 import { report, bold, dim, green, red } from "../lib/report.mjs";
 import { coverage } from "../lib/changed.mjs";
 import { last } from "../lib/run.mjs";
-import { read } from "../lib/suite/files.mjs";
+import { read, write } from "../lib/suite/files.mjs";
+import { findEvals } from "../lib/evals/read.mjs";
 import { add as addPack, read as readPacks } from "../lib/suite/packs.mjs";
 import { asJson } from "../lib/out/json.mjs";
 import { asJunit } from "../lib/out/junit.mjs";
@@ -50,6 +51,7 @@ const HELP = `
   cortad verify                   plays the ones that failed, says whether the fix held
   cortad coverage                 says which of your files the simulations reach
   cortad replay <run>             answers a kept run again, without touching your app
+  cortad evals                    reads your own eval files and writes simulations from them
   cortad packs                    the question packs installed here
   cortad packs add <file or url>  install one
 
@@ -143,6 +145,28 @@ if (verb === "plan") {
     ...written.map((w) => `  ${w.tier.padEnd(9)} ${w.id}  ${dim(`${w.questions} ${w.questions === 1 ? "question" : "questions"}`)}`),
     "", "  They are yours. Open one, change who shows up or what is asked, and commit it.",
     "  Then: cortad"].join("\n"));
+  process.exit(0);
+}
+
+if (verb === "evals") {
+  const found = findEvals();
+  if (!found.length) {
+    say(`  No eval files found here.
+
+  A file is read when three or more of its rows name something someone asked and
+  something the answer has to do. Nothing is guessed: a file that only has inputs
+  is not read at all.`);
+    process.exit(0);
+  }
+  const written = found.flatMap((one) => one.simulations.map((s) => ({ at: write(s), from: s.from })));
+  say([
+    `  ${bold(`Wrote ${written.length} ${written.length === 1 ? "simulation" : "simulations"} from your own eval files`)}`,
+    "",
+    ...found.map((one) => `  ${one.file}  ${dim(`${one.simulations.length} of ${one.rows} rows`)}`),
+    "",
+    "  Each one carries the file and row it came from, so a failure has an address in",
+    "  your repository. Open one and change what is asked if the reading is wrong.",
+  ].join("\n"));
   process.exit(0);
 }
 
