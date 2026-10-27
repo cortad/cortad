@@ -160,3 +160,16 @@ test("their own writer and judge do the whole thing, and the hosted side is neve
   assert.match(ran.stdout, /Answered by their-model/);
   assert.equal(calledHome, false, "with their own writer and judge, nothing goes to the hosted side");
 });
+
+test("a connector verb says where it went, and a typo is named before the config is asked for", async () => {
+  const empty = mkdtempSync(join(tmpdir(), "cortad-verbs-"));
+  const connector = await cortad(empty, ["status"]);
+  assert.equal(connector.code, 1);
+  assert.match(connector.stderr, /belongs to the Cortad connector/);
+  assert.match(connector.stderr, /@cortad\/connector status/);
+
+  const typo = await cortad(empty, ["symulate"]);
+  assert.equal(typo.code, 1);
+  assert.match(typo.stderr, /no such command: symulate/);
+  assert.doesNotMatch(typo.stderr, /no cortad\.json/, "a typo is not a missing config");
+});

@@ -106,6 +106,22 @@ if (verb === "init") {
   process.exit(0);
 }
 
+// The paid connector answers to these, and it used to be the package called cortad. An agent
+// reading an older instruction would otherwise get a shrug from the wrong tool.
+const CONNECTOR = new Set(["status", "findings", "dispute", "feedback", "field", "world", "reach", "wait", "connect", "tell", "setup"]);
+const VERBS = new Set(["init", "plan", "run", "verify", "coverage", "replay", "evals", "packs"]);
+if (CONNECTOR.has(verb)) {
+  die(`${verb} belongs to the Cortad connector, which is a different command:
+
+      npx @cortad/connector ${verb}
+
+  This one runs a simulation from the simulations in this repository. cortad --help`);
+}
+
+// A command nobody has is named before anything is asked of the repository. Asking for a config
+// first told someone their config was missing when the real answer was that they had a typo.
+if (!VERBS.has(verb)) die(`no such command: ${verb}. Try: cortad init, cortad plan, cortad, cortad verify, or cortad --help`);
+
 if (!existsSync(file)) die(`no ${SCHEMA_FILE} here. Run cortad init to write one.`);
 let schema;
 try { schema = readSchema(readFileSync(file, "utf8")); } catch (e) { die(e.message); }
@@ -225,7 +241,6 @@ if (verb === "verify") {
   process.exit(gone.length === ruled.length ? 0 : 1);
 }
 
-if (verb !== "run") die(`no such command: ${verb}. Try: cortad init, cortad plan, cortad, cortad verify, or cortad --help`);
 
 const judgeName = flag("--judge");
 const changed = (flag("--changed") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
