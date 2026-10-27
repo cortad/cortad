@@ -25,6 +25,11 @@ jobs:
           node-version: "24"
           registry-url: "https://registry.npmjs.org"
           package-manager-cache: false
+      # Trusted publishing is an npm feature, not a node one, and the npm bundled with node 24 is
+      # older than the 11.5.1 that does the OIDC exchange. Without it npm sends no credential at
+      # all and the registry answers 404, which reads as a permission problem and is not one.
+      - run: npm install -g npm@latest
+      - run: npm --version
       - name: The tag is the version in package.json
         run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
       - run: npm test
