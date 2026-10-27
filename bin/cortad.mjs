@@ -14,6 +14,7 @@ import { plan } from "../lib/cli/plan.mjs";
 import { run } from "../lib/cli/run.mjs";
 import { held, whatToVerify } from "../lib/cli/verify.mjs";
 import { replay } from "../lib/cli/replay.mjs";
+import { configFrom, findApp } from "../lib/cli/init.mjs";
 import { report, bold, dim, green, red } from "../lib/report.mjs";
 import { coverage } from "../lib/changed.mjs";
 import { last } from "../lib/run.mjs";
@@ -23,7 +24,7 @@ import { asJunit } from "../lib/out/junit.mjs";
 import { asSarif } from "../lib/out/sarif.mjs";
 
 const argv = process.argv.slice(2);
-const TAKES_VALUE = new Set(["-n", "--judge", "--writer", "--schema", "--changed", "--junit", "--sarif"]);
+const TAKES_VALUE = new Set(["-n", "--judge", "--writer", "--schema", "--changed", "--junit", "--sarif", "--at"]);
 const MOST = 50;
 const flag = (name, fallback) => {
   const at = argv.indexOf(name);
@@ -39,6 +40,7 @@ const HELP = `
   cortad      runs a simulation against your AI app and says what your change did
 
   cortad init                     finds your app's AI and writes ${SCHEMA_FILE}
+  cortad init --at <url>          where to look, if it is not on a usual dev port
   cortad plan                     writes the simulations into cortad/simulations
   cortad                          plays the small set and prints what moved
   cortad --all                    plays everything but the set held for a release
@@ -74,16 +76,28 @@ if (has("--version") || has("-v")) {
 
 if (verb === "init") {
   if (existsSync(file)) die(`${file} is already here.`);
-  writeFileSync(file, `${JSON.stringify(SKELETON, null, 2)}\n`);
-  say(`  Wrote ${SCHEMA_FILE}.
+  const live = process.stdout.isTTY;
+  if (live) process.stdout.write("  looking for your app");
+  const app = await findApp({ at: flag("--at"), onTry: () => { if (live) process.stdout.write("."); } });
+  if (live) process.stdout.write(`\r${" ".repeat(60)}\r`);
+  const best = app.found[0];
+  writeFileSync(file, `${JSON.stringify(configFrom(best), null, 2)}\n`);
 
-  Fill it in yourself, or hand it to the coding agent in this repository:
-
-      Fill in cortad.json from this codebase: what this app does, the endpoint its
-      chat goes to and the body that endpoint takes, and every rule the system
-      prompt tells the model to keep.
-
-  Then: cortad plan`);
+  const alsoFound = app.found.slice(1);
+  say([
+    best
+      ? `  ${bold(`Your app answers at ${best.url}`)}\n  ${dim(`It takes ${best.shape}, and the reply is at ${best.reply}. Both are in ${SCHEMA_FILE}.`)}`
+      : `  ${bold(`Wrote ${SCHEMA_FILE}.`)}\n  ${dim(app.base ? `Nothing at ${app.base} answered like a chat, so the endpoint is a guess to fill in.` : "No app is running here, so the endpoint is a guess to fill in.")}`,
+    ...(alsoFound.length ? ["", dim(`  These answered too: ${alsoFound.map((f) => f.path).join(", ")}. Change the url if one of them is the chat.`)] : []),
+    "",
+    "  Two things are still yours to write, and the coding agent in this repository can:",
+    "",
+    "      Fill in cortad.json from this codebase: one sentence on what this app does,",
+    "      and every rule the system prompt tells the model to keep, in the prompt's",
+    "      own words. Read the prompt files, not the README.",
+    "",
+    "  Then: cortad plan",
+  ].join("\n"));
   process.exit(0);
 }
 
