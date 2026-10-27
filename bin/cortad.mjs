@@ -19,6 +19,7 @@ import { report, bold, dim, green, red } from "../lib/report.mjs";
 import { coverage } from "../lib/changed.mjs";
 import { last } from "../lib/run.mjs";
 import { read } from "../lib/suite/files.mjs";
+import { add as addPack, read as readPacks } from "../lib/suite/packs.mjs";
 import { asJson } from "../lib/out/json.mjs";
 import { asJunit } from "../lib/out/junit.mjs";
 import { asSarif } from "../lib/out/sarif.mjs";
@@ -49,6 +50,8 @@ const HELP = `
   cortad verify                   plays the ones that failed, says whether the fix held
   cortad coverage                 says which of your files the simulations reach
   cortad replay <run>             answers a kept run again, without touching your app
+  cortad packs                    the question packs installed here
+  cortad packs add <file or url>  install one
 
   -n <number>                     how many simulations to write (default 20, most ${MOST})
   --writer <model>                write the simulations with your own model
@@ -140,6 +143,23 @@ if (verb === "plan") {
     ...written.map((w) => `  ${w.tier.padEnd(9)} ${w.id}  ${dim(`${w.questions} ${w.questions === 1 ? "question" : "questions"}`)}`),
     "", "  They are yours. Open one, change who shows up or what is asked, and commit it.",
     "  Then: cortad"].join("\n"));
+  process.exit(0);
+}
+
+if (verb === "packs") {
+  const what = argv[argv.indexOf("packs") + 1];
+  if (what !== "add") {
+    const { packs, problems } = readPacks();
+    if (problems.length) die(`these packs cannot be read:\n\n  ${problems.join("\n\n  ")}`);
+    if (!packs.length) { say("  No packs installed. cortad packs add <file or url>"); process.exit(0); }
+    say(packs.map((p) => `  ${p.name} ${dim(p.version)}  ${dim(`${p.questions.length} questions`)}`).join("\n"));
+    process.exit(0);
+  }
+  const from = argv[argv.indexOf("add") + 1];
+  if (!from) die("name the pack to add: cortad packs add <file or url>");
+  let added;
+  try { added = await addPack(from); } catch (e) { die(e.message); }
+  say(`  Added ${added.name} ${added.version}, ${added.questions} questions, to ${added.at}.\n\n  Every one of them is asked of every conversation. The ones that do not apply\n  answer "did not come up" and leave the count.`);
   process.exit(0);
 }
 

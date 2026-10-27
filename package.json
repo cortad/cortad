@@ -41,5 +41,10 @@
   "bugs": {
     "url": "https://github.com/cortad/cortad/issues"
   },
-  "author": "Cortad"
+  "author": "Cortad",
+  "exports": {
+    ".": "./lib/index.mjs",
+    "./trace": "./lib/trace/record.mjs",
+    "./package.json": "./package.json"
+  }
 }

@@ -138,3 +138,16 @@ test("a question that does not name its decider is read from what it names", () 
   assert.equal(byOf({ ask: "was it rude" }), "judge");
   assert.equal(byOf({ by: "judge", tool: "x" }), "judge");
 });
+
+test("a pack's questions are asked of every conversation, and a pack cannot name your code", async () => {
+  const { problems, questionsOf } = await import("../lib/suite/packs.mjs");
+  assert.deepEqual(problems({ name: "refunds", version: "1", questions: [{ ask: "did it promise a refund", answer: "no" }] }), []);
+  assert.match(problems({ name: "Refunds!", version: "1", questions: [] }).join(" "), /name:/);
+  assert.match(problems({ name: "refunds", version: "1", questions: [{ ask: "x", answer: "no", fn: "sneaky" }] }).join(" "), /cannot name a function/);
+
+  const asked = questionsOf([{ name: "refunds", version: "1", questions: [{ ask: "did it promise a refund", answer: "no" }] }], "some-sim");
+  assert.equal(asked[0].pack, "refunds");
+  assert.match(asked[0].id, /^refunds#/);
+  assert.notEqual(questionsOf([{ name: "refunds", version: "1", questions: [{ ask: "x", answer: "no" }] }], "a")[0].id,
+    questionsOf([{ name: "refunds", version: "1", questions: [{ ask: "x", answer: "no" }] }], "b")[0].id);
+});

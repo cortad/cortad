@@ -6,11 +6,16 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { test } from "node:test";
+import { after, test } from "node:test";
 import { promisify } from "node:util";
 
 const exec = promisify(execFile);
 const CLI = new URL("../bin/cortad.mjs", import.meta.url).pathname;
+
+// Every server opened here is closed when the file is done, so a failing assertion cannot leave one
+// listening and hang the whole run on an event loop that will not empty.
+const opened = [];
+after(() => { for (const server of opened) server.close(); });
 
 const serve = (handler) => new Promise((done) => {
   const server = createServer((req, res) => {
@@ -21,7 +26,10 @@ const serve = (handler) => new Promise((done) => {
       res.writeHead(answer.status ?? 200, { "content-type": "application/json" });
       res.end(JSON.stringify(answer.body));
     });
-  }).listen(0, "127.0.0.1", () => done({ server, port: server.address().port }));
+  }).listen(0, "127.0.0.1", () => {
+    opened.push(server);
+    done({ server, port: server.address().port });
+  });
 });
 
 const CASES = [
@@ -75,7 +83,6 @@ test("plan writes the simulations into the repository, with the format beside th
   assert.deepEqual(written.questions, [{ ask: "did it promise a refund", answer: "no" }]);
   assert.match(readFileSync(join(dir, "cortad/simulations/README.md"), "utf8"), /A simulation file/);
   assert.match(readFileSync(join(dir, "cortad/.gitignore"), "utf8"), /trace\.jsonl/);
-  app.server.close(); hosted.server.close();
 });
 
 test("a question the app gets wrong fails the run and leaves a failing exit code", async () => {
@@ -92,7 +99,6 @@ test("a question the app gets wrong fails the run and leaves a failing exit code
   assert.match(e.stdout, /did it promise a refund/);
   assert.match(e.stdout, /wanted no\s+got yes/);
   assert.match(e.stdout, /your refund is approved/);
-  app.server.close(); hosted.server.close();
 });
 
 test("a run where nothing fails says so and exits clean", async () => {
@@ -102,7 +108,6 @@ test("a run where nothing fails says so and exits clean", async () => {
   await cli(dir, hosted, ["plan", "-n", "2"]);
   const { stdout } = await cli(dir, hosted, ["--full"]);
   assert.match(stdout, /Nothing failed/);
-  app.server.close(); hosted.server.close();
 });
 
 test("the second run says what moved, on the same simulations", async () => {
@@ -117,7 +122,6 @@ test("the second run says what moved, on the same simulations", async () => {
   broken = false;
   const { stdout } = await cli(dir, hosted, ["--full"]);
   assert.match(stdout, /1 answer moved\s+1 better, 0 worse/);
-  app.server.close(); hosted.server.close();
 });
 
 test("verify plays only what failed, and says whether the fix held", async () => {
@@ -133,7 +137,6 @@ test("verify plays only what failed, and says whether the fix held", async () =>
   const { stdout } = await cli(dir, hosted, ["verify"]);
   assert.match(stdout, /held\s+did it promise a refund/);
   assert.match(stdout, /1 of 1 fixed/);
-  app.server.close(); hosted.server.close();
 });
 
 test("a question about what the app did reads could not tell until the app records it", async () => {
@@ -145,7 +148,6 @@ test("a question about what the app did reads could not tell until the app recor
   const { stdout } = await cli(dir, hosted, ["--full"]);
   assert.match(stdout, /1 question could not be settled/);
   assert.match(stdout, /could not tell/);
-  app.server.close(); hosted.server.close();
 });
 
 test("a changed file nothing reaches says to write one, instead of passing", async () => {
@@ -157,7 +159,6 @@ test("a changed file nothing reaches says to write one, instead of passing", asy
   assert.ok(e, "a changed file with no coverage must not pass");
   assert.match(e.stderr, /nothing reaches src\/cancel\.ts/);
   assert.match(e.stderr, /Write a simulation for it/);
-  app.server.close(); hosted.server.close();
 });
 
 test("an app that never answers fails the command, so a dead app cannot pass a gate", async () => {
@@ -169,7 +170,6 @@ test("an app that never answers fails the command, so a dead app cannot pass a g
   assert.equal(e.code, 1);
   assert.match(e.stdout, /never got an answer/);
   assert.match(e.stdout, /nothing was tested/);
-  hosted.server.close();
 });
 
 test("a run with no simulations says what to do instead of passing", async () => {
@@ -179,18 +179,19 @@ test("a run with no simulations says what to do instead of passing", async () =>
   const e = await failed(dir, hosted, ["--full"]);
   assert.ok(e);
   assert.match(e.stderr, /no simulations yet/);
-  app.server.close(); hosted.server.close();
 });
 
 test("init writes a config the command then refuses until it is filled in", async () => {
   const hosted = await hostedFor();
   const dir = mkdtempSync(join(tmpdir(), "cortad-init-"));
-  const { stdout } = await cli(dir, hosted, ["init"]);
+  // --at a dead address on purpose: with no address, init looks at the usual dev ports, and what is
+  // listening on this machine is not something a test gets to depend on.
+  const { stdout } = await cli(dir, hosted, ["init", "--at", "http://127.0.0.1:1"]);
   assert.match(stdout, /Wrote cortad\.json/);
+  assert.match(stdout, /Nothing at http:\/\/127\.0\.0\.1:1 answered like a chat/);
   const e = await failed(dir, hosted, ["plan"]);
   assert.ok(e, "an empty config must not be runnable");
   assert.match(e.stderr, /app: one sentence/);
-  hosted.server.close();
 });
 
 test("offline sends nothing and runs nothing, instead of writing simulations over the wire", async () => {
@@ -205,7 +206,6 @@ test("offline sends nothing and runs nothing, instead of writing simulations ove
   assert.ok(e);
   assert.match(e.stderr, /CORTAD_OFFLINE is set/);
   assert.match(e.stderr, /Nothing was sent/);
-  hosted.server.close();
 });
 
 test("help and version answer instead of complaining about a missing config", async () => {
@@ -213,5 +213,4 @@ test("help and version answer instead of complaining about a missing config", as
   const dir = mkdtempSync(join(tmpdir(), "cortad-help-"));
   assert.match((await cli(dir, hosted, ["--help"])).stdout, /cortad verify/);
   assert.match((await cli(dir, hosted, ["--version"])).stdout, /^\d+\.\d+\.\d+/);
-  hosted.server.close();
 });

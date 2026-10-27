@@ -1,12 +1,19 @@
 // Finding an app's AI with nothing typed. Each app here is one that was read wrong once.
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { test } from "node:test";
+import { after, test } from "node:test";
 import { multiTurn } from "../lib/play.mjs";
 import { asEndpoint, knock } from "../lib/reach/knock.mjs";
 import { configFrom } from "../lib/cli/init.mjs";
 import { fieldsWanted, fill } from "../lib/reach/repair.mjs";
 import { replyPathOf } from "../lib/reach/shapes.mjs";
+
+
+// Every server opened here is closed when the file is done, so a failing assertion cannot leave one
+// listening and hang the whole run on an event loop that will not empty.
+const opened = [];
+after(() => { for (const server of opened) server.close(); });
+const keep = (server) => { opened.push(server); return server; };
 
 const appOn = (routes) => new Promise((done) => {
   const server = createServer((req, res) => {
@@ -18,7 +25,7 @@ const appOn = (routes) => new Promise((done) => {
       res.writeHead(answer.status, { "content-type": "application/json" });
       res.end(JSON.stringify(answer.body));
     });
-  }).listen(0, "127.0.0.1", () => done({ server, base: `http://127.0.0.1:${server.address().port}` }));
+  }).listen(0, "127.0.0.1", () => done({ server: keep(server), base: `http://127.0.0.1:${server.address().port}` }));
 });
 
 const prose = "Of course, happy to help with that order. What is the order number?";
@@ -48,7 +55,6 @@ test("the chat is found behind a route that is not mounted and one that only loo
     },
   });
   const out = await knock(app.base);
-  app.server.close();
 
   assert.equal(out.found.length, 1, "the autocomplete is machinery, not a chat");
   assert.equal(out.found[0].path, "/api/chat");
@@ -61,7 +67,6 @@ test("the chat is found behind a route that is not mounted and one that only loo
 test("a route that answers with a label is not a chat", async () => {
   const app = await appOn({ "/api/chat": () => ({ status: 200, body: { status: "ok" } }) });
   const out = await knock(app.base);
-  app.server.close();
   assert.deepEqual(out.found, []);
 });
 

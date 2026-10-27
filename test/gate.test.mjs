@@ -6,13 +6,20 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { test } from "node:test";
+import { after, test } from "node:test";
 import { promisify } from "node:util";
 import { MESSAGE } from "../lib/schema.mjs";
 import { MESSAGES, multiTurn } from "../lib/play.mjs";
 
 const run = promisify(execFile);
 const CLI = new URL("../bin/cortad.mjs", import.meta.url).pathname;
+
+
+// Every server opened here is closed when the file is done, so a failing assertion cannot leave one
+// listening and hang the whole run on an event loop that will not empty.
+const opened = [];
+after(() => { for (const server of opened) server.close(); });
+const keep = (server) => { opened.push(server); return server; };
 
 const schemaAt = (dir, url) => {
   writeFileSync(join(dir, "cortad.json"), JSON.stringify({
@@ -32,13 +39,12 @@ test("offline sends nothing and writes nothing, instead of writing simulations o
   const dir = schemaAt(mkdtempSync(join(tmpdir(), "cortad-gate-")), "http://127.0.0.1:1/chat");
   let reached = false;
   const spy = createServer((_req, res) => { reached = true; res.writeHead(500); res.end("{}"); });
-  await new Promise((d) => spy.listen(0, "127.0.0.1", d));
+  await new Promise((d) => keep(spy).listen(0, "127.0.0.1", d));
 
   const { stderr, code } = await cortad(dir, ["plan"], {
     CORTAD_OFFLINE: "1",
     CORTAD_ORIGIN: `http://127.0.0.1:${spy.address().port}`,
   });
-  spy.close();
 
   assert.equal(reached, false, "offline must not call the hosted side at all");
   assert.equal(code, 1);
@@ -53,12 +59,11 @@ test("an app that never answers fails the command, so a dead app cannot pass a g
       ? { cases: [{ id: "a", title: "t", turns: ["hi"], questions: [{ ask: "did it answer", answer: "yes" }] }] }
       : { answers: [] }));
   });
-  await new Promise((d) => hosted.listen(0, "127.0.0.1", d));
+  await new Promise((d) => keep(hosted).listen(0, "127.0.0.1", d));
 
   const at = { CORTAD_ORIGIN: `http://127.0.0.1:${hosted.address().port}` };
   await cortad(dir, ["plan", "-n", "1"], at);
   const { stdout, code } = await cortad(dir, ["--full"], at);
-  hosted.close();
 
   assert.equal(code, 1, "zero conversations answered is not a pass");
   assert.match(stdout, /Your app answered none of them/);
@@ -95,11 +100,10 @@ test("a thread app gets every turn on one thread, and no history array it never 
       res.end(JSON.stringify({ reply: "ok" }));
     });
   });
-  await new Promise((d) => app.listen(0, "127.0.0.1", d));
+  await new Promise((d) => keep(app).listen(0, "127.0.0.1", d));
   const { playCase } = await import("../lib/play.mjs");
   const endpoint = { url: `http://127.0.0.1:${app.address().port}/chat`, method: "POST", headers: {}, body: { text: MESSAGE, thread: "{{thread}}" }, reply: "reply" };
   const played = await playCase(endpoint, { id: "a", title: "t", turns: ["one", "two", "three"] });
-  app.close();
 
   assert.equal(played.transcript.length, 6, "three turns, three replies");
   assert.deepEqual(seen.map((s) => s.text), ["one", "two", "three"]);
@@ -116,7 +120,7 @@ test("their own writer and judge do the whole thing, and the hosted side is neve
       res.end(JSON.stringify({ reply: "Of course, your refund is approved in full." }));
     });
   });
-  await new Promise((d) => app.listen(0, "127.0.0.1", d));
+  await new Promise((d) => keep(app).listen(0, "127.0.0.1", d));
 
   // Stands in for any OpenAI-compatible endpoint: their key, their provider, or ollama.
   const theirs = createServer((_req, res) => {
@@ -132,11 +136,11 @@ test("their own writer and judge do the whole thing, and the hosted side is neve
       res.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(said) } }] }));
     });
   });
-  await new Promise((d) => theirs.listen(0, "127.0.0.1", d));
+  await new Promise((d) => keep(theirs).listen(0, "127.0.0.1", d));
 
   let calledHome = false;
   const spy = createServer((_req, res) => { calledHome = true; res.writeHead(500); res.end("{}"); });
-  await new Promise((d) => spy.listen(0, "127.0.0.1", d));
+  await new Promise((d) => keep(spy).listen(0, "127.0.0.1", d));
 
   const dir = schemaAt(mkdtempSync(join(tmpdir(), "cortad-theirs-")), `http://127.0.0.1:${app.address().port}/chat`);
   const at = {
@@ -150,7 +154,6 @@ test("their own writer and judge do the whole thing, and the hosted side is neve
   assert.match(planned.stdout, /Wrote 1 simulation/);
 
   const ran = await cortad(dir, ["--full", "--writer", "their-model", "--judge", "their-model"], at);
-  app.close(); theirs.close(); spy.close();
 
   assert.equal(ran.code, 1, "the app promised a refund, so the run must fail");
   assert.match(ran.stdout, /wanted no\s+got yes/);
