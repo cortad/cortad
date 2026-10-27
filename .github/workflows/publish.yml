@@ -31,7 +31,4 @@ jobs:
       # A prerelease (0.3.0-rc.1) goes out under the next tag, so a stack can walk it before a
       # customer's `npx cortad` resolves to it.
       - run: |
-          npm publish --access public --loglevel silly 2>&1 | tail -120 || true
-          echo "===== npm debug log ====="
-          cat /home/runner/.npm/_logs/*-debug-0.log 2>/dev/null | grep -iE "oidc|token|exchange|auth|401|403|404" | tail -40
-          exit 1
+          if node -p "require('./package.json').version" | grep -q -- -; then npm publish --access public --tag next; else npm publish --access public; fi
