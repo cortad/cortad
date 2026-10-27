@@ -142,7 +142,7 @@ CORTAD_OFFLINE=1    # sends nothing anywhere
 
 Because we are the ones who write the conversations, there is then nothing to play, and the command says so and stops rather than quietly calling home. `--judge ollama/...` keeps the judging on your machine, but the conversations are still written by us.
 
-Five runs a day per machine are free. The limit is on writing the conversations, so bringing your own judge does not lift it.
+Twenty runs a day per machine are free. The limit is on writing the conversations, so bringing your own judge does not lift it, and a run whose `cortad.json` has not changed does not spend one.
 
 ## In CI
 
