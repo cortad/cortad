@@ -23,11 +23,12 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
-          registry-url: "https://registry.npmjs.org"
           package-manager-cache: false
-      # Trusted publishing is an npm feature, not a node one, and the npm bundled with node 24 is
-      # older than the 11.5.1 that does the OIDC exchange. Without it npm sends no credential at
-      # all and the registry answers 404, which reads as a permission problem and is not one.
+      # Two things this needs, and the absence of either reads as a 404 that looks like a permission
+      # problem and is not one. The npm bundled with node 24 is older than the 11.5.1 that does the
+      # OIDC exchange. And setup-node's registry-url writes an auth token line into .npmrc, which
+      # makes npm use that token instead of asking for one, so the exchange never happens: there is
+      # no token here, and there is not meant to be.
       - run: npm install -g npm@latest
       - run: npm --version
       - name: The tag is the version in package.json
