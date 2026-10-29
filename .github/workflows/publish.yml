@@ -9,7 +9,9 @@ name: Publish
 
 on:
   push:
-    tags: ["v*"]
+    # Release tags only. The action is consumed as cortad/cortad/action@v1, and a floating tag like
+    # v1 matched "v*" and fired a publish that the version guard below then had to refuse.
+    tags: ["v*.*.*"]
 
 permissions:
   id-token: write
