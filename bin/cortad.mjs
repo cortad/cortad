@@ -32,6 +32,10 @@ const file = resolve(flag("--schema", SCHEMA_FILE));
 const die = (message) => { console.error(`\n  ${message}\n`); process.exit(1); };
 const say = (message) => console.log(`\n${message}\n`);
 
+const live = process.stdout.isTTY;
+const progress = (what) => (_result, done, all) => { if (live) process.stdout.write(`\r  ${done} of ${all} ${what}`); };
+const clearLine = () => { if (live) process.stdout.write(`\r${" ".repeat(40)}\r`); };
+
 const HELP = `
   cortad      runs a simulation against your AI app and says what your change did
 
@@ -75,7 +79,6 @@ if (has("--version") || has("-v")) {
 
 if (verb === "init") {
   if (existsSync(file)) die(`${file} is already here.`);
-  const live = process.stdout.isTTY;
   if (live) process.stdout.write("  looking for your app");
   const app = await findApp({ at: flag("--at"), onTry: () => { if (live) process.stdout.write("."); } });
   if (live) process.stdout.write(`\r${" ".repeat(60)}\r`);
@@ -212,15 +215,8 @@ if (verb === "verify") {
   if (want.kind === "nothing-kept") { say("  No run is kept here yet. Run cortad first."); process.exit(0); }
   if (want.kind === "nothing-failed") { say("  Nothing failed in the last run, so there is nothing to verify."); process.exit(0); }
 
-  const live = process.stdout.isTTY;
-  const again = await run({
-    schema,
-    plays: "full",
-    only: want.ids,
-    judgeName: flag("--judge"),
-    onDone: (_r, done, all) => { if (live) process.stdout.write(`\r  ${done} of ${all} played again`); },
-  });
-  if (live) process.stdout.write(`\r${" ".repeat(40)}\r`);
+  const again = await run({ schema, plays: "full", only: want.ids, judgeName: flag("--judge"), onDone: progress("played again") });
+  clearLine();
   if (again.kind !== "ran") die("the simulations that failed are no longer in cortad/simulations.");
 
   const ruled = held(want.before, again.run);
@@ -236,21 +232,13 @@ if (verb === "verify") {
 const judgeName = flag("--judge");
 const changed = (flag("--changed") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 const plays = has("--full") ? "full" : has("--all") ? "all" : "smoke";
-const live = process.stdout.isTTY;
-const onDone = (_r, done, all) => { if (live) process.stdout.write(`\r  ${done} of ${all} played`); };
-const clearLine = () => { if (live) process.stdout.write(`\r${" ".repeat(40)}\r`); };
-
-async function once(options) {
-  const result = await run({ schema, onDone, ...options });
-  clearLine();
-  return result;
-}
 
 const suite = read();
 if (suite.problems.length) die(`these simulations cannot be read:\n\n  ${suite.problems.join("\n\n  ")}`);
 if (!suite.simulations.length) die(`no simulations yet. Run cortad plan to write the first ones, or add a file to cortad/simulations.`);
 
-const result = await once({ plays, changed: changed.length ? changed : null, judgeName });
+const result = await run({ schema, plays, changed: changed.length ? changed : null, judgeName, onDone: progress("played") });
+clearLine();
 
 if (result.kind === "nothing" && changed.length) {
   const bare = result.scoped?.bare ?? changed;
