@@ -175,19 +175,47 @@ test("a connector verb says where it went, and a typo is named before the config
   assert.doesNotMatch(typo.stderr, /no cortad\.json/, "a typo is not a missing config");
 });
 
-// CORTAD_OFFLINE is a promise in bold on the README. It has been broken twice: once by the run path
-// calling the hosted judge, once by the rebuild moving model resolution to lib/model.mjs and leaving
-// the gate behind on `plan`. Both sides are pinned here.
-test("offline refuses our writer and our judge, and allows their own", async () => {
-  const { pickJudge } = await import("../lib/answer/judge.mjs");
-  const { pickModel } = await import("../lib/model.mjs");
+// CORTAD_OFFLINE is a promise in bold on the README. It has been broken three times: the run path
+// calling the hosted judge, the rebuild leaving the gate on `plan`, and `packs add` plus `init --at`
+// never having one. It is now one rule at the request, so a new call site cannot miss it.
+test("offline refuses anything leaving this machine and allows anything on it", async () => {
+  const { net, refusedOffline, isLocal } = await import("../lib/net.mjs");
   process.env.CORTAD_OFFLINE = "1";
   try {
-    assert.throws(() => pickJudge(undefined), /CORTAD_OFFLINE/, "the default judge is ours and must not be reachable offline");
-    assert.throws(() => pickJudge("cortad"), /CORTAD_OFFLINE/);
-    assert.throws(() => pickModel(undefined, "writer"), /CORTAD_OFFLINE/);
-    assert.equal(pickJudge("ollama/qwen3").base, "http://localhost:11434/v1", "their own model is the point of offline, not a casualty of it");
+    for (const url of ["https://open.cortad.com/judge", "https://openrouter.ai/api/v1/chat/completions", "http://evil.test/pack.json", "https://example.com"]) {
+      assert.match(refusedOffline(url) ?? "", /CORTAD_OFFLINE is set/, `${url} must be refused`);
+      await assert.rejects(() => net(url), /CORTAD_OFFLINE is set/);
+    }
+    for (const url of ["http://localhost:3000/api/chat", "http://127.0.0.1:11434/v1", "http://[::1]:8080/x"]) {
+      assert.equal(refusedOffline(url), null, `${url} is this machine and must be allowed`);
+      assert.equal(isLocal(url), true);
+    }
   } finally {
     delete process.env.CORTAD_OFFLINE;
   }
+  assert.equal(refusedOffline("https://open.cortad.com/judge"), null, "with offline unset, nothing is refused");
+});
+
+test("a suite that needs no model runs offline, because resolving one sends nothing", async () => {
+  const { pickModel } = await import("../lib/model.mjs");
+  process.env.CORTAD_OFFLINE = "1";
+  try {
+    assert.equal(pickModel(undefined, "judge").kind, "cortad", "resolving is not sending, and a code-answered suite never asks");
+  } finally {
+    delete process.env.CORTAD_OFFLINE;
+  }
+});
+
+// An error goes to the console, into the kept run, into JUnit and into SARIF, and the documented CI
+// recipe uploads that SARIF to GitHub as a code-scanning alert. A key in the url would be published
+// by following the README.
+test("a credential in the endpoint url never reaches an error message", async () => {
+  const { said } = await import("../lib/play.mjs");
+  const dirty = "https://user:hunter2@api.example.com/v1/chat?api_key=sk-live-SECRET-abc123&x=1";
+  const clean = said(dirty);
+  for (const secret of ["hunter2", "sk-live-SECRET-abc123", "api_key", "user:"]) {
+    assert.ok(!clean.includes(secret), `${secret} must not survive: ${clean}`);
+  }
+  assert.equal(clean, "https://api.example.com/v1/chat", "the address is still useful for finding the app");
+  assert.equal(said("not a url"), "not a url", "something that is not a url is printed as given");
 });
