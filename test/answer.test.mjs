@@ -128,7 +128,11 @@ test("a judge that cannot be reached takes only its own questions down with it",
     { id: "b", ask: "was it rude", answer: NO, by: "judge" },
   ], { transcript: said, events: null, judge: noJudge });
   assert.equal(ruled[0].answer, YES);
-  assert.equal(ruled[1].answer, ABSENT);
+  // Not ABSENT. "Did not come up" leaves the count, so a judge that was down for a whole run used
+  // to report "Nothing failed" and exit zero on an app that plainly broke its rules. Nothing
+  // decided this, and `undecided` is what makes the run fail rather than pass quietly.
+  assert.equal(ruled[1].answer, UNKNOWN);
+  assert.equal(ruled[1].undecided, true);
   assert.match(ruled[1].why, /could not be reached/);
 });
 

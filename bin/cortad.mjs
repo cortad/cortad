@@ -30,6 +30,13 @@ const has = (name) => argv.includes(name);
 const verb = argv.find((a, i) => !a.startsWith("-") && !TAKES_VALUE.has(argv[i - 1])) ?? "run";
 const file = resolve(flag("--schema", SCHEMA_FILE));
 const die = (message) => { console.error(`\n  ${message}\n`); process.exit(1); };
+
+// Anything that gets out becomes a sentence, not a stack trace. A person meeting this command for
+// the first time hits a missing key, a read-only directory or a file that is not JSON, and Node's
+// own output for those names a line in our source rather than what they should do.
+for (const signal of ["uncaughtException", "unhandledRejection"]) {
+  process.on(signal, (e) => die(e?.message ?? String(e)));
+}
 const say = (message) => console.log(`\n${message}\n`);
 
 const live = process.stdout.isTTY;
@@ -145,7 +152,7 @@ if (verb === "plan") {
   }
   const want = Math.max(1, Math.min(MOST, Number(flag("-n", 20)) || 20));
   if (ours) {
-    console.log(`\n  ${dim(`Your rules and this app's description go to ${new URL(ORIGIN()).host} so the simulations can be\n  written. Nothing else leaves this machine: not your code, not your keys, not your environment.`)}\n`);
+    console.log(`\n  ${dim(`Your cortad.json goes to ${new URL(ORIGIN()).host} so the simulations can be written: what\n  this app does, its rules, and the endpoint block, headers included. Your source and your\n  environment stay here. Strip anything from endpoint.headers you would mind rotating.`)}\n`);
   }
   let written;
   try { written = await plan({ schema, count: want, writer }); } catch (e) {
@@ -262,4 +269,7 @@ if (has("--json")) {
   if (junitAt) console.log(dim(`  JUnit written to ${junitAt}\n`));
   if (sarifAt) console.log(dim(`  SARIF written to ${sarifAt}\n`));
 }
-process.exit(result.counted.broke || result.run.conversations.length === result.errors.length ? 1 : 0);
+// Three ways a run fails, and only one of them is a question answered the wrong way. A gate that
+// goes green because the judge was down, or because the app stopped answering halfway, is worse
+// than no gate: it reports on nothing and says it is fine.
+process.exit(result.counted.broke || result.errors.length || result.undecided ? 1 : 0);
