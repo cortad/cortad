@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/flask-light.png">
-    <img alt="" src="docs/flask.png" width="72">
+    <img alt="Cortad" src="docs/flask.png" width="110">
   </picture>
 </p>
 
@@ -15,10 +15,19 @@
 </p>
 
 <p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square" alt="Apache 2.0"></a>
-  <a href="package.json"><img src="https://img.shields.io/badge/dependencies-0-brightgreen?style=flat-square" alt="zero dependencies"></a>
-  <a href="#what-leaves-your-machine"><img src="https://img.shields.io/badge/account-not%20required-brightgreen?style=flat-square" alt="no account"></a>
+  <a href="https://cortad.com"><b>Website</b></a> &nbsp;|&nbsp;
+  <a href="https://cortad.com/research"><b>Research</b></a> &nbsp;|&nbsp;
+  <a href="https://cortad.com/changelog"><b>Changelog</b></a> &nbsp;|&nbsp;
+  <a href="https://www.npmjs.com/package/cortad"><b>npm</b></a>
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/cortad"><img src="https://img.shields.io/npm/v/cortad?style=flat-square&color=2b9246&label=npm" alt="npm"></a>
   <a href="../../actions/workflows/test.yml"><img src="https://img.shields.io/github/actions/workflow/status/cortad/cortad/test.yml?style=flat-square&label=tests" alt="tests"></a>
+  <a href="package.json"><img src="https://img.shields.io/badge/dependencies-0-2b9246?style=flat-square" alt="zero dependencies"></a>
+  <a href="#what-leaves-your-machine"><img src="https://img.shields.io/badge/account-not%20required-2b9246?style=flat-square" alt="no account"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square" alt="Apache 2.0"></a>
+  <a href="../../stargazers"><img src="https://img.shields.io/github/stars/cortad/cortad?style=flat-square&color=f5c518" alt="stars"></a>
 </p>
 
 <p align="center">
@@ -28,8 +37,7 @@
   <a href="#after-a-change">After a change</a> ·
   <a href="#your-own-eval-files">Your evals</a> ·
   <a href="#in-ci">CI</a> ·
-  <a href="#what-leaves-your-machine">Privacy</a> ·
-  <a href="https://cortad.com">cortad.com</a>
+  <a href="#what-leaves-your-machine">Privacy</a>
 </p>
 
 ---
