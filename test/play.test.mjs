@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { test } from "node:test";
-import { MESSAGE } from "../lib/schema.mjs";
-import { fill, MESSAGES, multiTurn, playAll, playCase } from "../lib/play.mjs";
+import { MESSAGE, MESSAGES } from "../lib/schema.mjs";
+import { fill, multiTurn, playAll, playCase } from "../lib/play.mjs";
 
 const appOn = (handler) => new Promise((done) => {
   const server = createServer((req, res) => {

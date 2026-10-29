@@ -8,8 +8,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
 import { promisify } from "node:util";
-import { MESSAGE } from "../lib/schema.mjs";
-import { MESSAGES, multiTurn } from "../lib/play.mjs";
+import { MESSAGE, MESSAGES } from "../lib/schema.mjs";
+import { multiTurn } from "../lib/play.mjs";
 
 const run = promisify(execFile);
 const CLI = new URL("../bin/cortad.mjs", import.meta.url).pathname;

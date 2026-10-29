@@ -13,8 +13,7 @@
 //
 //   node bench/agreement.mjs labelled.jsonl --judge ollama/qwen3
 import { readFileSync } from "node:fs";
-import { pickJudge } from "../lib/answer/judge.mjs";
-import { decide } from "../lib/answer/judge.mjs";
+import { decide, pickJudge } from "../lib/answer/judge.mjs";
 import { NO, settled, YES } from "../lib/answer/verdict.mjs";
 import { rate } from "../lib/stats.mjs";
 

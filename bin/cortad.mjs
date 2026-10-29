@@ -8,7 +8,7 @@
 //   cortad coverage    says which of your files the simulations reach
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { readSchema, SCHEMA_FILE, SKELETON } from "../lib/schema.mjs";
+import { readSchema, SCHEMA_FILE } from "../lib/schema.mjs";
 import { HostedError, offline, ORIGIN } from "../lib/hosted.mjs";
 import { plan } from "../lib/cli/plan.mjs";
 import { run } from "../lib/cli/run.mjs";
@@ -62,8 +62,8 @@ const HELP = `
   --judge ollama/<model>          answer them on this machine
   --schema <path>                 a config somewhere other than ./${SCHEMA_FILE}
   --json                          the whole run on stdout, for anything that reads JSON
-  --junit <path>                   write JUnit XML, for your CI's test panel
-  --sarif <path>                   write SARIF, so a failure lands on a line in the pull request
+  --junit <path>                  write JUnit XML, for your CI's test panel
+  --sarif <path>                  write SARIF, so a failure lands on a line in the pull request
 
   CORTAD_JUDGE_KEY                the key for your judge
   CORTAD_JUDGE_URL                where that key goes (default https://openrouter.ai/api/v1)
@@ -240,7 +240,6 @@ if (verb === "verify") {
   ].join("\n"));
   process.exit(gone.length === ruled.length ? 0 : 1);
 }
-
 
 const judgeName = flag("--judge");
 const changed = (flag("--changed") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
