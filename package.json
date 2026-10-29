@@ -1,6 +1,6 @@
 {
   "name": "cortad",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Like CodeRabbit, but for AI behavior. Runs a simulation against your AI app and says what your change did.",
   "type": "module",
   "bin": {
