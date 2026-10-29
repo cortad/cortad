@@ -169,6 +169,13 @@ test("a connector verb says where it went, and a typo is named before the config
   assert.match(connector.stderr, /belongs to the Cortad connector/);
   assert.match(connector.stderr, /cortad@0\.5\.19 status/);
 
+  // The connect screen's code is what the website tells a customer to type, and it used to reach
+  // this package. It has to arrive somewhere that works, not at "no such command".
+  const code = await cortad(empty, ["H2J4K6M8", "--", "npm", "run", "dev"]);
+  assert.equal(code.code, 1);
+  assert.match(code.stderr, /belongs to the Cortad connector/);
+  assert.match(code.stderr, /cortad@0\.5\.19 H2J4K6M8 -- npm run dev/);
+
   const typo = await cortad(empty, ["symulate"]);
   assert.equal(typo.code, 1);
   assert.match(typo.stderr, /no such command: symulate/);

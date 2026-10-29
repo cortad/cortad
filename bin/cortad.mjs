@@ -115,10 +115,14 @@ if (verb === "init") {
 // pinned because the connector keeps the old name until it is republished under its own.
 const CONNECTOR = new Set(["status", "findings", "dispute", "feedback", "field", "world", "reach", "wait", "connect", "tell", "setup"]);
 const VERBS = new Set(["init", "plan", "run", "verify", "coverage", "replay", "evals", "packs"]);
-if (CONNECTOR.has(verb)) {
+// The connect screen's code is eight capitals and digits from an alphabet with no I, O, 0 or 1, and
+// it is the first thing a paying customer types. Capitals are what the screen shows, and reading a
+// lowercase word as a code took a mistyped verb for one.
+const CODE = /^[A-HJ-NP-Z2-9]{8}$/;
+if (CONNECTOR.has(verb) || CODE.test(verb)) {
   die(`${verb} belongs to the Cortad connector, which is a different command:
 
-      npx cortad@0.5.19 ${verb}
+      npx cortad@0.5.19 ${process.argv.slice(2).join(" ")}
 
   This one runs a simulation from the simulations in this repository. cortad --help`);
 }
