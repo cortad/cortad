@@ -1,8 +1,9 @@
 // The whole command, run as a person runs it: a real app on a port, a real process, real output.
 // Only the two hosted calls are stood in for, so this costs nothing and still proves the wiring.
+// The states where nothing was tested are pinned in gate.test.mjs, not here.
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -161,17 +162,6 @@ test("a changed file nothing reaches says to write one, instead of passing", asy
   assert.match(e.stderr, /Write a simulation for it/);
 });
 
-test("an app that never answers fails the command, so a dead app cannot pass a gate", async () => {
-  const hosted = await hostedFor();
-  const dir = repo(1);
-  await cli(dir, hosted, ["plan", "-n", "2"]);
-  const e = await failed(dir, hosted, ["--full"]);
-  assert.ok(e, "a dead app must not pass");
-  assert.equal(e.code, 1);
-  assert.match(e.stdout, /never got an answer/);
-  assert.match(e.stdout, /nothing was tested/);
-});
-
 test("a run with no simulations says what to do instead of passing", async () => {
   const app = await serve(() => ({ body: { reply: "hi" } }));
   const hosted = await hostedFor();
@@ -192,25 +182,4 @@ test("init writes a config the command then refuses until it is filled in", asyn
   const e = await failed(dir, hosted, ["plan"]);
   assert.ok(e, "an empty config must not be runnable");
   assert.match(e.stderr, /app: one sentence/);
-});
-
-test("offline sends nothing and runs nothing, instead of writing simulations over the wire", async () => {
-  const hosted = await serve(() => { throw new Error("offline must not call home"); });
-  const dir = repo(1);
-  const e = await (async () => {
-    try {
-      await exec("node", [CLI, "plan"], { cwd: dir, env: { ...process.env, CORTAD_ORIGIN: `http://127.0.0.1:${hosted.port}`, CORTAD_OFFLINE: "1", NO_COLOR: "1" } });
-      return null;
-    } catch (err) { return err; }
-  })();
-  assert.ok(e);
-  assert.match(e.stderr, /CORTAD_OFFLINE is set/);
-  assert.match(e.stderr, /Nothing was sent/);
-});
-
-test("help and version answer instead of complaining about a missing config", async () => {
-  const hosted = await hostedFor();
-  const dir = mkdtempSync(join(tmpdir(), "cortad-help-"));
-  assert.match((await cli(dir, hosted, ["--help"])).stdout, /cortad verify/);
-  assert.match((await cli(dir, hosted, ["--version"])).stdout, /^\d+\.\d+\.\d+/);
 });

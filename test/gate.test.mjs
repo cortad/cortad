@@ -48,6 +48,7 @@ test("offline sends nothing and writes nothing, instead of writing simulations o
 
   assert.equal(reached, false, "offline must not call the hosted side at all");
   assert.equal(code, 1);
+  assert.match(stderr, /CORTAD_OFFLINE is set/);
   assert.match(stderr, /Nothing was sent/);
 });
 
@@ -66,6 +67,7 @@ test("an app that never answers fails the command, so a dead app cannot pass a g
   const { stdout, code } = await cortad(dir, ["--full"], at);
 
   assert.equal(code, 1, "zero conversations answered is not a pass");
+  assert.match(stdout, /never got an answer/);
   assert.match(stdout, /Your app answered none of them/);
   assert.match(stdout, /POST http:\/\/127\.0\.0\.1:1\/chat is not answering.*Is your app up\?/);
 });
