@@ -1,3 +1,4 @@
 node_modules
 .cortad
 cortad.json
+examples/*/cortad/
