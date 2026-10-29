@@ -167,7 +167,7 @@ test("a connector verb says where it went, and a typo is named before the config
   const connector = await cortad(empty, ["status"]);
   assert.equal(connector.code, 1);
   assert.match(connector.stderr, /belongs to the Cortad connector/);
-  assert.match(connector.stderr, /@cortad\/connector status/);
+  assert.match(connector.stderr, /cortad@0\.5\.19 status/);
 
   const typo = await cortad(empty, ["symulate"]);
   assert.equal(typo.code, 1);

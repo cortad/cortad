@@ -110,14 +110,15 @@ if (verb === "init") {
   process.exit(0);
 }
 
-// The paid connector answers to these, and it used to be the package called cortad. An agent
-// reading an older instruction would otherwise get a shrug from the wrong tool.
+// The paid connector answers to these, and it used to be the package called cortad, so an agent
+// reading an older instruction would otherwise get a shrug from the wrong tool. The version is
+// pinned because the connector keeps the old name until it is republished under its own.
 const CONNECTOR = new Set(["status", "findings", "dispute", "feedback", "field", "world", "reach", "wait", "connect", "tell", "setup"]);
 const VERBS = new Set(["init", "plan", "run", "verify", "coverage", "replay", "evals", "packs"]);
 if (CONNECTOR.has(verb)) {
   die(`${verb} belongs to the Cortad connector, which is a different command:
 
-      npx @cortad/connector ${verb}
+      npx cortad@0.5.19 ${verb}
 
   This one runs a simulation from the simulations in this repository. cortad --help`);
 }
