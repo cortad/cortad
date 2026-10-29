@@ -9,7 +9,7 @@ node bin/cortad.mjs --help
 node --test test/*.test.mjs
 ```
 
-The tests run the real binary against a real server on a real port. Three of them start an HTTP server, point the command at it, and read what it printed. Nothing is mocked except the two hosted calls, and those are stood up as local servers rather than stubbed in process.
+The tests run the real binary against a real server on a real port: they start an HTTP server, point the command at it, and read what it printed. Nothing is mocked except the two hosted calls, and those are stood up as local servers rather than stubbed in process.
 
 ## What a change needs
 
@@ -19,7 +19,7 @@ The states where nothing was tested are the ones that have gone wrong before, an
 
 ## The rules this code follows
 
-A verdict names the sentence of the reply it rests on, and a quote that is not in that reply is dropped before anyone sees it. That rule is in `lib/judge.mjs` and it is not a formality: a judge that can invent evidence produces findings nobody can check.
+A verdict names the sentence of the reply it rests on, and a quote that is not in that reply is dropped before anyone sees it. That rule is in `lib/answer/judge.mjs` and it is not a formality: a judge that can invent evidence produces findings nobody can check.
 
 The command exits non-zero when a rule broke **and** when the app answered nothing. Zero conversations judged is not a pass. A gate that goes green because the app failed to start is worse than no gate.
 
