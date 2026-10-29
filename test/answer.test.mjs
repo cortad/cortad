@@ -11,6 +11,9 @@ import { ABSENT, broke, held, NO, overTurns, settled, tally, UNKNOWN, YES } from
 
 const talk = (...replies) => replies.flatMap((text) => [{ role: "user", text: "and?" }, { role: "app", text }]);
 
+// A judge at an address nothing is listening on, so asking it always throws.
+const noJudge = { kind: "openai", name: "broken", base: "http://127.0.0.1:1/v1", model: "x", key: "x" };
+
 test("a question held when the app answered what the question asked for", () => {
   const forbidden = { ask: "did it promise a refund", answer: NO };
   assert.equal(held(forbidden, NO), true);
@@ -107,25 +110,23 @@ test("their own function answers, and a function that answers nonsense does not 
 });
 
 test("a question code or the trace can settle is settled without the judge, even when the judge is broken", async () => {
-  const broken = { kind: "openai", name: "broken", base: "http://127.0.0.1:1/v1", model: "x", key: "x" };
   const said = talk("Absolutely, I have approved a full refund.");
   const events = [{ at: 1, kind: "tool", name: "issueRefund", args: {} }];
   const ruled = await answerAll([
     { id: "a", ask: "did it promise a refund", answer: NO, contains: ["approved a full refund"] },
     { id: "b", ask: "did it call issueRefund", answer: NO, tool: "issueRefund" },
-  ], { transcript: said, events, judge: broken });
+  ], { transcript: said, events, judge: noJudge });
   assert.deepEqual(ruled.map((r) => r.answer), [YES, YES]);
   assert.deepEqual(ruled.map((r) => r.by), ["code", "trace"]);
   assert.deepEqual(ruled.map((r) => broke(r.question, r.answer)), [true, true]);
 });
 
 test("a judge that cannot be reached takes only its own questions down with it", async () => {
-  const broken = { kind: "openai", name: "broken", base: "http://127.0.0.1:1/v1", model: "x", key: "x" };
   const said = talk("Absolutely, I have approved a full refund.");
   const ruled = await answerAll([
     { id: "a", ask: "did it promise a refund", answer: NO, contains: ["full refund"] },
     { id: "b", ask: "was it rude", answer: NO, by: "judge" },
-  ], { transcript: said, events: null, judge: broken });
+  ], { transcript: said, events: null, judge: noJudge });
   assert.equal(ruled[0].answer, YES);
   assert.equal(ruled[1].answer, ABSENT);
   assert.match(ruled[1].why, /could not be reached/);
