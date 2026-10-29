@@ -14,7 +14,6 @@ import { multiTurn } from "../lib/play.mjs";
 const run = promisify(execFile);
 const CLI = new URL("../bin/cortad.mjs", import.meta.url).pathname;
 
-
 // Every server opened here is closed when the file is done, so a failing assertion cannot leave one
 // listening and hang the whole run on an event loop that will not empty.
 const opened = [];

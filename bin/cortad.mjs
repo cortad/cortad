@@ -1,11 +1,5 @@
 #!/usr/bin/env node
-// Runs a simulation against the app on this machine and says what your change did.
-//
-//   cortad init        finds your app's AI and writes cortad.json
-//   cortad plan        writes the simulations into cortad/simulations
-//   cortad             plays them and prints what moved
-//   cortad verify      plays the ones that failed and says whether the fix held
-//   cortad coverage    says which of your files the simulations reach
+// Every verb, dispatched. What each one does is in HELP below, which is the copy a person reads.
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { readSchema, SCHEMA_FILE } from "../lib/schema.mjs";
@@ -135,8 +129,6 @@ if (verb === "coverage") {
       import { record } from "cortad/trace"; record();`);
     process.exit(0);
   }
-  // No denominator: how many files their AI runs through is theirs to know, and inventing one would
-  // be a number with nothing behind it.
   say([`  ${bold(`${reached.length === 1 ? "One file is" : `${reached.length} files are`} reached by a conversation`)}`, "",
     ...reached.map((r) => `  ${String(r.count).padStart(4)}  ${r.file}`)].join("\n"));
   process.exit(0);
