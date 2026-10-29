@@ -173,3 +173,20 @@ test("a connector verb says where it went, and a typo is named before the config
   assert.match(typo.stderr, /no such command: symulate/);
   assert.doesNotMatch(typo.stderr, /no cortad\.json/, "a typo is not a missing config");
 });
+
+// CORTAD_OFFLINE is a promise in bold on the README. It has been broken twice: once by the run path
+// calling the hosted judge, once by the rebuild moving model resolution to lib/model.mjs and leaving
+// the gate behind on `plan`. Both sides are pinned here.
+test("offline refuses our writer and our judge, and allows their own", async () => {
+  const { pickJudge } = await import("../lib/answer/judge.mjs");
+  const { pickModel } = await import("../lib/model.mjs");
+  process.env.CORTAD_OFFLINE = "1";
+  try {
+    assert.throws(() => pickJudge(undefined), /CORTAD_OFFLINE/, "the default judge is ours and must not be reachable offline");
+    assert.throws(() => pickJudge("cortad"), /CORTAD_OFFLINE/);
+    assert.throws(() => pickModel(undefined, "writer"), /CORTAD_OFFLINE/);
+    assert.equal(pickJudge("ollama/qwen3").base, "http://localhost:11434/v1", "their own model is the point of offline, not a casualty of it");
+  } finally {
+    delete process.env.CORTAD_OFFLINE;
+  }
+});
