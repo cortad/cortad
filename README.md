@@ -48,6 +48,15 @@ Your app is running. In its repository:
 
 ```sh
 npx cortad init     # writes cortad.json
+```
+
+Then fill in `app` and `rules`, or hand it to the coding agent already in your repository:
+
+> fill in cortad.json from this codebase
+
+`plan` refuses until both are there, because a simulation written from no rules tests nothing.
+
+```sh
 npx cortad plan     # writes the simulations into cortad/simulations
 npx cortad          # runs them and says what your change did
 ```
@@ -248,7 +257,7 @@ With the default writer, your `cortad.json` goes to `open.cortad.com` so the sim
 written for your app. With the default judge, each conversation and the questions on it go there to
 be answered.
 
-Your source does not. Your environment does not.
+Your source does not. Your environment does not. One exception: a question written from one of your eval files carries text from that file, and the default judge sees it.
 
 `endpoint.headers` is part of `cortad.json`, so a bearer token you put there is sent with it. Point
 this at an app on your own machine, or use a credential minted for this and nothing else.
@@ -257,8 +266,10 @@ this at an app on your own machine, or use a credential minted for this and noth
 CORTAD_OFFLINE=1    # sends nothing anywhere
 ```
 
-With your own writer and judge, that is the whole run. With ours, there is nothing to write and the
-command says so and stops rather than quietly calling home.
+`CORTAD_OFFLINE=1` means nothing leaves this machine. Your app on localhost and a model in ollama
+still work; every other address is refused with a sentence naming it. It is one rule that every
+request in the tool goes through, so a suite answered entirely by `contains`, `tool` or your own
+`fn` runs airgapped with no model at all.
 
 Twenty runs a day per machine are free, on the writing. A run whose `cortad.json` has not changed
 does not spend one.
