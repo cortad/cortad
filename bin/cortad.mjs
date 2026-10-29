@@ -152,7 +152,7 @@ if (verb === "plan") {
     if (e instanceof HostedError && e.status === 429) die(`${e.message}. A run on an unchanged ${SCHEMA_FILE} does not spend one.`);
     die(e.message);
   }
-  say([`  ${bold(`Wrote ${written.length} simulations into cortad/simulations`)}`, "",
+  say([`  ${bold(`Wrote ${written.length} ${written.length === 1 ? "simulation" : "simulations"} into cortad/simulations`)}`, "",
     ...written.map((w) => `  ${w.tier.padEnd(9)} ${w.id}  ${dim(`${w.questions} ${w.questions === 1 ? "question" : "questions"}`)}`),
     "", "  They are yours. Open one, change who shows up or what is asked, and commit it.",
     "  Then: cortad"].join("\n"));
