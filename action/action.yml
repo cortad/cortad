@@ -45,18 +45,33 @@ runs:
   steps:
     # The app has to be up already. Starting it here would hide the one failure that matters most:
     # an app that never answered, which is not a pass.
+    # Every input arrives as an environment variable and is read as "$NAME". Written as ${{ }} inside
+    # the script, GitHub substitutes the value into the text before bash parses it, so a caller
+    # wiring a pull request title or a branch name into one of these would be handing the runner
+    # whatever it contained.
     - shell: bash
       env:
         CORTAD_JUDGE_KEY: ${{ env.CORTAD_JUDGE_KEY }}
         CORTAD_JUDGE_URL: ${{ env.CORTAD_JUDGE_URL }}
+        PLAYS: ${{ inputs.plays }}
+        CHANGED: ${{ inputs.changed }}
+        JUDGE: ${{ inputs.judge }}
+        SCHEMA: ${{ inputs.schema }}
+        SARIF: ${{ inputs.sarif }}
+        JUNIT: ${{ inputs.junit }}
+        VERSION: ${{ inputs.version }}
       run: |
-        set -o pipefail
-        args=(--schema "${{ inputs.schema }}" --sarif "${{ inputs.sarif }}" --junit "${{ inputs.junit }}")
-        case "${{ inputs.plays }}" in
+        set -euo pipefail
+        case "$VERSION" in
+          latest|[0-9]*) ;;
+          *) echo "version must be latest or a version number, not: $VERSION" >&2; exit 1 ;;
+        esac
+        args=(--schema "$SCHEMA" --sarif "$SARIF" --junit "$JUNIT")
+        case "$PLAYS" in
           smoke) ;;
           full) args+=(--full) ;;
           *) args+=(--all) ;;
         esac
-        [ -n "${{ inputs.changed }}" ] && args+=(--changed "${{ inputs.changed }}")
-        [ -n "${{ inputs.judge }}" ] && args+=(--judge "${{ inputs.judge }}")
-        npx --yes cortad@${{ inputs.version }} "${args[@]}"
+        if [ -n "$CHANGED" ]; then args+=(--changed "$CHANGED"); fi
+        if [ -n "$JUDGE" ]; then args+=(--judge "$JUDGE"); fi
+        npx --yes "cortad@$VERSION" "${args[@]}"
