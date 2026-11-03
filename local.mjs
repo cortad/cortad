@@ -617,9 +617,10 @@ async function verb(job) {
     // start has no hook, and the empty answer says the meter is absent rather than that nothing was spent.
     // Masked like every other reply: a tool's answer can carry a value from their env files. The
     // calls of the `turn` asked about also say what their model was told.
-    // `toolsRecorded: false`: the app was started before the read's list of tools, so a tool that ran
-    // was not seen; a run says "not recorded", never that none ran.
-    case "usage": return capture ? { ...JSON.parse(mask(JSON.stringify(capture.usage(b.turn, b.totals === true) ?? {}))), ...(launched && toolsKnown() ? { toolsRecorded: toolsRecorded() } : {}) } : {};
+    // `tools`: which of the tools the run listed the hook in the app wrapped, and which it could not.
+    // A call to a tool not wrapped is seen only where a model asks for it by name, so a run says its
+    // calls were not recorded, never that it did not run. An app without the hook has none wrapped.
+    case "usage": return capture ? JSON.parse(mask(JSON.stringify({ ...capture.usage(b.turn, b.totals === true), tools: capture.tools() ?? { wrapped: [], unwatched: [] } }))) : {};
     // Every route your app holds, read by the hook off the app itself, masked like the meter.
     case "routes": return capture ? JSON.parse(maskRoutes(JSON.stringify(capture.registry(app?.port)))) : {};
     // A world is ended from this terminal, never from the cloud.
@@ -846,14 +847,13 @@ let restartDone = null;
 // the list is there before the file holding it loads (lib/trace.cjs).
 const toolsNow = () => { try { return readFileSync(join(work, "tools.json"), "utf8"); } catch { return ""; } };
 let toolsAtStart = "";
-const toolsKnown = () => toolsNow() !== "" && toolsNow() !== "[]";
-const toolsRecorded = () => !toolsKnown() || toolsNow() === toolsAtStart;
+const listCameLate = () => { const now = toolsNow(); return now !== "" && now !== "[]" && now !== toolsAtStart; };
 // A list that arrives after the app started: the app is started again at once, behind the gate. The
 // server writes it as a run starts, before its first conversation, and before Cortad's first test
 // requests; any request already at the app is waited for, and one cut is sent again.
 async function recordTools() {
   if (restartDone) await restartDone;
-  if (!launched || !child || closing || toolsRecorded()) return;
+  if (!launched || !child || closing || !listCameLate()) return;
   await restartApp("starting your app again so the tools your code gives its model are recorded");
 }
 function restartOnce(work) {

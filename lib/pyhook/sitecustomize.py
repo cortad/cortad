@@ -1652,8 +1652,18 @@ def _install():
     ident = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
     targets, swept, wrappers = [[]], [None], {}
     unsaid = set()
+    # Which tools this start of the app wrapped and which it could not, written as one row the
+    # command hands the run, as the Node hook writes it (lib/trace.cjs tellTools).
+    wrapped_tools, unwatched_tools, told_tools = set(), set(), [[[], []]]
+
+    def tell_tools():
+        said = [sorted(wrapped_tools), sorted(unwatched_tools - wrapped_tools)]
+        if said != told_tools[0]:
+            told_tools[0] = said
+            write({"tools": {"wrapped": said[0], "unwatched": said[1]}})
 
     def unwatched(t, why):
+        unwatched_tools.add(t["name"])
         if (t["file"], t["fn"]) in unsaid:
             return
         unsaid.add((t["file"], t["fn"]))
@@ -1781,6 +1791,7 @@ def _install():
                 continue
             fn = getattr(m, t["fn"], None)
             if getattr(fn, "__cortad_tool__", None) is not None:
+                wrapped_tools.add(t["name"])
                 continue
             if not (inspect.isfunction(fn) or inspect.ismethod(fn)):
                 unwatched(t, "the file has no function named %s" % t["fn"] if fn is None else "%s there is not a function this hook can wrap" % t["fn"])
@@ -1793,7 +1804,9 @@ def _install():
             except Exception:
                 unwatched(t, "its module does not let %s be replaced" % t["fn"])
                 continue
+            wrapped_tools.add(t["name"])
             fresh[id(fn)] = (fn, w)
+        tell_tools()
         if not fresh:
             return
         # Wherever the app imported it by name (from tools import query_order) or put it in a table
