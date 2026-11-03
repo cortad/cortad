@@ -6,7 +6,7 @@ Runs Cortad's test conversations against the AI app on your machine, and gives y
 npx cortad <code>
 ```
 
-Run it in your app's folder with the code from cortad.com and your own start command after `--`: Cortad runs that command as you typed it, with its hook inside and nothing else added, connects the app, and adds Cortad to Claude Code, Codex, Cursor and Copilot on this machine. Then send your AI one message the way a user would; that one request is what Cortad learns the endpoint from. Runs start when you press Run in the browser or ask your agent for one. Ctrl-C disconnects.
+Run it in your app's folder with the code from cortad.com and your own start command after `--`: Cortad runs that command as you typed it, with its hook inside and nothing else added, connects the app, and adds Cortad to Claude Code, Codex, Cursor and Copilot on this machine. Cortad then sends each AI endpoint you choose one test request from this machine and learns the endpoint from the answer; you send one message yourself only where an endpoint needs a signed-in user. Runs start when you press Run simulation in the browser or ask your agent for one. Ctrl-C disconnects.
 
 ```
 npx cortad <code> -- npm run dev           your command, as you start it, from the terminal that holds its settings

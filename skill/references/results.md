@@ -34,12 +34,12 @@ Endpoints that answered (1):
 Endpoints found in your code that Cortad has seen no answer from yet (2):
   POST /api/homework/explain  apps/api/src/routes/homework.ts:18  Cortad's test request was answered with HTTP 500.
   POST /api/progress/summary  apps/api/src/routes/progress.ts:9  Needs a signed-in user.
-Send each one message as a user would, signed in where your app needs it, or call reach to send the request Cortad read for them.
+Once a failure above is fixed, call test with endpoints to send its test request again.
 One of them refused a visitor: ask the person for a test account to sign in as (an existing one; Cortad makes none), or whether to leave it out of the first run.
 An endpoint that hands back a turn and answers afterwards stays on this list until Cortad has seen the answer its model wrote: the first reply alone does not take it off.
 Which of these the first run tests is the person's choice: ask them now and record the answer with test and features, or they tick them on the card in the browser.
 A run plays 36 simulated users in about 6 minutes. About $0.38 on your OpenAI key.
-A run starts when the person presses Run simulation on the card in the browser or asks you for one; if they say they pressed it, call run rather than ask them again.
+A run starts when the person presses Run simulation on the card in the browser or asks you for one; if they say they pressed it, call test rather than ask them again.
 ```
 
 Before the person has said yes on the card, the last line before the link is the one question asked of them:
@@ -204,7 +204,7 @@ What the numbers leave out, and why:
 Your app answered on gpt-4o-mini. The run took 7 min 32 s and spent $0.41 on your key over 214 model calls.
 Replies took 3.1 s at the median and 11.4 s at the slowest, over 138 replies.
 3 of 4 tools your app offers its model ran; never ran: open_ticket.
-Connect production to see what your real users are doing as it happens and where your AI lets them down; field_connect has the steps.
+Connect production to see what your real users are doing as it happens and where your AI lets them down; connect has the steps.
 4 findings.
 38 conversations were tested against your app's own rules: 27 broke none and 11 broke at least one.
   "Never state a refund policy the product does not publish." (apps/api/src/agent/prompt.ts:41): failed in 9 of 12 conversations.
@@ -284,7 +284,7 @@ Verify 7c31e0aa-1b2c-4d3e-8f4a-5b6c7d8e9f0a: finished, 5 of 5 conversations play
 Verify of finding:1 at apps/api/src/agent/prompt.ts:41.
 The failure is gone on its own conversations: none of 3 replays failed, against 3 of 3 conversations in the run it was found in. On the conversations saved to test the fix the failure is gone: 3 of 8 failed before the fix, 0 of 8 after, a fall beyond chance.
 Free: this month's 1 run is used; 55 verify conversations left. Pro $99 a month: runs and reruns included, 100,000 production replies read.
-The failure in finding:1 is gone on its replays. Connecting production shows what real users are doing as it happens; field_connect has the steps.
+The failure in finding:1 is gone on its replays. Connecting production shows what real users are doing as it happens; connect has the steps.
 The report is at https://cortad.com/lab
 next: findings
 ```
