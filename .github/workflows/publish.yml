@@ -29,6 +29,9 @@ jobs:
         run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
       - run: npm test
       # A prerelease (0.3.0-rc.1) goes out under the next tag, so a stack can walk it before a
-      # customer's `npx cortad` resolves to it.
+      # customer's `npx cortad` resolves to it. A connector release (0.x) goes out under the
+      # connector tag: `cortad` on npm is the open simulation runner from 1.0 on, and the site pins
+      # the connector by its exact version, so latest must stay the runner's.
       - run: |
-          if node -p "require('./package.json').version" | grep -q -- -; then npm publish --access public --tag next; else npm publish --access public; fi
+          v=$(node -p "require('./package.json').version")
+          case "$v" in *-*) npm publish --access public --tag next ;; 0.*) npm publish --access public --tag connector ;; *) npm publish --access public ;; esac
