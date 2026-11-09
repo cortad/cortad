@@ -1,6 +1,5 @@
-# Publishes cortad from this repository with npm provenance: the release on npm links to the exact
-# commit and run that built it. Triggered by a version tag; npm accepts it through trusted
-# publishing (OIDC), so no npm token exists anywhere.
+# Publishes @cortad/connector from this repository through npm trusted publishing (OIDC): triggered
+# by a version tag, with no npm token anywhere. npm makes no provenance for a private repository.
 #
 # npm answers "your package is being processed" and exits 0 long before the version exists: 0.4.7 and
 # 0.5.0 each took about forty minutes to appear. A tag whose version is not on the registry yet is a
@@ -28,10 +27,10 @@ jobs:
       - name: The tag is the version in package.json
         run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
       - run: npm test
-      # A prerelease (0.3.0-rc.1) goes out under the next tag, so a stack can walk it before a
-      # customer's `npx cortad` resolves to it. A connector release (0.x) goes out under the
-      # connector tag: `cortad` on npm is the open simulation runner from 1.0 on, and the site pins
-      # the connector by its exact version, so latest must stay the runner's.
+      # Trusted publishing needs npm 11.5.1 or later; the Node image's own npm may be older.
+      - run: npm install -g npm@11.15.0
+      # A prerelease (0.6.1-rc.1) goes out under the next tag, so a stack can walk it before a
+      # customer's install resolves to it; a release becomes latest.
       - run: |
           v=$(node -p "require('./package.json').version")
-          case "$v" in *-*) npm publish --access public --tag next ;; 0.*) npm publish --access public --tag connector ;; *) npm publish --access public ;; esac
+          case "$v" in *-*) npm publish --access public --tag next ;; *) npm publish --access public ;; esac

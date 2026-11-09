@@ -1,7 +1,7 @@
 {
-  "name": "cortad",
-  "version": "0.5.21",
-  "description": "Connects the AI app on your machine to Cortad for test conversations, and gives your coding agent the MCP and skill to run them. No dependencies.",
+  "name": "@cortad/connector",
+  "version": "0.6.0-rc.2",
+  "description": "Connects the AI app on your machine to Cortad for test conversations, and gives your coding agent the MCP and skill to run them.",
   "bin": {
     "cortad": "local.mjs"
   },
@@ -63,10 +63,26 @@
     "lib/writes.mjs",
     "local.mjs",
     "skill/references/results.md",
-    "skill/SKILL.md"
+    "skill/SKILL.md",
+    "lib/intelligence.mjs",
+    "lib/intelligence-text.mjs",
+    "lib/app-facts.mjs",
+    "lib/envfile.mjs",
+    "lib/hosts.mjs",
+    "lib/redact.mjs",
+    "lib/history/contract.mjs",
+    "lib/history/send.mjs",
+    "lib/history/langfuse.mjs",
+    "lib/intelligence-pair.mjs",
+    "lib/history/langsmith.mjs",
+    "lib/history/helicone.mjs",
+    "lib/history/braintrust.mjs",
+    "lib/history/phoenix.mjs",
+    "lib/history/opik.mjs",
+    "lib/history/vendor.mjs"
   ],
   "scripts": {
-    "test": "node --test lib/*.test.mjs"
+    "test": "node --test lib/*.test.mjs lib/history/*.test.mjs"
   },
   "engines": {
     "node": ">=20"
@@ -78,10 +94,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/cortad/cortad.git"
+    "url": "git+https://github.com/cortad/connector.git"
   },
   "bugs": {
-    "url": "https://github.com/cortad/cortad/issues"
+    "url": "https://github.com/cortad/connector/issues"
   },
   "devDependencies": {
     "@grpc/grpc-js": "^1.14.6",
