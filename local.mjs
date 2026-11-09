@@ -51,6 +51,9 @@ import { clientRequestOf } from "./lib/browser-rung.mjs";
 import { layerOf, layerSaid } from "./lib/layer.mjs";
 import { grpcCall } from "./lib/grpc.mjs";
 
+// A count with its noun agreeing: 1 prompt, 3 prompts.
+const counted = (n, one) => `${n} ${n === 1 ? one : `${one}s`}`;
+
 const argv = process.argv.slice(2);
 // The two faces a coding agent uses after the first connect (lib/cli.mjs): the MCP server the
 // client starts on every session, and the same verbs as shell commands. Neither runs the connect
@@ -1047,7 +1050,7 @@ if (attach.data.upload === "layer") {
   const sentList = join(homeOf(project), "sent.json");
   try { mkdirSync(homeOf(project), { recursive: true, mode: 0o700 }); writeFileSync(sentList, JSON.stringify({ ...said, files: chosen.files.map((f) => ({ path: f, why: chosen.why.get(f) })), leftOut: chosen.dropped ?? [] }, null, 1), { mode: 0o600 }); } catch { /* the list is for reading; the send does not depend on it */ }
   const left = said.leftOut.files ? ` ${said.leftOut.files} large data and test files were left out to keep the upload under 16 MB; they are named in the list.` : "";
-  say(`sending the part of this code that is its AI, so simulated users can be written for it: ${said.prompts} prompts, ${said.modelCalls} model calls, ${said.evals} eval files, the routes that reach the model and the shapes they read. ${layer.set.size} of ${candidates.length} files; the list is at ${sentList}.${left} The rest of this folder is not sent.`);
+  say(`sending the part of this code that is its AI, so simulated users can be written for it: ${counted(said.prompts, 'prompt')}, ${counted(said.modelCalls, 'model call')}, ${counted(said.evals, 'eval file')}, the routes that reach the model and the shapes they read. ${layer.set.size} of ${candidates.length} files; the list is at ${sentList}.${left} The rest of this folder is not sent.`);
 } else {
   say(`sending this folder's code as this project has before: ${files.length} files, env files and keys left out.`);
 }
