@@ -1,6 +1,6 @@
 {
   "name": "@cortad/connector",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "Connects the AI app on your machine to Cortad for test conversations, and gives your coding agent the MCP and skill to run them.",
   "bin": {
     "cortad": "local.mjs"
