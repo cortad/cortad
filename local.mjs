@@ -38,7 +38,7 @@ import { finished, unseenText } from "./lib/text.mjs";
 import { lockHolds, makeLock } from "./lib/lock.mjs";
 import { AS_HEADER, CAPTURED, makeCapture } from "./lib/replay.mjs";
 import { sampleHere } from "./lib/sample.mjs";
-import { hookable, shownCommand, startPlan, workspaces } from "./lib/start.mjs";
+import { forContainer, hookable, inContainer, passedThrough, publishedPorts, shownCommand, startPlan, workspaces } from "./lib/start.mjs";
 import { openProxy } from "./lib/proxy.mjs";
 import { liftedLimits } from "./lib/switches.mjs";
 import { downLine, makeHealth } from "./lib/health.mjs";
@@ -111,14 +111,16 @@ if (!trusted) fail(`refusing: ${origin.host} is not Cortad.`);
 const api = `${origin.origin}/api`;
 
 const root = process.cwd();
-const MANIFEST = ["package.json", "pyproject.toml", "requirements.txt", "go.mod", "Cargo.toml", "docker-compose.yml", "docker-compose.yaml", "Gemfile", "mix.exs"];
+const MANIFEST = ["package.json", "pyproject.toml", "requirements.txt", "go.mod", "Cargo.toml", "docker-compose.yml", "docker-compose.yaml", "Gemfile", "mix.exs", "pom.xml", "build.gradle", "build.gradle.kts", "composer.json", "Dockerfile"];
+// A .NET project is named for itself: Support.csproj, Shop.sln.
+const dotnetHere = () => { try { return readdirSync(root).some((f) => /\.(?:csproj|fsproj|sln)$/.test(f)); } catch { return false; } };
 // A repository whose root carries no manifest of its own is still a repository: crewai-examples
 // keeps one project per folder under crews/, and the whole of it was refused at the door. The root
 // is accepted when a project lives below it, and whenever the person says how the app starts or
 // where it answers: a single file with no manifest is an app too, and nothing here needs the manifest.
 const startSaid = argv.includes("--") || argv.includes("--start") || argv.includes("--port") || argv.includes("--token");
-if (!startSaid && !MANIFEST.some((f) => existsSync(join(root, f))) && !workspaces(root).length) {
-  fail(`no project here: this folder has no package.json or pyproject.toml, and neither does any folder in it. Run it from your repository's root, or say how your app starts: npx cortad <code> -- <your start command>`);
+if (!startSaid && !MANIFEST.some((f) => existsSync(join(root, f))) && !dotnetHere() && !workspaces(root).length) {
+  fail(`no project here: this folder has no project file (package.json, pyproject.toml, go.mod, pom.xml, Gemfile, composer.json, Cargo.toml, a .csproj), and neither does any folder in it. Run it from your repository's root, or say how your app starts: npx cortad <code> -- <your start command>`);
 }
 // Which project this is, as a hash of where it lives: the same folder coming back resumes the same
 // connection, and the path itself never leaves this machine.
@@ -687,7 +689,7 @@ async function startApp() {
   if (up.port) {
     keepStart({ cmd: typed, ...(wantedPort ? { port: wantedPort } : {}) });
     // A container never saw the proxy's settings: the one line that makes its model calls visible is said here.
-    if (proxy && IN_CONTAINER.test(typed)) say(containerLine());
+    if (proxy && inContainer(typed)) sayIf(containerLine());
     return { port: up.port, cmd: launched.cmd, lifted: raised };
   }
   if (up.tail) console.error(up.tail);
@@ -747,22 +749,26 @@ async function useProxy() {
   keepStart({ modelPort: proxy.modelPort });
   say("your app's model calls are seen through a local proxy on this machine, so the line of code that made each call is not known. During a run, its calls to other services go out as they would for a real customer: a conversation that books, charges or emails does it for real");
 }
+const sayIf = (line) => { if (line) say(line); };
 // An app run in a container: the proxy's settings never reach it, and 127.0.0.1 inside it is not this machine.
 const containerLine = () => {
   // Only the settings the app's own environment names, else the OpenAI one: every SDK's would be a list nobody reads.
   const hints = modelHints();
   const handed = proxy.env(hints);
   const named = Object.keys(handed).filter((name) => name in hints);
-  const settings = (named.length ? named : ["OPENAI_BASE_URL"]).map((name) => `${name}=${handed[name].replace("127.0.0.1", "host.docker.internal")}`);
+  const passed = passedThrough(launched?.cmd);
+  // A setting the command already hands the container from this terminal arrives on the proxy as it is.
+  const missing = (named.length ? named : ["OPENAI_BASE_URL"]).filter((name) => !passed.has(name));
+  if (!missing.length) return "";
+  const settings = missing.map((name) => `${name}=${forContainer(handed)[name]}`);
   return `your app runs in a container, where Cortad's hook cannot load: its replies are seen through the proxy, its model calls are not. To see them, give the container ${settings.length === 1 ? "this setting" : "these settings"} and start it again with this command (the same port on every connect of this folder): ${settings.join(", ")}`;
 };
-const IN_CONTAINER = /^\s*(?:sudo\s+)?(?:docker|podman)(?:-compose)?\b/;
 // The app answered, and the hook is not in it: it is started again with its model settings on the
 // proxy. One in a container would come back the same, so it is left up, seen at the front alone.
 async function startProxied(up, waitMs) {
   await useProxy();
-  if (IN_CONTAINER.test(launched?.cmd ?? "")) {
-    say(containerLine());
+  if (inContainer(launched?.cmd)) {
+    sayIf(containerLine());
     return up;
   }
   await stopTree(child.pid);
@@ -785,7 +791,7 @@ async function start(waitMs) {
   // for the session, and the hook. No env file is read into it: its own loader reads its own files, in
   // its own order, which is the only way a test file's placeholder key never outranks the real one.
   const base = { ...process.env, ...lifted };
-  child = spawnTied(cmd, { cwd: appDir, env: { ...base, ...(proxy ? proxy.env(modelHints()) : capture.env(base)), FORCE_COLOR: "0" } });
+  child = spawnTied(cmd, { cwd: appDir, env: { ...base, ...(proxy ? (inContainer(cmd) ? forContainer(proxy.env(modelHints())) : proxy.env(modelHints())) : capture.env(base)), FORCE_COLOR: "0" } });
   const mine = child;
   become("starting", { app: mine.pid ?? null });
   let seen = "";
@@ -826,7 +832,7 @@ async function start(waitMs) {
     // A container publishes its port through the daemon, so nothing in this command's own process
     // family listens on it and `ports` stays empty however long the wait runs. What the container
     // said is then the only evidence there is, and `answers` still has to agree before it is used.
-    const alsoSaid = IN_CONTAINER.test(cmdText) ? said : [];
+    const alsoSaid = inContainer(cmdText) ? [...publishedPorts(cmdText), ...said] : [];
     for (const port of [...new Set([...(wantedPort ? [wantedPort] : []), ...said.filter((p) => ports.includes(p)), ...ports, ...alsoSaid])]) {
       if (await answers(port)) {
         note.answered = true;

@@ -61,6 +61,7 @@
     "lib/trace.cjs",
     "lib/verbs.mjs",
     "lib/wire.cjs",
+    "lib/message-text.cjs",
     "lib/words.mjs",
     "lib/writes.mjs",
     "local.mjs",
