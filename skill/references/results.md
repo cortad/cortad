@@ -332,15 +332,17 @@ next: status
 
 ## behavior
 
-How the app behaved with its users at one point, top down: the line, each persona largest first with what they came for, how they behave, how many got it and where the app gave way, the app's habits, and last the code. `persona` lists every conversation of one persona; `against` gives each persona's moves with ranges; `history` is one line a point.
+How the app behaved with its users at one point, top down: the line, each persona largest first with who they are, how they behave, how many achieved their goal, what the app did well and where it gave way, the app's habits, and last the code. Only simulated conversations are quoted; a production conversation is its id and the address where the owner reads it. `persona` lists every conversation of one persona; `against` gives each persona's moves with ranges; `history` is one line a point.
 
 ```
 How your app behaved with its users: the simulation of 10 November 2026 at 10:31 UTC on commit c6b655c ("fix(rag): retrieval on BM25").
-14 simulated users of 1 persona, in 206 conversations. Of the 197 conversations where it could be told, they got what they came for in 133: 68% (61% to 74%).
+14 simulated users of 1 persona, in 206 conversations. Of the 197 conversations where it could be told, 133 achieved their goal: 68% (61% to 74%).
 
 1. Generates an image or visual prompt: 3 simulated users, 43 conversations.
    They send 1 message a conversation, with a first message of about 16 words.
-   They got what they came for in 25 of 41 conversations, 61% (46% to 74%).
+   They achieved their goal in 25 of 41 conversations, 61% (46% to 74%).
+   What the app did well with them:
+   - The app's reply is in the user's language: in 40 of 41 conversations, 98% (87% to 100%), against 83% (77% to 88%) for the other users.
    Where it gave way:
    - The reply poses clarifying questions as plain sentences: in 3 of 17 conversations, 18% (6% to 41%). (finding:1)
      Shown in 37354442, 8ed53a3b.
@@ -362,11 +364,13 @@ next: tell the person how their AI behaved with their users, persona by persona,
 
 ## search
 
+A simulated hit quotes what was asked and what the app said; a production hit is its persona, how it ended and its address.
+
 ```
 1 conversation matches "told a topic is not in the book", closest first.
 Across everything searched, 31 of 206 conversations, 15% (11% to 20%) are about this.
 1. b7d5181a, a simulated user of "Asks for a summary": asked "Summarise what the teacher said about equilibrium"
-   How it ended: did not get what they came for
+   How it ended: did not achieve their goal
    The app said: "That is not in the parts of your book I have."
 next: behavior with persona: "Asks for a summary" shows how that persona fared as a whole
 ```
