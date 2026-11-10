@@ -6,7 +6,7 @@ The last line of a run_status result is the next call. A plan line names what th
 
 ## wait
 
-`npx {{cortad}} wait` returns when the next run ends. It prints what `run_status` prints for that finished run, and its last line is `next: findings <jobId>`. When the connect command has been stopped for a minute it ends with `The connect command stopped, so no run can start from the browser.`; after six hours with no run, with `No run ended in 6 hours.`
+`npx {{cortad}} wait` returns when the next run ends. It prints what `run_status` prints for that finished run, and its last line is `next: behavior <jobId>`. When the connect command has been stopped for a minute it ends with `The connect command stopped, so no run can start from the browser.`; after six hours with no run, with `No run ended in 6 hours.`
 
 ## status
 
@@ -212,7 +212,7 @@ Connect production to see what your real users are doing as it happens and where
 112 of 140 questions answered.
 Free: this month's 1 run is used; 60 verify conversations left. Pro $99 a month: runs and reruns included, 100,000 production replies read.
 The report is at https://cortad.com/lab
-next: findings
+next: behavior 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b
 ```
 
 A finding whose breaks have the same cause as an earlier finding (the request ended on the same tool, or the same call's output cap) prints `Same cause as finding:1: one fix covers both. Verify finding:1 after the fix; the next run rechecks this one.` in place of its fix and verify lines.
@@ -246,7 +246,7 @@ Nothing broke that only running your app could show.
 The next run is compared with run 8f2a1c4e, the last run that played every conversation, with everything that changed since then in its scope.
 Pro: 8 of 10 runs left this month; 560 verify conversations left.
 The report is at https://cortad.com/lab
-next: status
+next: behavior 9a10b3d2-7c8d-4e9f-8a1b-2c3d4e5f6a7b
 ```
 
 Stopped early. Each stop and fault names the side it is on and what comes next:
@@ -257,7 +257,7 @@ Run 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b: finished, 11 of 51 conversations playe
 Stopped at 11 of 51 conversations, on the app's side: your app stopped answering after 11 replies. Bring your app back up, then run again.
 Fault on the app's side: Your code names llama-3.1-8b-instant, which api.groq.com does not serve. Rename the model in your code, then run again.
 The report is at https://cortad.com/lab
-next: findings
+next: behavior 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b
 ```
 
 Replies that did not count come before the counts, each part saying whose it is, with the request to paste where there is one:
@@ -286,7 +286,7 @@ The failure is gone on its own conversations: none of 3 replays failed, against 
 Free: this month's 1 run is used; 55 verify conversations left. Pro $99 a month: runs and reruns included, 100,000 production replies read.
 The failure in finding:1 is gone on its replays. Connecting production shows what real users are doing as it happens; connect has the steps.
 The report is at https://cortad.com/lab
-next: findings
+next: status
 ```
 
 Undecided after a round, it replays the failing conversations again by itself. The call keeps following it; the id stays the same:
@@ -307,7 +307,7 @@ Verify 7c31e0aa-1b2c-4d3e-8f4a-5b6c7d8e9f0a: finished, 4 of 4 conversations play
 Verify of finding:4 at apps/api/src/agent/system.ts:12.
 The failure stayed: 4 of 4 replays failed, against 4 of 4 conversations in the run it was found in; the same question fails on 3 of 18 conversations elsewhere in your app, so these still stand out beyond chance. After the fix 4 conversations still failed: conversation 0b19a3f2 said "Sure! Let's solve this together." at reply 1, as it did before the fix; conversation 3e8d0c47 said "Sure! Let's solve this together." at reply 1, as it did before the fix; conversation a61f9b05 said "Sure! Let's solve this together." at reply 1, as it did before the fix; and 1 more.
 The report is at https://cortad.com/lab
-next: findings
+next: status
 ```
 
 Where the conversations saved to test the fix disagree with the finding's own, the first sentence names both. Here the fix worked: the failure is gone on the conversations saved to test the fix, and the ones still failing say something other than they did before, another problem to fix next. A first sentence that says the fix `made the failure worse on the conversations saved to test the fix` means undo the change, whatever its own conversations did:
@@ -317,7 +317,7 @@ Verify 7c31e0aa-1b2c-4d3e-8f4a-5b6c7d8e9f0a: finished, 43 of 43 conversations pl
 Verify of finding:5 at apps/api/src/agent/lessons.ts:58.
 The failure stayed on its own conversations (3 of 35 failed, against 4 of 18 before) and is gone on the conversations saved to test the fix (3 of 8 failed before the fix, 0 of 8 after, beyond chance). On its own conversations that is not a fall beyond chance. After the fix 3 conversations still failed: conversation e4a1c9d2 said "I don't have this information about your homework plan." at reply 2, where before the fix it said "Let me look up your lesson plan."; conversation f0000000 said "I don't have this information." at reply 1; conversation f0000001 said "I don't have this information." at reply 1. The reason changed: in conversation e4a1c9d2 the reply declined to help, where before the fix the conversation ended without what they asked for.
 The report is at https://cortad.com/lab
-next: findings
+next: status
 ```
 
 Replies refused or failed on the replay come first. A refusal is not an answer, so the failure has not gone:
@@ -327,7 +327,48 @@ Verify 7c31e0aa-1b2c-4d3e-8f4a-5b6c7d8e9f0a: finished, 5 of 5 conversations play
 Verify of finding:2 at backend/tools/refunds.py.
 Your app refused 5 of 5 replays (HTTP 422), so they got no answer: the fix changed what the endpoint accepts. The failure stayed: 5 of 5 replays got no answer, against 5 of 5 conversations in the run it was found in; the same question fails on 2 of 16 conversations elsewhere in your app, so these still stand out beyond chance.
 The report is at https://cortad.com/lab
-next: findings
+next: status
+```
+
+## behavior
+
+How the app behaved with its users at one point, top down: the line, each persona largest first with what they came for, how they behave, how many got it and where the app gave way, the app's habits, and last the code. `persona` lists every conversation of one persona; `against` gives each persona's moves with ranges; `history` is one line a point.
+
+```
+How your app behaved with its users: the simulation of 10 November 2026 at 10:31 UTC on commit c6b655c ("fix(rag): retrieval on BM25").
+14 simulated users of 1 persona, in 206 conversations. Of the 197 conversations where it could be told, they got what they came for in 133: 68% (61% to 74%).
+
+1. Generates an image or visual prompt: 3 simulated users, 43 conversations.
+   They send 1 message a conversation, with a first message of about 16 words.
+   They got what they came for in 25 of 41 conversations, 61% (46% to 74%).
+   Where it gave way:
+   - The reply poses clarifying questions as plain sentences: in 3 of 17 conversations, 18% (6% to 41%). (finding:1)
+     Shown in 37354442, 8ed53a3b.
+     In 37354442:
+       The user: "What does the table in the picture mean"
+       Reply 1: "Write me what is in the table."
+   2 problems were seen in one conversation alone, which is not yet a pattern.
+
+The app's habits across personas, read from 238 conversations:
+- Does well: It answers curriculum questions.
+- Gives way: It deflects questions inside its job.
+- The habit behind it: It treats what it did not retrieve as out of scope.
+
+Where each problem comes from in the code:
+- src/prompts/formatting.ts:217
+  The reply poses clarifying questions as plain sentences: 3 conversations of "Generates an image or visual prompt". Verify with findingId "finding:1" replays them after a fix.
+next: tell the person how their AI behaved with their users, persona by persona, then what you would change and why it follows; behavior with persona: "Generates an image or visual prompt" opens the largest in full
+```
+
+## search
+
+```
+1 conversation matches "told a topic is not in the book", closest first.
+Across everything searched, 31 of 206 conversations, 15% (11% to 20%) are about this.
+1. b7d5181a, a simulated user of "Asks for a summary": asked "Summarise what the teacher said about equilibrium"
+   How it ended: did not get what they came for
+   The app said: "That is not in the parts of your book I have."
+next: behavior with persona: "Asks for a summary" shows how that persona fared as a whole
 ```
 
 ## findings

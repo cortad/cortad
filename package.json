@@ -9,6 +9,7 @@
   "files": [
     "README.md",
     "lib/app-port.mjs",
+    "lib/behavior-text.mjs",
     "lib/auto-reach.mjs",
     "lib/browser-rung.mjs",
     "lib/calls.mjs",
