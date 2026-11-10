@@ -49,6 +49,8 @@ import { clientOriginOf, envOf, keysFromEnv } from "./lib/origins.mjs";
 import { forgetSignIn, keptSignIn, mintJwt, rememberSignIn, signUpAndIn, testAccount } from "./lib/sign-in.mjs";
 import { clientRequestOf } from "./lib/browser-rung.mjs";
 import { layerOf, layerSaid } from "./lib/layer.mjs";
+import { sourcesIn } from "./lib/history/sources.mjs";
+import { report as reportLive } from "./lib/setup-live.mjs";
 import { grpcCall } from "./lib/grpc.mjs";
 
 // A count with its noun agreeing: 1 prompt, 3 prompts.
@@ -1124,6 +1126,12 @@ if (!sent.ok && sent.status !== 401 && sent.status !== 404) {
   sent = await sendTree();
 }
 if (!sent.ok) sent.err ? unreachable(sent.err) : fail(sent.data?.error ?? `upload failed (${sent.status})`);
+// Which history tool this folder's env names, by name only, so the setup card can say where its users'
+// messages will come from before the person is asked how many.
+{
+  const found = sourcesIn({ ...envOf(root), ...process.env }).map((s) => s.id);
+  if (found.length) void reportLive({ apiBase: api, token: readToken(project) }, { found });
+}
 // Their commit history follows the code: the commits newer than the ones Cortad holds, the whole
 // history the first time, each diff cut to the files above and to lines that carry no key
 // (lib/commits.mjs). It goes on after the connect is reported and never stops it.
