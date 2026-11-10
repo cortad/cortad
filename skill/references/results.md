@@ -369,6 +369,7 @@ A simulated hit quotes what was asked and what the app said; a production hit is
 ```
 1 conversation matches "told a topic is not in the book", closest first.
 About 31 of 206 conversations searched are about this, 15%; between 23 and 41.
+Every conversation in scope is searchable.
 1. b7d5181a, a simulated user of "Asks for a summary": asked "Summarise what the teacher said about equilibrium"
    How it ended: did not achieve their goal
    The app said: "That is not in the parts of your book I have."
