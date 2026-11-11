@@ -38,7 +38,7 @@ import { finished, unseenText } from "./lib/text.mjs";
 import { lockHolds, makeLock } from "./lib/lock.mjs";
 import { AS_HEADER, CAPTURED, makeCapture } from "./lib/replay.mjs";
 import { sampleHere } from "./lib/sample.mjs";
-import { forContainer, hookable, inContainer, passedThrough, publishedPorts, shownCommand, startPlan, workspaces } from "./lib/start.mjs";
+import { composePorts, forContainer, hookable, inContainer, passedThrough, publishedPorts, shownCommand, startPlan, workspaces } from "./lib/start.mjs";
 import { openProxy } from "./lib/proxy.mjs";
 import { liftedLimits } from "./lib/switches.mjs";
 import { downLine, makeHealth } from "./lib/health.mjs";
@@ -832,7 +832,7 @@ async function start(waitMs) {
     // A container publishes its port through the daemon, so nothing in this command's own process
     // family listens on it and `ports` stays empty however long the wait runs. What the container
     // said is then the only evidence there is, and `answers` still has to agree before it is used.
-    const alsoSaid = inContainer(cmdText) ? [...publishedPorts(cmdText), ...said] : [];
+    const alsoSaid = inContainer(cmdText) ? [...publishedPorts(cmdText), ...composePorts(cmdText, appDir), ...said] : [];
     for (const port of [...new Set([...(wantedPort ? [wantedPort] : []), ...said.filter((p) => ports.includes(p)), ...ports, ...alsoSaid])]) {
       if (await answers(port)) {
         note.answered = true;
