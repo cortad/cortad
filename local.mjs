@@ -54,7 +54,6 @@ import { report as reportLive } from "./lib/setup-live.mjs";
 import { grpcCall } from "./lib/grpc.mjs";
 
 // A count with its noun agreeing: 1 prompt, 3 prompts.
-const counted = (n, one) => `${n} ${n === 1 ? one : `${one}s`}`;
 
 const argv = process.argv.slice(2);
 // The two faces a coding agent uses after the first connect (lib/cli.mjs): the MCP server the
@@ -678,10 +677,10 @@ async function startApp() {
     return { port: wantedPort, cmd: null };
   }
   const sourceFiles = files.map((f) => join(root, f));
-  // Only its own request limits, raised for this session by name: who the app lets in is never touched.
+  // Only its own request limits: who the app lets in is never touched.
   const lifted = liftedLimits(sourceFiles);
   const raised = Object.keys(lifted);
-  if (raised.length) say(`higher request limits for this session: ${raised.join(", ")}`);
+  if (raised.length) say(`your app's own request limits are raised for this session only, so the simulated users are not turned away by them: ${raised.join(", ")}`);
   launched = { cmd: typed, lifted };
   if (proxyAsked || !hookable(appDir, typed)) await useProxy();
   step(`starting your app with: ${shownCommand(typed, mask)}${fromSaved ? " (saved from your last connect)" : ""}`);
@@ -997,7 +996,7 @@ if (explain) {
     `not sent        anything git ignores, env files (${envFiles.length} here: ${envFiles.slice(0, 6).map(rel).join(", ") || "none"}), key files, node_modules`,
     `env files       read here only, to hide their values in what leaves and to know where your app's model settings point; nothing in them is handed to your app or sent`,
     `would start     ${wantedPort ? `nothing: uses your app on port ${wantedPort}, replies seen and model calls not` : typed ? `${typed}   (your command, as typed, in ${rel(appDir)})` : "nothing: run again with your start command after --"}`,
-    `would raise     ${wantedPort || !typed ? "nothing" : `${Object.keys(liftedLimits(files.map((f) => join(root, f)))).join(", ") || "no request limits found"}   (your app's own limits, for this session only; who it lets in is never touched)`}`,
+    `would raise     ${wantedPort || !typed ? "nothing" : `your app's own request limits, for this session only, so the simulated users are not turned away by them: ${Object.keys(liftedLimits(files.map((f) => join(root, f)))).join(", ") || "none found"}`}`,
     `loads into app  lib/trace.cjs (Node, Bun) or lib/pyhook/sitecustomize.py (Python): records each request during which your app calls a model, what it answered and the model calls on the way; header values stay here`,
     `other apps      a local proxy on 127.0.0.1 in front of your app's port and where its model settings point (OPENAI_BASE_URL and the others), recording the same; it passes each call on to the provider your settings name`,
     `your files      never written by this program; your own coding agent edits them`,
@@ -1009,7 +1008,6 @@ if (explain) {
   ].join("\n"));
   process.exit(0);
 }
-if (kept.length) say(`left on this machine because it holds a key: ${kept.join(", ")}`);
 const keepSecret = (v) => { if (v && v.length >= 12 && !secrets.includes(v)) secrets.push(v); };
 // A real request that reached their model proves its door (lib/proof.mjs). What it proved goes up,
 // masked like everything else, and nothing goes up that the mask could not read; the sign-in each
@@ -1045,22 +1043,16 @@ key = attach.data.key;
 // What this folder sends. A folder that sent its whole tree before goes on doing so: its read, its code
 // versions and its history stay as they are. A new one sends its AI layer: the prompts, the evals, the
 // code that calls the model, the routes that reach it and the shapes they read, chosen by the read's
-// own parsers (lib/layer.mjs) and listed in this project's home for the agent to open. The rest of the
-// folder is never sent, and a read may not ask for it later (readable).
+// own parsers (lib/layer.mjs). The rest of the folder is never sent, and a read may not ask for it
+// later (readable). None of this is narrated: the person agreed to it before connecting, and a count
+// of files sent read to them as alarm.
 // Only on the server's word: a server from before this answer sends none, and that is the tree.
 if (attach.data.upload === "layer") {
-  step("choosing what to send: the prompts, the evals and the code that calls the model");
   const candidates = [];
   for (const rel of files) { let full; try { full = readFileSync(join(root, rel), "utf8"); } catch { continue; } candidates.push({ path: rel, head: full.slice(0, 4000), size: Buffer.byteLength(full), full }); }
   const chosen = layerOf(candidates);
   const said = layerSaid(chosen);
   layer = { ...said, set: new Set(chosen.files) };
-  const sentList = join(homeOf(project), "sent.json");
-  try { mkdirSync(homeOf(project), { recursive: true, mode: 0o700 }); writeFileSync(sentList, JSON.stringify({ ...said, files: chosen.files.map((f) => ({ path: f, why: chosen.why.get(f) })), leftOut: chosen.dropped ?? [] }, null, 1), { mode: 0o600 }); } catch { /* the list is for reading; the send does not depend on it */ }
-  const left = said.leftOut.files ? ` ${said.leftOut.files} large data and test files were left out to keep the upload under 16 MB; they are named in the list.` : "";
-  say(`sending the part of this code that is its AI, so simulated users can be written for it: ${counted(said.prompts, 'prompt')}, ${counted(said.modelCalls, 'model call')}, ${counted(said.evals, 'eval file')}, the routes that reach the model and the shapes they read. ${layer.set.size} of ${candidates.length} files; the list is at ${sentList}.${left} The rest of this folder is not sent.`);
-} else {
-  say(`sending this folder's code as this project has before: ${files.length} files, env files and keys left out.`);
 }
 // What goes up. `files` stays the whole folder: it is also what a save is judged against (savedSinceStart).
 const sending = layer ? files.filter((rel) => layer.set.has(rel)) : files;
