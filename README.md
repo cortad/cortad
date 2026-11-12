@@ -85,7 +85,7 @@ The hooks run after an edit and on your next message: the first names the prompt
 --wait               intelligence: return when the history is read
 ```
 
-Your app gets this terminal's environment and its own request limits raised for the session, so simulated users are not turned away by them. Test conversations write where your app writes, after your yes in the browser.
+Your app gets this terminal's environment and its request limits raised while Cortad tests it, so its simulated users are not blocked. Test conversations write where your app writes, after your yes in the browser.
 
 ## Files it creates
 

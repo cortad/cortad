@@ -680,7 +680,7 @@ async function startApp() {
   // Only its own request limits: who the app lets in is never touched.
   const lifted = liftedLimits(sourceFiles);
   const raised = Object.keys(lifted);
-  if (raised.length) say(`your app's own request limits are raised for this session only, so the simulated users are not turned away by them: ${raised.join(", ")}`);
+  if (raised.length) say(`raising your app's request limits while Cortad tests it, so its simulated users are not blocked: ${raised.join(", ")}`);
   launched = { cmd: typed, lifted };
   if (proxyAsked || !hookable(appDir, typed)) await useProxy();
   step(`starting your app with: ${shownCommand(typed, mask)}${fromSaved ? " (saved from your last connect)" : ""}`);
@@ -1130,7 +1130,7 @@ if (head) void sendHistory().catch((err) => { if (verbose) say(`commit history n
 if (!viaToken && process.env.CORTAD_NO_REGISTER !== "1") {
   const got = await registerAll().catch((err) => { if (verbose) say(`could not register with your coding agents: ${err?.message ?? err}`); return { clients: [], changed: [] }; });
   const and = (list) => new Intl.ListFormat("en", { type: "conjunction" }).format(list);
-  if (got.changed.length) say(`${and(got.clients)} can now use Cortad: its tools and skill were added to ${got.changed.map((f) => `~/${f}`).join(", ")}. This repository was not changed.`);
+  if (got.changed.length) say(`${and(got.clients)} can now use Cortad: its tools and skill were added to ${got.changed.map((f) => `~/${f}`).join(", ")}.`);
 }
 
 lock = await makeLock({ root, work });
