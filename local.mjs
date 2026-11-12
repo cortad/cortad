@@ -1064,7 +1064,7 @@ const head = (() => {
 const firstStart = startApp();
 firstStart.catch(() => { /* appLife reads the failure */ });
 const archive = join(work, "tree.tgz");
-step("connecting");
+step("connecting to your Cortad account");
 // COPYFILE_DISABLE: a Mac's tar adds no "._name" entries.
 await exec("tar", ["-czf", archive, "-C", root, "-T", list], { env: { ...process.env, COPYFILE_DISABLE: "1" } });
 const bytes = readFileSync(archive);
@@ -1078,7 +1078,7 @@ const parts = Math.max(1, Math.ceil(bytes.length / PART));
 async function sendTree() {
   for (let off = 0; off < bytes.length; off += PART) {
     const last = off + PART >= bytes.length;
-    step(parts > 1 ? `connecting, ${Math.floor(off / PART) + 1} of ${parts}` : "connecting");
+    step(parts > 1 ? `connecting to your Cortad account, ${Math.floor(off / PART) + 1} of ${parts}` : "connecting to your Cortad account");
     // The last part asks for this machine's key when none is stored yet: minted once the repository
     // row exists, kept in ~/.cortad for the runs a coding agent asks for on later days. A connect by a
     // code asks too, since the code may be another account's: the key kept from the account before
@@ -1121,7 +1121,9 @@ async function sendHistory() {
   }
 }
 // Unchanged code has already been read: coming back says so instead of claiming a second read.
-stepDone(moved ? "connected: your change is in, and what Cortad read before still stands" : resumed ? "connected: nothing changed since last time" : "connected");
+// Said of the account, never of the app: a bare "connected" here, above an app that could not take its
+// port, was read as the app being up (2026-11-12).
+stepDone(moved ? "connected to your Cortad account: your change is in, and what Cortad read before still stands" : resumed ? "connected to your Cortad account: your code has not changed since last time" : "connected to your Cortad account");
 if (head) void sendHistory().catch((err) => { if (verbose) say(`commit history not sent: ${err?.message ?? err}`); });
 // The coding agents on this machine learn about Cortad now, once: an MCP entry and a skill in each
 // one's own home folder. A run started by an agent later comes back through lib/cli.mjs.
