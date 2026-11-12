@@ -35,8 +35,6 @@ cortad intelligence site <address>   the one site the page key answers
 cortad intelligence --wait           return when the history is read, with what it found
 ```
 
-The ingest key only sends conversations to Cortad: it reads nothing and spends nothing. It is never printed and never copied to a clipboard; the command names its line in your env file.
-
 ## Your coding agent
 
 After the connect, your agent has six tools, one for each thing it needs from Cortad:
@@ -77,7 +75,6 @@ The hooks run after an edit and on your next message: the first names the prompt
 -- <command>         how your app starts; everything after -- is run as typed (--start "cmd" says the same)
 --port 3000          use an app that is already running, as it is
 --port 3000 -- <command>   start a container and watch the port it publishes; the model base URL to set inside it is printed
---explain            show what would be sent and started, then exit
 --verbose            print your app's output
 --from <tool>        intelligence history: the tool your conversations are read from
 --stdin              intelligence history: read your own export from standard input
@@ -88,23 +85,15 @@ The hooks run after an edit and on your next message: the first names the prompt
 --wait               intelligence: return when the history is read
 ```
 
-Nothing about your environment is guessed or changed. Your app gets this terminal's environment and its own request limits raised for the session, by name; its env files are read only to hide their values in what leaves this machine. Nothing is copied or started beside it: test conversations write where your app writes, after your yes in the browser.
-
-## What leaves this machine
-
-The part of the code that is its AI, chosen by the same parsers that read it: the prompts, the evals, the code that calls the model, the routes that reach it and the shapes they read, with the README, the manifests and the schema. The commit history since the last connect goes too, each commit with its message, author, dates and a diff of those same files, with any line that carries a key replaced first. Env files are read only to hide their values; keys never leave. A project that connected before 2026-10-23 sent its whole tree and goes on doing so, so its read and its history stand.
-
-After the connect, the command sends each AI endpoint one test request built from what was read, from this machine to your app on its port, and the conversations of a run go the same way. The exchanges, the model calls your app made and the replies are what Cortad judges; `--explain` prints what would be sent and started without sending anything.
-
-With `intelligence`, the conversations you chose: the person's and the app's messages with their times, keys, card numbers, emails and phone numbers replaced on this machine first, the app's conversation and user ids hashed. Exactly what is sent is written first to `~/.cortad/<project>/history.json`. It talks to cortad.com and, when you choose one, to that tool's own address with the keys already in your env; those keys go nowhere else. It never connects to a database itself and never sends a connection string.
+Your app gets this terminal's environment and its own request limits raised for the session, so simulated users are not turned away by them. Test conversations write where your app writes, after your yes in the browser.
 
 ## Files it creates
 
-- `~/.cortad/<project>/`     the key, the start command, the last tree digest, which process holds your app up, your app's output in `app.log`, the sign-in your own request carried, the run it asked for last, in `news.txt` the line a finished run left for your agent, removed once the agent has it, in `heard.txt` the ids of the runs your agent has read, in `history.json` the conversations `intelligence` sent, and in `pairing.json` a link waiting for your approval
+- `~/.cortad/<project>/`     the key, the start command, the last tree digest, which process holds your app up, your app's output in `app.log`, the sign-in your own request carried, the run it asked for last, in `news.txt` the line a finished run left for your agent, removed once the agent has it, in `heard.txt` the ids of the runs your agent has read, and in `pairing.json` a link waiting for your approval
 - your app's env file (`.env.local`, `.env` or `.dev.vars`, whichever it loads)   Cortad's lines alone: `CORTAD_INGEST_KEY`, `CORTAD_PUBLIC_KEY` and `CORTAD_ENV=development`; only when git ignores the file
 - `$TMPDIR/cortad-<pid>/`    removed on exit
 
-macOS and Linux, Node 20 or later. One dependency, playwright-core, loaded only to capture a request your app's own page makes. What is sent and what stays on your machine: `cortad --explain`, and cortad.com/privacy.
+macOS and Linux, Node 20 or later. One dependency, playwright-core, loaded only to capture a request your app's own page makes.
 
 ## Licence
 

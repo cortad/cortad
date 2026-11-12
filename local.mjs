@@ -979,33 +979,10 @@ secrets = secretValues(envFiles, shellSecrets);
 envKeys = [...secretEnvValues(envFiles, (f) => readFileSync(f, "utf8")), ...shellSecrets];
 const kept = [];
 for (let i = files.length - 1; i >= 0; i -= 1) if (carriesKey(files[i])) kept.unshift(...files.splice(i, 1));
-// --explain: what this would send and start, from this folder, and nothing else. No network, no
-// app started, nothing written. For the person (or the agent) who reads before running.
+// --explain: the files this folder would give, one line, for the check that keys and ignored files
+// stay out (lib/sent-files.test.mjs). No network, no app started, nothing written.
 if (explain) {
-  const going = new Set([...files, ...kept]);
-  const left = listed ? [...listed].filter((f) => !going.has(f) && !ENV_FILE.test(basename(f))).sort() : [];
-  const bytes = files.reduce((n, f) => { try { return n + statSync(join(root, f)).size; } catch { return n; } }, 0);
-  const rel = (f) => relative(root, f) || ".";
-  console.log([
-    `cortad --explain  (nothing is sent or started by this)`,
-    ``,
-    `talks to        ${origin.origin}, and localhost on your app's port only`,
-    `would send      ${files.length} source files, ${Math.round(bytes / 1024)} KB, once${listed ? " (what git would commit)" : ""}`,
-    ...(kept.length ? [`kept here       ${kept.length} file${kept.length === 1 ? " that holds" : "s that hold"} keys: ${kept.slice(0, 6).join(", ")}${kept.length > 6 ? ", ..." : ""}`] : []),
-    ...(left.length ? [`also not sent   ${left.length} tracked media or lock file${left.length === 1 ? "" : "s"}: ${left.slice(0, 6).join(", ")}${left.length > 6 ? ", ..." : ""}`] : []),
-    `not sent        anything git ignores, env files (${envFiles.length} here: ${envFiles.slice(0, 6).map(rel).join(", ") || "none"}), key files, node_modules`,
-    `env files       read here only, to hide their values in what leaves and to know where your app's model settings point; nothing in them is handed to your app or sent`,
-    `would start     ${wantedPort ? `nothing: uses your app on port ${wantedPort}, replies seen and model calls not` : typed ? `${typed}   (your command, as typed, in ${rel(appDir)})` : "nothing: run again with your start command after --"}`,
-    `would raise     ${wantedPort || !typed ? "nothing" : `your app's own request limits, for this session only, so the simulated users are not turned away by them: ${Object.keys(liftedLimits(files.map((f) => join(root, f)))).join(", ") || "none found"}`}`,
-    `loads into app  lib/trace.cjs (Node, Bun) or lib/pyhook/sitecustomize.py (Python): records each request during which your app calls a model, what it answered and the model calls on the way; header values stay here`,
-    `other apps      a local proxy on 127.0.0.1 in front of your app's port and where its model settings point (OPENAI_BASE_URL and the others), recording the same; it passes each call on to the provider your settings name`,
-    `your files      never written by this program; your own coding agent edits them`,
-    `your data       nothing is copied, started or pointed elsewhere: your app uses the databases and services your command gives it, and test conversations write where it writes, after your yes on the card`,
-    `test shell      confined by the OS: your project and toolchains only, writes to temp and build folders, localhost only`,
-    `for your agent  an MCP entry and a skill in each coding agent's own home folder (Claude Code, Codex, Cursor), and a key in ~/.cortad for later runs`,
-    ``,
-    `first files     ${files.slice(0, 8).join(", ")}${files.length > 8 ? ", ..." : ""}`,
-  ].join("\n"));
+  console.log(`first files     ${files.slice(0, 8).join(", ")}${files.length > 8 ? ", ..." : ""}`);
   process.exit(0);
 }
 const keepSecret = (v) => { if (v && v.length >= 12 && !secrets.includes(v)) secrets.push(v); };
@@ -1215,7 +1192,7 @@ async function appLife(firstStart) {
   } : null);
   become("up", { ...upAt(), app: launched ? child?.pid ?? null : null });
   say(`your app is answering on port ${app.port}${app.cmd ? `, started with: ${shownCommand(app.cmd, mask)}` : ""}`);
-  if (launched) say(`your app's output for this session is kept in ${bootLog}, with the values from your env files masked`);
+  if (launched) say(`your app's output is in ${bootLog}`);
   if (proxy) say(`send requests to port ${proxy.port}: it passes them to your app and Cortad sees each one. Requests sent straight to port ${app.port} are not seen`);
   for (const line of connectedText(machineOf())) say(line);
   say(CONNECTED);
