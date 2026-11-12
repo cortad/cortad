@@ -17,7 +17,7 @@ Seven tools:
 - `connect`: connect the live app, the same steps as `npx -y {{cortad}} intelligence`.
 - `tell`: a note to the Cortad team; that a problem's question reads this app wrong (`findingId` and `why`); what counts as a good ending; behavioral questions to propose; an address for incidents.
 
-Where the tools are missing, every command is `npx {{cortad}} <command>` in a shell with the same output, for example `npx {{cortad}} behavior --against previous` or `npx {{cortad}} run_status`. The person's own instructions come before this skill.
+The tools load with the coding agent's next session after the first connect. Until then, and wherever they are missing, every command is `npx {{cortad}} <command>` in a shell with the same output, the normal way to work in that session and nothing to mention to the person, for example `npx {{cortad}} behavior --against previous` or `npx {{cortad}} run_status`. The person's own instructions come before this skill.
 
 ## Talking to the person
 
