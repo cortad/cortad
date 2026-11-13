@@ -84,10 +84,32 @@
     "lib/history/braintrust.mjs",
     "lib/history/phoenix.mjs",
     "lib/history/opik.mjs",
-    "lib/history/vendor.mjs"
+    "lib/history/vendor.mjs",
+    "lib/history/db/values.mjs",
+    "lib/history/db/fields.mjs",
+    "lib/history/db/newest.mjs",
+    "lib/history/db/sql.mjs",
+    "lib/history/db/drivers.mjs",
+    "lib/history/db/env.mjs",
+    "lib/history/db/http.mjs",
+    "lib/history/db/postgres.mjs",
+    "lib/history/db/mysql.mjs",
+    "lib/history/db/mssql.mjs",
+    "lib/history/db/sqlite.mjs",
+    "lib/history/db/mongo.mjs",
+    "lib/history/db/redis.mjs",
+    "lib/history/db/qdrant.mjs",
+    "lib/history/db/search.mjs",
+    "lib/history/db/couch.mjs",
+    "lib/history/db/postgrest.mjs",
+    "lib/history/db/chroma.mjs",
+    "lib/history/db/weaviate.mjs",
+    "lib/history/db/pending.mjs",
+    "lib/history/db/index.mjs",
+    "lib/py/dbread.py"
   ],
   "scripts": {
-    "test": "node --test lib/*.test.mjs lib/history/*.test.mjs"
+    "test": "node --test lib/*.test.mjs lib/history/*.test.mjs lib/history/db/*.test.mjs"
   },
   "engines": {
     "node": ">=20"
