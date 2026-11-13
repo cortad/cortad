@@ -1,6 +1,6 @@
 {
   "name": "cortad",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "Connects the AI app on your machine to Cortad for test conversations, and gives your coding agent the MCP and skill to run them.",
   "bin": {
     "cortad": "local.mjs"
@@ -8,6 +8,7 @@
   "type": "module",
   "files": [
     "README.md",
+    "SECURITY.md",
     "lib/app-port.mjs",
     "lib/behavior-text.mjs",
     "lib/auto-reach.mjs",
@@ -23,6 +24,7 @@
     "lib/explain-text.mjs",
     "lib/failed-text.mjs",
     "lib/files.mjs",
+    "lib/gitignore.mjs",
     "lib/fresh.mjs",
     "lib/grpc.mjs",
     "lib/health.mjs",
@@ -31,10 +33,13 @@
     "lib/intel-text.mjs",
     "lib/keys.mjs",
     "lib/layer.mjs",
+    "lib/mailbox.mjs",
     "lib/lock.mjs",
     "lib/mcp.mjs",
     "lib/numbers-text.mjs",
     "lib/origins.mjs",
+    "lib/paths.mjs",
+    "lib/picks.mjs",
     "lib/proc.mjs",
     "lib/proof.mjs",
     "lib/proxy.mjs",

@@ -10,8 +10,10 @@ Cortad is a review of behavior, kept like history. Simulated users written from 
 Facts about what Cortad does here, for you to tell the person in your own words:
 
 - Test conversations go to the app as a user's would, each labelled `x-cortad-simulation: 1`, and land wherever the app stores chats; that label tells them apart from real users' conversations.
-- While Cortad tests the app, it raises the app's own request limits for that session only.
-- Of the repository, Cortad takes only the code around the AI: the prompts, the code that calls the model, the routes that reach it and the evals. The rest and its git history stay on this machine. `npx -y {{cortad}} --explain` lists the files a connect sends, grouped by why each was picked.
+- While Cortad tests the app, it raises the app's own request-rate and concurrency limits for that session only; its spend and budget limits stay as they are.
+- Of the repository, Cortad takes only the code around the AI: the prompts, the code that calls the model, the routes that reach it and the evals git tracks. The rest, every file git ignores and its git history stay on this machine. `npx -y {{cortad}} --explain` lists the files a connect sends, grouped by why each was picked.
+
+If the person would rather Cortad did not choose the files, offer that you pick them for it. Connect with `npx -y {{cortad}} <code> --agent-picks -- <how the app starts>`: nothing is sent until you send it. `status` then lists what Cortad needs and why; show the person your list, and `npx -y {{cortad}} send <files>` previews it and sends only those files on their yes.
 
 Seven tools:
 
@@ -56,7 +58,7 @@ From the repository's folder, as a background command left running (in Claude Co
 
 1. Call `status`. Your first reply is three or four short, plain lines: that their app is connected, which AI features answered, and the audit as the one line `status` gives it. In the same turn, when `status` asks which features the first simulation tests, ask it with your question tool (in Claude Code, AskUserQuestion with multiSelect), one option a feature, grouping related features when there are more than four, since that tool takes four options.
 2. Start `npx -y {{cortad}} wait` as a background command now, as the `next:` line of `status` says: it returns when a simulation or verify ends, including one the person starts with Start simulation, or with the person's choice on the setup card, and its ending wakes you. Start it again each time it returns. `status` with `show reviews` lists the problems behind the audit line, with file and line.
-3. Their answer on features goes to `test` with `features` alone, which records it and starts nothing; nothing is set up or started before it. Where an endpoint needs a signed-in user, ask with the same tool which test account to sign in as; their yes to a test account made on the app's own sign-up door goes to `test` with `account` set to `make`.
+3. Their answer on features goes to `test` with `features` alone, which records it and starts nothing; nothing is set up or started before it. Where an endpoint needs a signed-in user, ask with the same tool first, the yes option first, whether Cortad may make one test account on the app's own sign-up or sign a token with the JWT secret in its env, kept in ~/.cortad here; their yes goes to `test` with `account` set to `make`.
 4. Before the first simulation, ask the person once, with your question tool, whether to start it, with the line on what it plays and costs as the question. On their yes, call `test`: the simulation starts. A simulation the person started with Start simulation in the browser is theirs: `status` says when they pressed it, and you follow it as their simulation. After the first, start any simulation the work needs without asking.
 5. When `wait` returns with the person's choice from the setup card about production, that choice is theirs: do the steps it prints, in order. The one question they lead to is printed with its options, yes first; ask it once, as printed, and start `wait` again.
 
@@ -84,10 +86,6 @@ The conversations and questions belong to Cortad, and the app answers Cortad's s
 ## Production
 
 Once a fix is verified and production is not connected, the result offers it. `connect` prints one step at a time and two questions for the person: which recent conversations to send, and whether to commit the change it prints. Each is printed with its options, yes first; ask each once, as printed, with your question tool. On yes you make the change and show the diff. Then `behavior` with `at: "production"` is how the live app's real users behave, persona by persona, and `behavior` with `against: "production"` says where simulated users behave unlike real ones. `status` about `users` holds the tables behind it for your own questions. Where conversations went badly with no question failing, `tell` with `questions` proposes one for the person's yes.
-
-## A world
-
-`test` decides what kind of test a sentence is. A world is for an AI that is not a chat, a worker that reads data and writes a verdict: Cortad builds a copy of the product's data from the app's own seed, plants problems whose answers are known, and scores what the app's own detection found. `status` about `run` with the world's id follows it.
 
 ## Making it stick
 

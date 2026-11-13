@@ -7,15 +7,15 @@ import { startCause } from "./lib/start-cause.mjs";
 import { spawn, execFile, execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { appendFileSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, watch, writeFileSync } from "node:fs";
-import { hostname, tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 import { COMMANDS, main as face, unknownVerb, VERBS } from "./lib/cli.mjs";
-import { addNews, homeOf, projectOf, readToken, writeApp, writeDigest, writeToken } from "./lib/home.mjs";
+import { addNews, homeOf, projectOf, readPicked, readToken, writeApp, writeDigest, writePicked, writeToken } from "./lib/home.mjs";
 import { changesOf, commandText, RELOADER, sourceOf } from "./lib/fresh.mjs";
 import { chainOf, elapsedMs, holderOf, listening, listenerOn, portInError, spawnTied, stopTree } from "./lib/proc.mjs";
 import { claimRunner, readRunner, releaseRunner, startedAtOf, writeRunner } from "./lib/runner.mjs";
-import { registerAll } from "./lib/register.mjs";
+import { agentOf, AGENTS, askAgent, register } from "./lib/register.mjs";
 import { CONNECTED, connectedText, NOT_RUNNING } from "./lib/read-text.mjs";
 import { VERSION } from "./lib/spec.mjs";
 import { credentialShaped, environmentSecrets, maskedLines, maskWith, secretValues } from "./lib/env-secrets.mjs";
@@ -32,21 +32,24 @@ import { makeHeld } from "./lib/held.mjs";
 import { answerAsk, ASK, makeAutoReach, takeAsk } from "./lib/auto-reach.mjs";
 import { SIMULATION_HEADER } from "./lib/reach.mjs";
 import { clientOriginOf, envOf, keysFromEnv } from "./lib/origins.mjs";
-import { forgetSignIn, keptSignIn, mintJwt, rememberSignIn, signUpAndIn, testAccount } from "./lib/sign-in.mjs";
+import { forgetSignIn, keptSignIn, mintAfterYes, rememberSignIn, signUpAndIn, testAccount } from "./lib/sign-in.mjs";
 import { clientRequestOf } from "./lib/browser-rung.mjs";
 import { layerOf, layerSaid } from "./lib/layer.mjs";
+import { ignoredBy, rulesOf } from "./lib/gitignore.mjs";
 import { explainText } from "./lib/explain-text.mjs";
 import { sourcesIn } from "./lib/history/sources.mjs";
 import { report as reportLive } from "./lib/setup-live.mjs";
+import { previewText, SEND, sentText } from "./lib/picks.mjs";
 import { grpcCall } from "./lib/grpc.mjs";
+import { relativePaths } from "./lib/paths.mjs";
 
 const argv = process.argv.slice(2);
-const USAGE = `usage: npx cortad <code from the connect screen> -- <how you start your app>   |   npx cortad <code> --port <port of your running app>   |   npx cortad --explain   |   npx cortad ${[...VERBS, "wait"].join(" | ")}`;
+const USAGE = `usage: npx cortad <code from the connect screen> -- <how you start your app>   |   npx cortad <code> --port <port of your running app>   |   npx cortad <code> --agent-picks -- <how you start your app>   |   npx cortad --explain   |   npx cortad ${[...VERBS, "send", "wait"].join(" | ")}`;
 
 {
   const dash = argv.indexOf("--");
   const own = dash >= 0 ? argv.slice(0, dash) : argv;
-  const FLAGS = new Set(["--port", "--start", "--explain", "--proxy", "--token", "--until-idle", "--verbose"]);
+  const FLAGS = new Set(["--port", "--start", "--explain", "--proxy", "--token", "--until-idle", "--verbose", "--agent-picks", "--no-samples"]);
   const unknownFlag = own.some((a, i) => a.startsWith("-") && !FLAGS.has(a) && !["--port", "--start"].includes(own[i - 1] ?? ""));
   if (["help", "-h", "--help"].includes(argv[0]) || (!COMMANDS.has(argv[0] ?? "") && unknownFlag)) {
     console.log(USAGE);
@@ -114,6 +117,10 @@ const typedNow = dash >= 0 ? own.length === argv.length ? "" : argv.slice(dash +
 const typed = typedNow || (flag("--port") ? "" : keptStart.cmd ?? "");
 const fromSaved = !typedNow && Boolean(typed);
 
+const picks = own.includes("--agent-picks") || (!code && keptStart.picks === true);
+
+const noSamples = picks || own.includes("--no-samples") || (!code && keptStart.noSamples === true);
+
 const wantedPort = Number(flag("--port")) || (!typedNow ? Number(keptStart.port) || 0 : 0);
 const onPath = (bin) => (process.env.PATH ?? "").split(":").some((dir) => dir && existsSync(join(dir, bin)));
 
@@ -127,7 +134,7 @@ if (!explain && !viaToken && !typed && !wantedPort) {
 }
 if (viaToken && !typed && !wantedPort) fail("this project has no saved start command. Run npx cortad <code> -- <how you start your app> in this folder once.");
 
-const me = { pid: process.pid, startedAt: startedAtOf(), by: viaToken ? "token" : "connect", reach: "ask", version: VERSION };
+const me = { pid: process.pid, startedAt: startedAtOf(), by: viaToken ? "token" : "connect", reach: "ask", version: VERSION, ...(picks ? { picks: true, picked: readPicked(project).length } : {}) };
 
 let became = null;
 
@@ -139,30 +146,34 @@ const heldLine = (held) => `another cortad is already connected in this folder: 
 function holdProject() {
   const held = claimRunner(project, { ...me, state: "starting", at: new Date().toISOString() });
   if (!held) return;
-  if (viaToken) { say(`pid ${held.pid} already holds this project's app up and serves the run`); process.exit(0); }
+  if (viaToken) { say(`pid ${held.pid} already holds this project's app up and serves the simulation`); process.exit(0); }
   fail(heldLine(held));
 }
 
 if (viaToken) holdProject();
 else if (!explain) { const held = readRunner(project); if (held) fail(heldLine(held)); }
 
-const SKIP_DIR = /^(node_modules|\.git|dist|build|out|coverage|vendor|venv|\.venv|env|target|tmp|\.next|\.nuxt|\.turbo|\.cache|__pycache__|\.terraform|\.wrangler|\.svelte-kit|\.output|\.parcel-cache|\.idea|\.vscode|secrets?|\.secrets?)$/i;
+const SKIP_DIR = /^(node_modules|\.git|dist|build|out|coverage|vendor|venv|\.venv|env|target|tmp|\.next|\.nuxt|\.turbo|\.cache|__pycache__|\.terraform|\.wrangler|\.svelte-kit|\.output|\.parcel-cache|\.idea|\.vscode|secrets?|\.secrets?|\.ssh|\.gnupg|\.aws)$/i;
 
-const SKIP_FILE = /^\.env(\..*)?$|^\.envrc$|\.env$|\.(pem|key|p12|pfx|jks|keystore|sqlite|sqlite3|db|log|lock|map|zip|tar|gz|tgz|7z|rar|png|jpe?g|gif|webp|ico|svg|mp3|mp4|wav|mov|pdf|woff2?|ttf|otf|eot|bin|exe|dll|so|dylib|wasm|onnx|pt|pth|safetensors|numbers|DS_Store)$/i;
-const EVALS = /(?:^|\/)(?:evals?|evaluations?|benchmarks?|gold(?:ens?)?|red[-_]?team)\/|(?:^|[\/._-])(?:evals?|evaluations?|gold(?:en)?|benchmarks?|fidelity|red[-_]?team|cases)(?:[._-][^\/]*)?$/i;
+const SKIP_FILE = /^\.env(\..*)?$|^\.envrc$|\.env$|^\.(?:npmrc|netrc)$|^id_(?:rsa|ed25519|ecdsa)|\.(pem|key|p12|pfx|jks|keystore|sqlite|sqlite3|db|log|lock|map|zip|tar|gz|tgz|7z|rar|png|jpe?g|gif|webp|ico|svg|mp3|mp4|wav|mov|pdf|woff2?|ttf|otf|eot|bin|exe|dll|so|dylib|wasm|onnx|pt|pth|safetensors|numbers|DS_Store)$/i;
+
+const DATA = /\.(?:csv|tsv|jsonl|ndjson|parquet|xlsx?|arrow|feather|avro)$/i;
+const DATA_JSON = 64_000;
 const MAX_FILE = 25_000_000;
 const MAX_TOTAL = 256_000_000;
 
 const ENV_FILE = /^\.env(\..+)?$|^[\w-]+\.env$|^\.envrc$/;
 
-function walk(dir, depth, out, envs, total) {
+function walk(dir, depth, out, envs, total, rules = []) {
   let entries;
   try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return total; }
+  if (listed === null) { try { rules = [...rules, ...rulesOf(readFileSync(join(dir, ".gitignore"), "utf8"), relative(root, dir).split(sep).join("/"))]; } catch {  } }
   for (const e of entries) {
     const full = join(dir, e.name);
     if (e.isSymbolicLink()) continue;
+    if (listed === null && ignoredBy(rules, relative(root, full).split(sep).join("/"), e.isDirectory())) continue;
     if (e.isDirectory()) {
-      if (depth < 12 && !SKIP_DIR.test(e.name)) total = walk(full, depth + 1, out, envs, total);
+      if (depth < 12 && !SKIP_DIR.test(e.name)) total = walk(full, depth + 1, out, envs, total, rules);
       else envsIn(full, envs);
       continue;
     }
@@ -191,15 +202,15 @@ function gitListed() {
   if (!inside) return null;
 
   try {
-    const out = execFileSync("git", ["-C", root, "ls-files", "-z", "--cached", "--others", "--exclude-standard"], { maxBuffer: 256 * 1024 * 1024, stdio: ["ignore", "pipe", "ignore"] });
-    return new Set(out.toString().split("\0").filter(Boolean));
+    const out = execFileSync("git", ["-C", root, "ls-files", "-z", "-t", "--cached", "--others", "--exclude-standard"], { maxBuffer: 256 * 1024 * 1024, stdio: ["ignore", "pipe", "ignore"] });
+    return new Set(out.toString().split("\0").filter(Boolean).map((e) => e.slice(2)));
   } catch (e) { fail(`could not list this repository's files with git: ${e.message}`); }
 }
 
 function shareable(rel, askGit = true) {
   const parts = rel.split(sep);
   if (parts.slice(0, -1).some((d) => SKIP_DIR.test(d)) || SKIP_FILE.test(parts.at(-1))) return false;
-  if (listed === null || listed.has(rel) || EVALS.test(parts.join("/"))) return true;
+  if (listed === null || listed.has(rel)) return true;
 
   if (!askGit) return false;
   try { execFileSync("git", ["-C", root, "check-ignore", "-q", rel], { stdio: "ignore" }); return false; } catch (e) { return e.status === 1; }
@@ -212,6 +223,8 @@ function carriesKey(rel) {
 }
 
 let secrets = [];
+
+let signInYes = false;
 
 let layer = null;
 
@@ -260,13 +273,14 @@ const maskRoutes = (text) => maskWith(String(text ?? ""), secrets.filter(credent
 let box = "";
 let key = "";
 
+const folderName = basename(root).replace(/[^\w.-]/g, "-").slice(0, 80);
+
 async function paired() {
-  const machine = hostname().replace(/[^\w.-]/g, "-").slice(0, 80);
-  const opened = await call("POST", "/local/pair", { name: basename(root).replace(/[^\w.-]/g, "-").slice(0, 80), machine }).catch(unreachable);
+  const opened = await call("POST", "/local/pair", { name: folderName }).catch(unreachable);
   if (!opened.ok) fail(opened.data?.error ?? `could not start connecting (${opened.status})`);
   const link = `${origin.origin}/approve/${opened.data.id}`;
   say(`approve this computer in your browser, where you are signed in to Cortad: ${link}`);
-  say(`the page shows ${opened.data.words} and ${machine}; approve only if both match`);
+  say(`the page shows ${opened.data.words}; approve only if it matches`);
   if (process.stdout.isTTY) {
     const opener = process.platform === "darwin" ? "open" : process.platform === "win32" ? "explorer" : "xdg-open";
     try { spawn(opener, [link], { stdio: "ignore", detached: true }).on("error", () => {}).unref(); } catch {  }
@@ -283,7 +297,7 @@ async function call(method, path, body, { raw = false, timeoutMs = 60_000, heade
   const res = await fetch(`${api}${path}`, {
     method,
     headers: { ...(key ? { "x-local-key": key } : {}), "content-type": raw ? "application/octet-stream" : "application/json", ...headers },
-    body: body === undefined ? undefined : raw ? body : JSON.stringify(body),
+    body: body === undefined ? undefined : raw ? body : relativePaths(JSON.stringify(body), { root, home: homedir() }),
     signal: AbortSignal.timeout(timeoutMs),
   });
   const text = await res.text();
@@ -293,13 +307,14 @@ async function call(method, path, body, { raw = false, timeoutMs = 60_000, heade
 }
 
 const work = join(tmpdir(), `cortad-${process.pid}`);
-mkdirSync(work, { recursive: true });
 
 const bootLog = join(homeOf(project), "app.log");
 const MASKED_AT_END_MAX = 64 * 1024 * 1024;
 
 const printed = [];
 const PRINTED = 2000;
+
+const LOG_MAX = 2000;
 const logTo = () => maskedLines(() => secrets, (text) => {
   try { appendFileSync(bootLog, text, { mode: 0o600 }); } catch {  }
   printed.push({ at: Date.now(), text });
@@ -311,44 +326,68 @@ const SECRET_PATH = /(?:^|\/)(?:\.git|\.ssh|\.gnupg|\.aws|\.npmrc|\.netrc|id_(?:
 
 const translate = (s) => String(s ?? "").split("/workspace/repo").join(root).split("/tmp/bl-boot.log").join(bootLog).split("/tmp/boot.log").join(bootLog);
 const scratch = (p) => { const r = resolve(translate(p)); return r.startsWith("/tmp/") ? join(work, r.slice(5)) : r.startsWith(work + sep) ? r : null; };
+
 const readable = (p) => {
   const r = resolve(translate(p));
-  if (r === bootLog || r.startsWith(work + sep)) return r;
   let landed; try { landed = realpathSync(r); } catch { return null; }
   const home = realpathSync(root);
   if (!landed.startsWith(home + sep) || ENV_FILE.test(basename(landed)) || SECRET_PATH.test(landed)) return null;
   const rel = relative(home, landed);
-  if (layer && !layer.set.has(rel)) return null;
-  return shareable(rel) && !carriesKey(rel) ? landed : null;
+  if (!layer?.set.has(rel)) return null;
+  return shareable(rel) && !isData(rel, statSync(landed).size) && !carriesKey(rel) ? landed : null;
 };
 
 const plainEnv = { PATH: process.env.PATH, HOME: process.env.HOME, LANG: process.env.LANG ?? "C.UTF-8", TMPDIR: work, TERM: "dumb" };
 let lock = null;
 
+const OPS = {
+
+  start: async () => { const r = await restartApp(); return { success: !r.error, exitCode: r.error ? 1 : 0, stdout: "", stderr: r.error ?? "" }; },
+
+  test: () => (testDeclared() ? runLocked("npm test") : { success: false, exitCode: 127, stdout: "", stderr: "this project declares no test command in its package.json" }),
+};
+const testDeclared = () => { try { const t = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).scripts?.test; return typeof t === "string" && !/no test specified/.test(t); } catch { return false; } };
+function runOp(b) {
+  const run = Object.hasOwn(OPS, b.op) ? OPS[b.op] : null;
+  if (!run) return refused(b);
+  if (verbose) say(`running ${b.op}`);
+  return run();
+}
+function refused(b) {
+  const asked = mask(String(b.op ?? b.cmd ?? "")).replace(/\s+/g, " ").slice(0, 300);
+  say(`refused a command Cortad's server sent, since this machine runs only Cortad's own operations (${Object.keys(OPS).join(", ")}): ${asked}`);
+  try { mkdirSync(homeOf(project), { recursive: true, mode: 0o700 }); appendFileSync(join(homeOf(project), "refused.log"), `${new Date().toISOString()} ${asked}\n`, { mode: 0o600 }); } catch {  }
+  return { success: false, exitCode: 126, stdout: "", stderr: `refused: this machine runs only Cortad's own operations (${Object.keys(OPS).join(", ")}), never a command it is sent` };
+}
+const OUTPUT_SENT = 20_000;
+function runLocked(cmd) {
+  if (!lock) return { success: false, exitCode: 126, stdout: "", stderr: "refused: this machine has no sandbox tool (sandbox-exec or bubblewrap), so nothing is run here" };
+  if (lock.refused) return { success: false, exitCode: 126, stdout: "", stderr: `refused: ${lock.refused}` };
+  const { file, args } = lock.wrap(cmd);
+  return new Promise((done) => {
+    const child = spawn(file, args, { cwd: root, env: plainEnv, stdio: ["ignore", "pipe", "pipe"] });
+    let out = "", err = "";
+
+    const tail = (s, chunk) => (s + chunk).slice(-(OUTPUT_SENT + 4096));
+    child.stdout.on("data", (d) => { out = tail(out, d.toString()); });
+    child.stderr.on("data", (d) => { err = tail(err, d.toString()); });
+    const timer = setTimeout(() => child.kill("SIGKILL"), 280_000);
+    child.on("close", (code) => {
+      clearTimeout(timer);
+
+      const stderr = mask(err).slice(-OUTPUT_SENT);
+      const room = OUTPUT_SENT - stderr.length;
+      done({ success: code === 0, exitCode: code ?? 1, stdout: room > 0 ? mask(out).slice(-room) : "", stderr });
+    });
+    child.on("error", (e) => { clearTimeout(timer); done({ success: false, exitCode: 127, stdout: "", stderr: String(e.message) }); });
+  });
+}
+
 let app = null;
 async function verb(job) {
   const b = job.body ?? {};
   switch (job.verb) {
-    case "exec": {
-      const cmd = translate(b.cmd);
-      if (verbose) say(`$ ${cmd.slice(0, 160)}`);
-
-      if (!lock) return { success: false, exitCode: 126, stdout: "", stderr: "refused: this machine has no sandbox tool (sandbox-exec or bubblewrap), so no shell line is run here" };
-
-      const asApp = b.opts?.app === true;
-      const { file, args } = lock.wrap(cmd, { network: asApp });
-      const env = asApp ? { ...process.env, ...plainEnv } : plainEnv;
-      return new Promise((done) => {
-        const child = spawn(file, args, { cwd: root, env, stdio: ["ignore", "pipe", "pipe"] });
-        let out = "", err = "";
-        const cap = (s, chunk) => (s.length < 20_000_000 ? s + chunk : s);
-        child.stdout.on("data", (d) => { out = cap(out, d.toString()); });
-        child.stderr.on("data", (d) => { err = cap(err, d.toString()); });
-        const timer = setTimeout(() => child.kill("SIGKILL"), Math.min(Number(b.opts?.timeout) || 180_000, 280_000));
-        child.on("close", (code) => { clearTimeout(timer); done({ success: code === 0, exitCode: code ?? 1, stdout: mask(out), stderr: mask(err) }); });
-        child.on("error", (e) => { clearTimeout(timer); done({ success: false, exitCode: 127, stdout: "", stderr: String(e.message) }); });
-      });
-    }
+    case "exec": return runOp(b);
     case "fetch": {
 
       const port = Number(b.port) || doorPort();
@@ -462,7 +501,7 @@ async function verb(job) {
         if (!later || got.status < 200 || got.status >= 300) return got;
         const until = began + Math.min(holdMs, laterMs > 0 ? laterMs : Infinity) - LATER_MARGIN_MS;
         const said = capture ? await capture.answered(turn || headers["x-cortad-turn"], until, letGo) : null;
-        if (letGo.aborted) return { error: "cancelled by the run" };
+        if (letGo.aborted) return { error: "cancelled by the simulation" };
         if (!said?.reply.trim()) return { ...got, headers: { ...got.headers, [LATER_MISSED]: JSON.stringify(said ? { model: said.status } : { waited: Math.round((Date.now() - began) / 1000) }) } };
 
         const own = receiptOf(got);
@@ -470,13 +509,13 @@ async function verb(job) {
       };
       try { return await answered(await counted()); }
       catch (e) {
-        if (letGo.aborted) return { error: "cancelled by the run" };
+        if (letGo.aborted) return { error: "cancelled by the simulation" };
         const code = String(e.cause?.code ?? e.code ?? "");
         if (!/ECONNREFUSED|ECONNRESET|EPIPE|UND_ERR_SOCKET/.test(code)) return { error: `nothing answered at port ${port}: ${code || e.message}` };
 
         for (let i = 0; (i < 45 || restarting) && !letGo.aborted && !(await answers(app.port)); i++) await new Promise((r) => setTimeout(r, 1000));
         try { return { ...(await answered(await counted())), heldForRestart: true }; }
-        catch (again) { return { error: letGo.aborted ? "cancelled by the run" : `nothing answered at port ${port}: ${String(again.cause?.code ?? again.message)}` }; }
+        catch (again) { return { error: letGo.aborted ? "cancelled by the simulation" : `nothing answered at port ${port}: ${String(again.cause?.code ?? again.message)}` }; }
       } finally { held.done(job.id); }
     }
 
@@ -507,14 +546,17 @@ async function verb(job) {
     case "mint": return { identities: [] };
 
     case "log": {
-      const want = Math.min(Math.max(Number(b.bytes) || 16_000, 1), 200_000);
+      const want = Math.min(Math.max(Number(b.bytes) || LOG_MAX, 1), LOG_MAX);
       try {
         const all = readFileSync(bootLog);
-        const text = mask(all.subarray(Math.max(0, all.length - want)).toString("utf8").replace(/\x1b\[[0-9;]*[A-Za-z]/g, ""));
+
+        const wide = mask(all.subarray(Math.max(0, all.length - want - 4096)).toString("utf8").replace(/\x1b\[[0-9;]*[A-Za-z]/g, ""));
+        const text = wide.slice(-want);
 
         const jvm = /\bat\s+[\w$.]+\([\w$]+\.(?:java|kt|scala|groovy):\d+\)/.test(text);
-        return { text, root, size: all.length, ...(jvm ? { files: files.filter((f) => /\.(?:java|kt|scala|groovy)$/.test(f)).slice(0, 20_000) } : {}) };
-      } catch { return { text: "", root, size: 0 }; }
+        const sent = [...(layer?.set ?? [])].filter((f) => !jvm || /\.(?:java|kt|scala|groovy)$/.test(f));
+        return { text, size: all.length, files: sent.slice(0, 20_000) };
+      } catch { return { text: "", size: 0 }; }
     }
 
     case "consent": say("the person's answer on the card in the browser arrived"); return { ok: true };
@@ -528,7 +570,7 @@ async function verb(job) {
     }
     case "restart": return restartApp();
 
-    case "sample": return { report: JSON.parse(mask(JSON.stringify(await sampleHere(b, modelHints(), root)))) };
+    case "sample": return { report: noSamples ? { stores: [], off: true } : JSON.parse(mask(JSON.stringify(await sampleHere(b, appEnv(), root, mayOpen)))) };
     case "lock": return { locked: Array.isArray(b.hosts) ? b.hosts.length : 0 };
 
     case "usage": return capture ? JSON.parse(mask(JSON.stringify({ ...capture.usage(b.turn, b.totals === true), tools: capture.tools() ?? { wrapped: [], unwatched: [] } }))) : {};
@@ -557,7 +599,8 @@ const answers = async (port) => {
   return false;
 };
 
-const modelHints = () => ({ ...Object.assign({}, ...envFiles.filter((f) => !/\.(example|sample)$/.test(f)).map((f) => { try { return parseEnv(readFileSync(f, "utf8"), process.env); } catch { return {}; } })), ...process.env });
+const appEnv = () => Object.assign({}, ...envFiles.filter((f) => !/\.(example|sample)$/.test(f)).map((f) => { try { return parseEnv(readFileSync(f, "utf8"), process.env); } catch { return {}; } }));
+const modelHints = () => ({ ...appEnv(), ...process.env });
 
 const appDir = root;
 
@@ -578,7 +621,7 @@ async function startApp() {
 
   const lifted = liftedLimits(sourceFiles);
   const raised = Object.keys(lifted);
-  if (raised.length) say(`raising your app's request limits while Cortad tests it, so its simulated users are not blocked: ${raised.join(", ")}`);
+  if (raised.length) say(`raising your app's request-rate and concurrency limits while Cortad tests it, so its simulated users are not blocked: ${raised.join(", ")}. Spend and budget limits are left as they are`);
   launched = { cmd: typed, lifted };
   if (proxyAsked || !hookable(appDir, typed)) await useProxy();
   step(`starting your app with: ${shownCommand(typed, mask)}${fromSaved ? " (saved from your last connect)" : ""}`);
@@ -633,7 +676,7 @@ async function useProxy() {
     onUnseen: (door) => { unseen = door; noted(); say(unseenText(door)); },
   });
   keepStart({ modelPort: proxy.modelPort });
-  say("your app's model calls are seen through a local proxy on this machine, so the line of code that made each call is not known. During a run, its calls to other services go out as they would for a real customer: a conversation that books, charges or emails does it for real");
+  say("your app's model calls are seen through a local proxy on this machine, so the line of code that made each call is not known. During a simulation, its calls to other services go out as they would for a real customer: a conversation that books, charges or emails does it for real");
 }
 const sayIf = (line) => { if (line) say(line); };
 
@@ -790,7 +833,7 @@ async function restartNow() {
   if (moved) app = up;
   const told = await announce().catch(() => null);
   if (moved && !told?.ok) return { error: `Your app came back on port ${up.port}, not ${port}. Run the command again to reconnect.` };
-  if (moved) say(`your app came back on port ${up.port}; the run follows it there`);
+  if (moved) say(`your app came back on port ${up.port}; the simulation follows it there`);
   return { restarted: true, port: up.port };
 }
 const sentence = (s) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -830,19 +873,67 @@ envKeys = [...secretEnvValues(envFiles, (f) => readFileSync(f, "utf8")), ...shel
 const kept = [];
 for (let i = files.length - 1; i >= 0; i -= 1) if (carriesKey(files[i])) kept.unshift(...files.splice(i, 1));
 
-const layerFiles = () => {
-  const candidates = [];
-  for (const rel of files) { let full; try { full = readFileSync(join(root, rel), "utf8"); } catch { continue; } candidates.push({ path: rel, head: full.slice(0, 4000), size: Buffer.byteLength(full), full }); }
-  return layerOf(candidates);
+const candidatesOf = (rels) => rels.flatMap((rel) => { let full; try { full = readFileSync(join(root, rel), "utf8"); } catch { return []; } return [{ path: rel, head: full.slice(0, 4000), size: Buffer.byteLength(full), full }]; });
+const isData = (rel, size) => DATA.test(rel) || (/\.json$/i.test(rel) && size > DATA_JSON);
+
+let walked = null;
+const mayOpen = (rel) => {
+  if (!(walked ??= new Set(files)).has(rel) || !shareable(rel)) return false;
+  try { return !isData(rel, statSync(join(root, rel)).size) && !carriesKey(rel); } catch { return false; }
 };
+const toSend = () => {
+  const candidates = candidatesOf(files);
+  const chosen = layerOf(candidates);
+  const size = new Map(candidates.map((c) => [c.path, c.size]));
+  const kept = chosen.files.filter((rel) => !isData(rel, size.get(rel)));
+  return { ...chosen, files: kept, why: new Map(kept.map((rel) => [rel, chosen.why.get(rel)])), data: chosen.files.filter((rel) => !kept.includes(rel)) };
+};
+
+const pickedLayer = (rels) => {
+  const candidates = candidatesOf(rels);
+  const chosen = layerOf(candidates);
+  return { ...chosen, files: candidates.map((c) => c.path) };
+};
+
+const refusalOf = (rel) => {
+  const name = basename(rel);
+  if (ENV_FILE.test(name) || /\.env$/i.test(name)) return "an env file";
+  if (SECRET_PATH.test(rel)) return "a key or credential file";
+  if (rel.split(sep).slice(0, -1).some((d) => SKIP_DIR.test(d)) || SKIP_FILE.test(name)) return "not source code: dependencies, build output, media, archives and keys never leave";
+  if (!shareable(rel)) return "git ignores it";
+  const { size } = statSync(join(root, rel));
+  if (isData(rel, size)) return "a data file (CSV, JSON Lines, Parquet, a spreadsheet or JSON over 64 KB), and data files never leave";
+  if (size > MAX_FILE) return "too large";
+  if (carriesKey(rel)) return "it holds a value from your env";
+  return null;
+};
+const judged = (arg) => {
+  let landed; try { landed = realpathSync(resolve(root, String(arg))); } catch { return { arg, why: "no such file in this folder" }; }
+  const home = realpathSync(root);
+  if (!landed.startsWith(home + sep)) return { arg, why: "outside this folder" };
+  if (!statSync(landed).isFile()) return { arg, why: "not a file" };
+  const rel = relative(home, landed);
+  const why = refusalOf(rel);
+  return why ? { arg, why } : { arg, rel };
+};
+
+const pickedSet = (args) => {
+  const asked = args.map(judged);
+  const refused = asked.filter((j) => j.why).map(({ arg, why }) => ({ arg, why }));
+  const before = readPicked(project).filter((rel) => !judged(rel).why);
+  const all = [...new Set([...before, ...asked.filter((j) => j.rel).map((j) => j.rel)])];
+  const chosen = pickedLayer(all);
+  return { files: [...new Set(asked.filter((j) => j.rel).map((j) => j.rel))], all, why: chosen.why, prompts: chosen.pack.prompts, chosen, refused };
+};
+
 if (explain) {
-  console.log(explainText(layerFiles(), files.length));
-  console.log(`looked at   ${files.slice(0, 8).join(", ")}${files.length > 8 ? ", ..." : ""}`);
+  console.log(explainText(toSend(), files.length));
   process.exit(0);
 }
+mkdirSync(work, { recursive: true });
 const keepSecret = (v) => { if (v && v.length >= 12 && !secrets.includes(v)) secrets.push(v); };
 
-capture = makeCapture({ work, keepSecret, signIns: join(homeOf(projectOf(root)), "sign-ins.json"), writes: join(homeOf(projectOf(root)), "writes"), root, files: () => files, appFolder: () => relative(root, appDir), printed: printedBetween, onProof: (proof) => {
+capture = makeCapture({ work, keepSecret, signIns: join(homeOf(projectOf(root)), "sign-ins.json"), signInsKept: () => signInYes, writes: join(homeOf(projectOf(root)), "writes"), root, files: () => [...(layer?.set ?? [])], appFolder: () => relative(root, appDir), printed: printedBetween, onProof: (proof) => {
   let masked;
   try { masked = JSON.parse(mask(JSON.stringify(proof))); } catch { return; }
   call("POST", `/local/${box}/proof`, masked).catch(() => {});
@@ -856,41 +947,43 @@ if (viaToken && !stored) fail("this project has no stored key. Run npx cortad in
 
 const unreachable = (err) => fail(`could not reach ${origin.host}: ${err?.name === "TimeoutError" ? "it did not answer in time" : "the connection failed"}. Check your connection and run the command again.`);
 
-let attach = !code && !viaToken && !stored ? null : await call("POST", "/local/attach", { ...(viaToken ? {} : { code }), name: basename(root), project },
+let attach = !code && !viaToken && !stored ? null : await call("POST", "/local/attach", { ...(viaToken ? {} : { code }), name: folderName, project },
   stored ? { headers: { authorization: `Bearer ${stored}` } } : {}).catch(unreachable);
 
 if (!viaToken && !code && !attach?.ok) {
   if (attach && stored) { say("the key this folder kept no longer signs in, so this computer is connected again"); stored = null; }
   code = await paired();
-  attach = await call("POST", "/local/attach", { code, name: basename(root), project }).catch(unreachable);
+  attach = await call("POST", "/local/attach", { code, name: folderName, project }).catch(unreachable);
 }
 if (!attach.ok) fail(attach.data?.error ?? `could not sign in (${attach.status})`);
 box = attach.data.box;
 key = attach.data.key;
 
-if (attach.data.upload === "layer") {
-  const chosen = layerFiles();
-  const said = layerSaid(chosen);
-  layer = { ...said, set: new Set(chosen.files) };
+{
+  const chosen = picks ? pickedSet([]).chosen : toSend();
+  layer = { ...layerSaid(chosen), set: new Set(chosen.files) };
 }
-
-const sending = layer ? files.filter((rel) => layer.set.has(rel)) : files;
+if (!viaToken && (picks || keptStart.picks)) keepStart({ picks });
+if (!viaToken && (noSamples || keptStart.noSamples)) keepStart({ noSamples });
 
 if (!viaToken) holdProject();
 writeFileSync(bootLog, "", { mode: 0o600 });
 
 const list = join(work, "files.txt");
-writeFileSync(list, sending.join("\n") + "\n");
+const archive = join(work, "tree.tgz");
 
-const treeDigest = (() => {
+async function packed(rels) {
+  writeFileSync(list, rels.join("\n") + "\n");
   const h = createHash("sha256");
-  for (const rel of [...sending].sort()) {
+  for (const rel of [...rels].sort()) {
     let body = Buffer.alloc(0);
     try { body = readFileSync(join(root, rel)); } catch { continue; }
     h.update(rel).update("\0").update(createHash("sha256").update(body).digest("hex")).update("\n");
   }
-  return h.digest("hex");
-})();
+
+  await exec("tar", ["-czf", archive, "-C", root, "-T", list], { env: { ...process.env, COPYFILE_DISABLE: "1" } });
+  return { bytes: readFileSync(archive), digest: h.digest("hex") };
+}
 
 const head = (() => {
   try {
@@ -901,57 +994,62 @@ const head = (() => {
 
 const firstStart = startApp();
 firstStart.catch(() => {  });
-const archive = join(work, "tree.tgz");
 step("connecting to your Cortad account");
-
-await exec("tar", ["-czf", archive, "-C", root, "-T", list], { env: { ...process.env, COPYFILE_DISABLE: "1" } });
-const bytes = readFileSync(archive);
 const PART = 1_500_000;
 let resumed = false;
 let moved = false;
-const parts = Math.max(1, Math.ceil(bytes.length / PART));
 
-async function sendTree() {
+async function sendTree({ bytes, digest }) {
+  const parts = Math.max(1, Math.ceil(bytes.length / PART));
   for (let off = 0; off < bytes.length; off += PART) {
     const last = off + PART >= bytes.length;
     step(parts > 1 ? `connecting to your Cortad account, ${Math.floor(off / PART) + 1} of ${parts}` : "connecting to your Cortad account");
 
-    const put = await call("PUT", `/local/${box}/tree?part=${Math.floor(off / PART)}&last=${last ? 1 : 0}${last ? `&digest=${treeDigest}${head ? `&head=${head}` : ""}${layer ? `&layer=1&files=${layer.files}&prompts=${layer.prompts}&calls=${layer.modelCalls}&evals=${layer.evals}` : ""}` : ""}`, bytes.subarray(off, off + PART),
-      { raw: true, timeoutMs: 120_000, ...(last && !viaToken && (!stored || code) ? { headers: { "x-cortad-machine": hostname().slice(0, 80) } } : {}) }).catch((err) => ({ ok: false, status: 0, err }));
+    const put = await call("PUT", `/local/${box}/tree?part=${Math.floor(off / PART)}&last=${last ? 1 : 0}${last ? `&digest=${digest}${head ? `&head=${head}` : ""}&layer=1&files=${layer.files}&prompts=${layer.prompts}&calls=${layer.modelCalls}&evals=${layer.evals}` : ""}`, bytes.subarray(off, off + PART),
+      { raw: true, timeoutMs: 120_000, ...(last && !viaToken && (!stored || code) ? { headers: { "x-cortad-machine": folderName } } : {}) }).catch((err) => ({ ok: false, status: 0, err }));
     if (!put.ok) return put;
     if (last) {
       resumed = put.data?.resumed === true;
       moved = put.data?.moved === true;
       if (typeof put.data?.machineKey === "string" && put.data.machineKey) writeToken(project, put.data.machineKey);
-      writeDigest(project, treeDigest);
+      writeDigest(project, digest);
     }
   }
   return { ok: true };
 }
-let sent = await sendTree();
-if (!sent.ok && sent.status !== 401 && sent.status !== 404) {
-  await new Promise((r) => setTimeout(r, 2000 + Math.random() * 3000));
-  sent = await sendTree();
+async function upload(rels) {
+  const tree = await packed(rels);
+  let sent = await sendTree(tree);
+  if (!sent.ok && sent.status !== 401 && sent.status !== 404) {
+    await new Promise((r) => setTimeout(r, 2000 + Math.random() * 3000));
+    sent = await sendTree(tree);
+  }
+  return sent;
 }
-if (!sent.ok) sent.err ? unreachable(sent.err) : fail(sent.data?.error ?? `upload failed (${sent.status})`);
+
+if (layer.set.size || !picks) {
+
+  const sent = await upload(picks ? [...layer.set] : files.filter((rel) => layer.set.has(rel)));
+  if (!sent.ok) sent.err ? unreachable(sent.err) : fail(sent.data?.error ?? `upload failed (${sent.status})`);
+}
 
 {
   const found = sourcesIn({ ...envOf(root), ...process.env }).map((s) => s.id);
   if (found.length) void reportLive({ apiBase: api, token: readToken(project) }, { found });
 }
 
-stepDone(moved ? "connected to your Cortad account: your change is in, and what Cortad read before still stands" : resumed ? "connected to your Cortad account: your code has not changed since last time" : "connected to your Cortad account");
+stepDone(picks && !layer.set.size ? "connected to your Cortad account: it has none of your files yet, and your coding agent picks them" : moved ? "connected to your Cortad account: your change is in, and what Cortad read before still stands" : resumed ? "connected to your Cortad account: your code has not changed since last time" : "connected to your Cortad account");
 
 if (!viaToken && process.env.CORTAD_NO_REGISTER !== "1") {
-  const got = await registerAll().catch((err) => { if (verbose) say(`could not register with your coding agents: ${err?.message ?? err}`); return { clients: [], changed: [] }; });
-  const and = (list) => new Intl.ListFormat("en", { type: "conjunction" }).format(list);
-  const where = got.changed.map((f) => `~/${f}`).join(", ");
-  if (got.changed.length) say(got.agent ? `Cortad's tools and skill were added to ${got.agent}, the coding agent running this command: ${where}.` : `Cortad's tools and skill were added to ${and(got.clients)}: ${where}.`);
+  const agent = agentOf() ?? await askAgent();
+  const got = agent ? await register(agent, { root }).catch((err) => { if (verbose) say(`could not register with ${AGENTS[agent]}: ${err?.message ?? err}`); return null; }) : null;
+  if (got?.changed.length) say(`Cortad's tools and skill were added to ${got.agent} for this project: ${got.changed.join(", ")}.`);
 }
 
-lock = await makeLock({ root, work });
+lock = await makeLock({ root, work, envFiles });
 if (lock && !lockHolds(lock, root)) lock = null;
-if (!lock) say("shell commands are off on this machine (no sandbox-exec or bubblewrap). Everything else works.");
+if (!lock) say("running your tests is off on this machine (no sandbox-exec or bubblewrap). Everything else works.");
+else if (lock.refused) say(`${lock.refused} Everything else works.`);
 
 const NOT_A_FIX = /(?:^|[\\/])(?:node_modules|\.git|\.next|\.nuxt|\.turbo|\.cache|dist|build|coverage|logs?|tmp|__pycache__|\.venv|venv)(?:[\\/]|$)|\.log$/;
 function sourceChanged() {
@@ -970,6 +1068,8 @@ function sourceChanged() {
 }
 
 const announce = async () => {
+
+  if (picks && !layer.set.size) return { ok: true };
   const hooked = Boolean(proxy ? launched || proxy.seen() : launched && capture?.watching(app.port));
   return call("POST", `/local/${box}/app`, { port: doorPort(), cmd: shownCommand(app.cmd, mask), lifted: app.lifted ?? [], watching: hooked, metered: hooked, proves: hooked, reached: reachedNow() });
 };
@@ -1090,6 +1190,7 @@ const autoReach = makeAutoReach({
   status: async () => {
     const token = readToken(project);
     const res = token ? await call("GET", "/mcp/status?quiet=1", undefined, { headers: { authorization: `Bearer ${token}` } }).catch(() => null) : null;
+    if (res?.ok) signInYes = res.data?.account?.make === true;
     return res?.ok ? res.data : null;
   },
   runner: () => (became?.state === "up" && !restarting ? { state: "up", ...became.fields } : null),
@@ -1098,10 +1199,10 @@ const autoReach = makeAutoReach({
   origin: () => { const port = app?.port ?? null; if (clientOrigin.port !== port) clientOrigin = { port, value: clientOriginOf(root, { port }) ?? (port ? `http://localhost:${port}` : null) }; return clientOrigin.value; },
   keys: () => keysFromEnv(root),
 
-  mint: async () => mintJwt(envOf(root)),
+  mint: async () => (signInYes ? mintAfterYes(homeOf(project), envOf(root)) : null),
 
-  kept: async () => keptSignIn(homeOf(project)),
-  onSignedIn: (as) => rememberSignIn(homeOf(project), as),
+  keptSignIn: async () => (signInYes ? keptSignIn(homeOf(project)) : null),
+  onSignedIn: (as) => { if (signInYes) rememberSignIn(homeOf(project), as); },
   onKeptRefused: () => forgetSignIn(homeOf(project)),
 
   browser: async () => {
@@ -1129,6 +1230,33 @@ const autoReach = makeAutoReach({
   fetchImpl: countedFetch,
 });
 
+async function sendPicked(args, go, spec) {
+  const set = pickedSet(args);
+  if (!go || !set.files.length) return previewText({ ...set, go, spec });
+  const before = layer;
+  layer = { ...layerSaid(set.chosen), set: new Set(set.all) };
+  const sent = await upload(set.all);
+  if (!sent.ok) { layer = before; return `Nothing was sent: ${sent.err ? `could not reach ${origin.host}` : sent.data?.error ?? `the upload failed (${sent.status})`}.\nnext: npx -y ${spec} send --yes ${args.join(" ")}`; }
+  writePicked(project, set.all);
+  me.picked = set.all.length;
+  if (became) become(became.state, became.fields);
+  if (app?.port) await announce().catch(() => {});
+  clearStep();
+  return sentText({ ...set, studied: !resumed, spec });
+}
+async function sendLoop() {
+  for (; !closing; await new Promise((r) => setTimeout(r, 500))) {
+    const ask = SEND.take(homeOf(project));
+    if (!ask) continue;
+    const spec = typeof ask.spec === "string" && /^[\w@./:-]{1,100}$/.test(ask.spec) ? ask.spec : "cortad";
+    const args = Array.isArray(ask.files) ? ask.files.filter((f) => typeof f === "string").slice(0, 500) : [];
+    let text;
+    try { text = await sendPicked(args, ask.go === true, spec); } catch (e) { text = `Nothing was sent: ${e?.message ?? e}.`; }
+    try { SEND.answer(homeOf(project), ask.id, text); } catch {  }
+  }
+}
+if (picks) void sendLoop();
+
 let reachedBox = "";
 async function reachLoop() {
 
@@ -1154,7 +1282,7 @@ if (argv.includes("--until-idle") && stored) {
   setInterval(async () => {
     const res = await call("GET", "/mcp/status?quiet=1", undefined, { headers: { authorization: `Bearer ${stored}` } }).catch(() => null);
     if (res?.ok && res.data?.run && !finished(res.data.run)) idleSince = Date.now();
-    else if (Date.now() - idleSince > IDLE_MS) { say("no run for ten minutes, leaving"); await close(0); }
+    else if (Date.now() - idleSince > IDLE_MS) { say("no simulation for ten minutes, leaving"); await close(0); }
   }, 60_000).unref();
 }
 
@@ -1174,7 +1302,7 @@ async function deliver(id, out) {
 async function reattach() {
   for (let wait = 2000, until = Date.now() + 300_000; ; wait = Math.min(wait * 2, 30_000)) {
     const timeoutMs = Math.max(5_000, Math.min(120_000, until - Date.now()));
-    const back = await call("POST", "/local/reattach", { box, name: basename(root), project }, { timeoutMs }).catch(() => null);
+    const back = await call("POST", "/local/reattach", { box, name: folderName, project }, { timeoutMs }).catch(() => null);
     if (back && (back.ok || back.status === 404)) return back;
     if (Date.now() >= until || closing) return back;
     await new Promise((r) => setTimeout(r, wait / 2 + Math.random() * (wait / 2)));
