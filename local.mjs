@@ -200,9 +200,10 @@ if (viaToken) holdProject();
 else if (!explain) { const held = readRunner(project); if (held) fail(heldLine(held)); }
 
 // ---- what leaves the machine
-const SKIP_DIR = /^(node_modules|\.git|dist|build|out|coverage|vendor|venv|\.venv|env|target|tmp|\.next|\.nuxt|\.turbo|\.cache|__pycache__|\.terraform|\.wrangler|\.svelte-kit|\.output|\.parcel-cache|\.idea|\.vscode|secrets?|\.secrets?)$/i;
+const SKIP_DIR = /^(node_modules|\.git|dist|build|out|coverage|vendor|venv|\.venv|env|target|tmp|\.next|\.nuxt|\.turbo|\.cache|__pycache__|\.terraform|\.wrangler|\.svelte-kit|\.output|\.parcel-cache|\.idea|\.vscode|secrets?|\.secrets?|\.ssh|\.gnupg|\.aws)$/i;
 // Env files by any name (scripts/books.env is one), keys, credentials, media and compiled output.
-const SKIP_FILE = /^\.env(\..*)?$|^\.envrc$|\.env$|\.(pem|key|p12|pfx|jks|keystore|sqlite|sqlite3|db|log|lock|map|zip|tar|gz|tgz|7z|rar|png|jpe?g|gif|webp|ico|svg|mp3|mp4|wav|mov|pdf|woff2?|ttf|otf|eot|bin|exe|dll|so|dylib|wasm|onnx|pt|pth|safetensors|numbers|DS_Store)$/i;
+// The key folders and files SECRET_PATH refuses are here too, so the walk never offers one.
+const SKIP_FILE = /^\.env(\..*)?$|^\.envrc$|\.env$|^\.(?:npmrc|netrc)$|^id_(?:rsa|ed25519|ecdsa)|\.(pem|key|p12|pfx|jks|keystore|sqlite|sqlite3|db|log|lock|map|zip|tar|gz|tgz|7z|rar|png|jpe?g|gif|webp|ico|svg|mp3|mp4|wav|mov|pdf|woff2?|ttf|otf|eot|bin|exe|dll|so|dylib|wasm|onnx|pt|pth|safetensors|numbers|DS_Store)$/i;
 // Data, not code: never sent, whatever git tracks and whatever the AI layer would choose it for.
 const DATA = /\.(?:csv|tsv|jsonl|ndjson|parquet|xlsx?|arrow|feather|avro)$/i;
 const DATA_JSON = 64_000;
