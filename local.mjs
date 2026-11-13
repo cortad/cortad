@@ -67,7 +67,7 @@ const USAGE = `usage: npx cortad <code from the connect screen> -- <how you star
 {
   const dash = argv.indexOf("--");
   const own = dash >= 0 ? argv.slice(0, dash) : argv;
-  const FLAGS = new Set(["--port", "--start", "--explain", "--proxy", "--token", "--until-idle", "--verbose", "--agent-picks"]);
+  const FLAGS = new Set(["--port", "--start", "--explain", "--proxy", "--token", "--until-idle", "--verbose", "--agent-picks", "--no-samples"]);
   const unknownFlag = own.some((a, i) => a.startsWith("-") && !FLAGS.has(a) && !["--port", "--start"].includes(own[i - 1] ?? ""));
   if (["help", "-h", "--help"].includes(argv[0]) || (!COMMANDS.has(argv[0] ?? "") && unknownFlag)) {
     console.log(USAGE);
@@ -154,6 +154,9 @@ const fromSaved = !typedNow && Boolean(typed);
 // own. Kept for this folder: a reconnect by its kept key, which agents are told to run, must never
 // fall back to sending the connect's own choice. A code from the connect screen says afresh.
 const picks = own.includes("--agent-picks") || (!code && keptStart.picks === true);
+// No store of the app's is opened for samples (lib/sample.mjs). Kept like picks, and implied by it:
+// an agent that chooses every file sent also chooses that no store is read.
+const noSamples = picks || own.includes("--no-samples") || (!code && keptStart.noSamples === true);
 // A port saved beside the command (a container's) is watched again on a reconnect with the code alone.
 const wantedPort = Number(flag("--port")) || (!typedNow ? Number(keptStart.port) || 0 : 0);
 const onPath = (bin) => (process.env.PATH ?? "").split(":").some((dir) => dir && existsSync(join(dir, bin)));
@@ -675,7 +678,7 @@ async function verb(job) {
     // its own env files as its loader reads them, and this terminal's own values over those. Handed
     // the terminal's alone, the reader had no address for a store whose address their app keeps in a
     // file, and said it was not set. Values stay here; only rows of short fields go back.
-    case "sample": return { report: JSON.parse(mask(JSON.stringify(await sampleHere(b, modelHints(), root)))) };
+    case "sample": return { report: noSamples ? { stores: [], off: true } : JSON.parse(mask(JSON.stringify(await sampleHere(b, modelHints(), root)))) };
     case "lock": return { locked: Array.isArray(b.hosts) ? b.hosts.length : 0 };
     // What your app spent on its providers, from the hook inside it. An app this command did not
     // start has no hook, and the empty answer says the meter is absent rather than that nothing was spent.
@@ -1138,6 +1141,7 @@ key = attach.data.key;
   layer = { ...layerSaid(chosen), set: new Set(chosen.files) };
 }
 if (!viaToken && (picks || keptStart.picks)) keepStart({ picks });
+if (!viaToken && (noSamples || keptStart.noSamples)) keepStart({ noSamples });
 // Taken once the code is accepted: a mistyped one never ends a runner that was working.
 if (!viaToken) holdProject();
 writeFileSync(bootLog, "", { mode: 0o600 });
