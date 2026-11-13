@@ -28,7 +28,7 @@ import { COMMANDS, main as face, unknownVerb, VERBS } from "./lib/cli.mjs";
 import { addNews, homeOf, projectOf, readToken, writeApp, writeDigest, writeToken } from "./lib/home.mjs";
 import { changesOf, commandText, RELOADER, sourceOf } from "./lib/fresh.mjs";
 import { chainOf, elapsedMs, holderOf, listening, listenerOn, portInError, spawnTied, stopTree } from "./lib/proc.mjs";
-import { claimRunner, readRunner, releaseRunner, replaceRunner, startedAtOf, writeRunner } from "./lib/runner.mjs";
+import { claimRunner, readRunner, releaseRunner, startedAtOf, writeRunner } from "./lib/runner.mjs";
 import { registerAll } from "./lib/register.mjs";
 import { CONNECTED, connectedText, NOT_RUNNING } from "./lib/read-text.mjs";
 import { VERSION } from "./lib/spec.mjs";
@@ -49,6 +49,7 @@ import { clientOriginOf, envOf, keysFromEnv } from "./lib/origins.mjs";
 import { forgetSignIn, keptSignIn, mintJwt, rememberSignIn, signUpAndIn, testAccount } from "./lib/sign-in.mjs";
 import { clientRequestOf } from "./lib/browser-rung.mjs";
 import { layerOf, layerSaid } from "./lib/layer.mjs";
+import { explainText } from "./lib/explain-text.mjs";
 import { sourcesIn } from "./lib/history/sources.mjs";
 import { report as reportLive } from "./lib/setup-live.mjs";
 import { grpcCall } from "./lib/grpc.mjs";
@@ -56,6 +57,19 @@ import { grpcCall } from "./lib/grpc.mjs";
 // A count with its noun agreeing: 1 prompt, 3 prompts.
 
 const argv = process.argv.slice(2);
+const USAGE = `usage: npx cortad <code from the connect screen> -- <how you start your app>   |   npx cortad <code> --port <port of your running app>   |   npx cortad --explain   |   npx cortad ${[...VERBS, "wait"].join(" | ")}`;
+// Asking for help, or a flag this version does not know, prints the usage and nothing else: read as
+// a connect, `--help` signed the folder in with its saved key and ended the session running in it.
+{
+  const dash = argv.indexOf("--");
+  const own = dash >= 0 ? argv.slice(0, dash) : argv;
+  const FLAGS = new Set(["--port", "--start", "--explain", "--proxy", "--token", "--until-idle", "--verbose"]);
+  const unknownFlag = own.some((a, i) => a.startsWith("-") && !FLAGS.has(a) && !["--port", "--start"].includes(own[i - 1] ?? ""));
+  if (["help", "-h", "--help"].includes(argv[0]) || (!COMMANDS.has(argv[0] ?? "") && unknownFlag)) {
+    console.log(USAGE);
+    process.exit(0);
+  }
+}
 // The two faces a coding agent uses after the first connect (lib/cli.mjs): the MCP server the
 // client starts on every session, and the same verbs as shell commands. Neither runs the connect
 // below, and `npx cortad findings` is a verb, never a code.
@@ -96,7 +110,6 @@ const stepDone = (line) => { clearStep(); say(line); };
 // `npx cortad` alone connects too: with the key this folder kept from its last connect, or, with none,
 // by one approval in the browser (pairing below). A word that is neither a code nor a flag is refused.
 const words = own.filter((a, i) => !a.startsWith("-") && !["--port", "--start"].includes(own[i - 1] ?? ""));
-const USAGE = `usage: npx cortad <code from the connect screen> -- <how you start your app>   |   npx cortad <code> --port <port of your running app>   |   npx cortad --explain   |   npx cortad ${[...VERBS, "wait"].join(" | ")}`;
 if (!explain && !viaToken && words.length && !/^[A-Z0-9]{8}$/.test(code)) fail(USAGE);
 // Where Cortad is. The host is not on the command line: a code cannot point at an impostor.
 const origin = new URL(process.env.CORTAD_ORIGIN || "https://cortad.com");
@@ -160,19 +173,18 @@ let machineOf = () => null;
 const become = (state, fields = {}) => { became = { state, fields }; const machine = machineOf(); writeRunner(project, { ...me, ...(machine ? { machine } : {}), state, at: new Date().toISOString(), ...fields }); };
 process.on("exit", () => releaseRunner(project));
 // Started for a run while another process already holds this project's app up: that one serves it.
-// A connect from the screen is the person starting over, so the one before it is ended first.
-async function holdProject() {
-  for (let tries = 0; tries < 2; tries++) {
-    const held = claimRunner(project, { ...me, state: "starting", at: new Date().toISOString() });
-    if (!held) return;
-    if (viaToken) { say(`pid ${held.pid} already holds this project's app up and serves the run`); process.exit(0); }
-    say(`an earlier cortad (pid ${held.pid}) is holding this project's app up; stopping it so only this one runs`);
-    await replaceRunner(held);
-  }
-  fail("another cortad process keeps holding this project's app up. Stop it and run this again.");
+// A second connect is refused, before it signs in: signing in again ended the running one's session
+// on the server, which stopped the person's app.
+const heldLine = (held) => `another cortad is already connected in this folder: pid ${held.pid}, started ${new Date(held.startedAt).toTimeString().slice(0, 5)}${held.state === "up" && held.port ? `, with your app answering on port ${held.port}` : ""}. Nothing was changed. To connect again, stop it first (Ctrl-C where it runs, or kill ${held.pid}), then run this command again.`;
+function holdProject() {
+  const held = claimRunner(project, { ...me, state: "starting", at: new Date().toISOString() });
+  if (!held) return;
+  if (viaToken) { say(`pid ${held.pid} already holds this project's app up and serves the run`); process.exit(0); }
+  fail(heldLine(held));
 }
 // A verb waits on this record from the moment it starts this process, so it is taken first.
-if (viaToken) await holdProject();
+if (viaToken) holdProject();
+else if (!explain) { const held = readRunner(project); if (held) fail(heldLine(held)); }
 
 // ---- what leaves the machine
 const SKIP_DIR = /^(node_modules|\.git|dist|build|out|coverage|vendor|venv|\.venv|env|target|tmp|\.next|\.nuxt|\.turbo|\.cache|__pycache__|\.terraform|\.wrangler|\.svelte-kit|\.output|\.parcel-cache|\.idea|\.vscode|secrets?|\.secrets?)$/i;
@@ -989,9 +1001,7 @@ const layerFiles = () => {
   return layerOf(candidates);
 };
 if (explain) {
-  const sent = layerFiles().files;
-  console.log(`Cortad sends only the code around your AI: ${sent.length} of this folder's ${files.length} files. The rest stays on this machine.`);
-  console.log(`sends       ${sent.join(", ") || "nothing: no model call was found here"}`);
+  console.log(explainText(layerFiles(), files.length));
   console.log(`looked at   ${files.slice(0, 8).join(", ")}${files.length > 8 ? ", ..." : ""}`);
   process.exit(0);
 }
@@ -1042,7 +1052,7 @@ if (attach.data.upload === "layer") {
 // What goes up. `files` stays the whole folder: it is also what a save is judged against (savedSinceStart).
 const sending = layer ? files.filter((rel) => layer.set.has(rel)) : files;
 // Taken once the code is accepted: a mistyped one never ends a runner that was working.
-if (!viaToken) await holdProject();
+if (!viaToken) holdProject();
 writeFileSync(bootLog, "", { mode: 0o600 });
 
 const list = join(work, "files.txt");
@@ -1126,7 +1136,8 @@ stepDone(moved ? "connected to your Cortad account: your change is in, and what 
 if (!viaToken && process.env.CORTAD_NO_REGISTER !== "1") {
   const got = await registerAll().catch((err) => { if (verbose) say(`could not register with your coding agents: ${err?.message ?? err}`); return { clients: [], changed: [] }; });
   const and = (list) => new Intl.ListFormat("en", { type: "conjunction" }).format(list);
-  if (got.changed.length) say(`${and(got.clients)} can now use Cortad: its tools and skill were added to ${got.changed.map((f) => `~/${f}`).join(", ")}.`);
+  const where = got.changed.map((f) => `~/${f}`).join(", ");
+  if (got.changed.length) say(got.agent ? `Cortad's tools and skill were added to ${got.agent}, the coding agent running this command: ${where}.` : `Cortad's tools and skill were added to ${and(got.clients)}: ${where}.`);
 }
 
 lock = await makeLock({ root, work });

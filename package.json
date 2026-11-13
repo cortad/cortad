@@ -20,6 +20,7 @@
     "lib/doors.mjs",
     "lib/env-files.mjs",
     "lib/env-secrets.mjs",
+    "lib/explain-text.mjs",
     "lib/failed-text.mjs",
     "lib/files.mjs",
     "lib/fresh.mjs",
