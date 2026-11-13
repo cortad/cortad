@@ -46,7 +46,7 @@ import { downLine, makeHealth } from "./lib/health.mjs";
 import { markRun, writesDirOf, writtenPaths } from "./lib/writes.mjs";
 import { makeHeld } from "./lib/held.mjs";
 import { answerAsk, ASK, makeAutoReach, takeAsk } from "./lib/auto-reach.mjs";
-import { SIMULATION_HEADER } from "./lib/reach.mjs";
+import { ADMIN_CONTROL, SIMULATION_HEADER } from "./lib/reach.mjs";
 import { clientOriginOf, envOf, keysFromEnv } from "./lib/origins.mjs";
 import { forgetSignIn, keptSignIn, mintAfterYes, rememberSignIn, signUpAndIn, testAccount } from "./lib/sign-in.mjs";
 import { clientRequestOf } from "./lib/browser-rung.mjs";
@@ -484,6 +484,14 @@ async function verb(job) {
       const port = Number(b.port) || doorPort();
       if (!app || (port !== app.port && port !== doorPort())) return { error: `refused: port ${port} is not your app` };
       const path = typeof b.path === "string" && b.path.startsWith("/") ? b.path : "/";
+      const method = String(b.method ?? "GET").toUpperCase();
+      const door = `${method} ${path.split("?")[0]}`;
+      // A gRPC call is a POST on the wire, dialled by the app's own library (lib/grpc.mjs).
+      if (!/^(?:GET|POST|GRPC)$/.test(method)) return { error: `refused: this machine sends your app GET and POST requests only, not ${method.slice(0, 20)}` };
+      // Read as the app reads it, decoded and with its dot segments resolved.
+      let pathname = null;
+      try { pathname = decodeURIComponent(new URL(path, "http://app").pathname); } catch { /* refused below */ }
+      if (pathname === null || ADMIN_CONTROL.test(pathname)) return { error: "refused: its address says it administers your app" };
       const headers = {};
       for (const [k, v] of Object.entries(b.headers ?? {})) if (!/^(host|content-length|connection)$/i.test(k)) headers[k] = String(v);
       // Held from here, before anything is awaited, so a cancel from the run never arrives first.
@@ -510,12 +518,11 @@ async function verb(job) {
         delete headers[marker];
         if (role === CAPTURED || role.startsWith(`${CAPTURED}:`)) {
           spokenAs = role;
-          const theirs = capture?.headers(role);
+          const theirs = capture?.headers(role, door);
           for (const [name, value] of Object.entries(theirs ?? {})) { for (const k of Object.keys(headers)) if (k.toLowerCase() === name) delete headers[k]; headers[name] = value; }
         }
       }
       headers[SIMULATION_HEADER] = "1";
-      const method = String(b.method ?? "GET").toUpperCase();
       // A gRPC door: dialled with the app's own @grpc/grpc-js and its .proto files (lib/grpc.mjs); the
       // reply comes back as JSON text the way an HTTP door's body does.
       if (method === "GRPC") {
@@ -560,7 +567,6 @@ async function verb(job) {
       // so one trial's answer in progress never holds another's (AI Answers answers one at a time per
       // visitor, and every trial carried the agent's one session). An endpoint that refuses a new
       // visitor keeps the person's session for this trial and every later one.
-      const door = `${method} ${path.split("?")[0]}`;
       const fresh = Boolean(trial && given && !trialJars.has(trial) && !ownSession.has(door));
       const visitor = async () => {
         const res = await fetch(url, { method: "GET", headers: cookieless, redirect: "manual", signal: AbortSignal.any([letGo, AbortSignal.timeout(15_000)]) }).catch(() => null);
@@ -1442,7 +1448,7 @@ const autoReach = makeAutoReach({
   // Sent as the app's own client sends it: the client origin the code names (read once per app
   // port, from this folder, never sent on), else the app's own origin.
   origin: () => { const port = app?.port ?? null; if (clientOrigin.port !== port) clientOrigin = { port, value: clientOriginOf(root, { port }) ?? (port ? `http://localhost:${port}` : null) }; return clientOrigin.value; },
-  keys: () => keysFromEnv(root),
+  keys: (m) => keysFromEnv(root, m?.file),
   // The sign-ins Cortad can make on this machine: a token signed with the app's own secret from its
   // env, only after the yes recorded here, then one test account on the app's own sign-up and sign-in
   // doors, only after the person's yes the server holds.
@@ -1461,7 +1467,7 @@ const autoReach = makeAutoReach({
   },
   account: async (auth) => (app?.port ? signUpAndIn({ origin: `http://${appHost === "::1" ? "[::1]" : appHost ?? "127.0.0.1"}:${app.port}` }, auth, testAccount(homeOf(project)), countedFetch, { origin: clientOrigin.value }) : null),
   // Sent as the person's own request was, when one was seen: the sign-in it carried, kept here.
-  signIn: async () => { const theirs = capture?.headers(CAPTURED); const name = theirs && Object.keys(theirs).find((k) => /^(?:authorization|cookie)$/i.test(k)); return name ? { name: name.toLowerCase(), value: theirs[name] } : null; },
+  signIn: async (m) => { const theirs = m?.request && capture?.headers(CAPTURED, `${String(m.request.method).toUpperCase()} ${String(m.request.path).split("?")[0]}`); const name = theirs && Object.keys(theirs).find((k) => /^(?:authorization|cookie)$/i.test(k)); return name ? { name: name.toLowerCase(), value: theirs[name] } : null; },
   stampOf: (m) => { try { return m.file ? String(statSync(join(root, m.file)).mtimeMs) : ""; } catch { return ""; } },
   // A round of this command's own stops between two sends for an agent's ask, and for a run: its
   // requests are the app's to answer first, and on an app that serves one request at a time a test
