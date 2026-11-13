@@ -36,7 +36,7 @@ Endpoints found in your code that Cortad has seen no answer from yet (2):
   POST /api/homework/explain  apps/api/src/routes/homework.ts:18  Cortad's test request was answered with HTTP 500.
   POST /api/progress/summary  apps/api/src/routes/progress.ts:9  Needs a signed-in user.
 Once a failure above is fixed, call test with endpoints to send its test request again.
-One of them refused a visitor: ask the person for a test account to sign in as (an existing one; Cortad makes none), or whether to leave it out of the first simulation.
+One of them refused a visitor: ask the person first, with your question tool and the yes option first, whether Cortad may make one test account on the app's own sign-up or sign a token with the JWT secret in its env, kept in ~/.cortad on this machine; on their yes, call test with account make. The other options: an existing account to sign in as, or leaving it out of the first simulation.
 An endpoint that hands back a turn and answers afterwards stays on this list until Cortad has seen the answer its model wrote: the first reply alone does not take it off.
 Which of these the first simulation tests is the person's choice: ask them now with your question tool (in Claude Code, AskUserQuestion with multiSelect), one option a feature, and record the answer with test and features; or they tick them on the card in the browser.
 A simulation plays 36 simulated users in about 6 minutes. About $0.38 on your OpenAI key.

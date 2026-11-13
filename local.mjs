@@ -48,7 +48,7 @@ import { makeHeld } from "./lib/held.mjs";
 import { answerAsk, ASK, makeAutoReach, takeAsk } from "./lib/auto-reach.mjs";
 import { SIMULATION_HEADER } from "./lib/reach.mjs";
 import { clientOriginOf, envOf, keysFromEnv } from "./lib/origins.mjs";
-import { forgetSignIn, keptSignIn, mintJwt, rememberSignIn, signUpAndIn, testAccount } from "./lib/sign-in.mjs";
+import { forgetSignIn, keptSignIn, mintAfterYes, rememberSignIn, signUpAndIn, testAccount } from "./lib/sign-in.mjs";
 import { clientRequestOf } from "./lib/browser-rung.mjs";
 import { layerOf, layerSaid } from "./lib/layer.mjs";
 import { ignoredBy, rulesOf } from "./lib/gitignore.mjs";
@@ -283,7 +283,8 @@ let secrets = [];
 // The person's yes, on the setup card or to their agent (`test` with `account: "make"`), to Cortad
 // signing its own test requests in: an account made on the app's sign-up door, a token signed with the
 // JWT secret the app's env holds, and the sign-ins kept in ~/.cortad for the next connect. Until the
-// server says it was given, none of the three happens.
+// server says it was given, none of the three happens, and the token also waits for the yes the
+// agent recorded on this machine (lib/sign-in.mjs mintAfterYes).
 let signInYes = false;
 // The AI layer this folder sends in place of its tree (lib/layer.mjs), once chosen: what it held and
 // the set of files, which is also every file a read may ask this machine for afterwards.
@@ -1416,9 +1417,10 @@ const autoReach = makeAutoReach({
   // port, from this folder, never sent on), else the app's own origin.
   origin: () => { const port = app?.port ?? null; if (clientOrigin.port !== port) clientOrigin = { port, value: clientOriginOf(root, { port }) ?? (port ? `http://localhost:${port}` : null) }; return clientOrigin.value; },
   keys: () => keysFromEnv(root),
-  // The sign-ins Cortad can make on this machine, each only after signInYes: a token signed with the
-  // app's own secret from its env, then one test account on the app's own sign-up and sign-in doors.
-  mint: async () => (signInYes ? mintJwt(envOf(root)) : null),
+  // The sign-ins Cortad can make on this machine: a token signed with the app's own secret from its
+  // env, only after the yes recorded here, then one test account on the app's own sign-up and sign-in
+  // doors, only after the person's yes the server holds.
+  mint: async () => (signInYes ? mintAfterYes(homeOf(project), envOf(root)) : null),
   // The sign-in that worked last time, kept in this folder's ~/.cortad so a restart costs no endpoint a request again.
   keptSignIn: async () => (signInYes ? keptSignIn(homeOf(project)) : null),
   onSignedIn: (as) => { if (signInYes) rememberSignIn(homeOf(project), as); },
