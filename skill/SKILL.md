@@ -85,10 +85,6 @@ The conversations and questions belong to Cortad, and the app answers Cortad's s
 
 Once a fix is verified and production is not connected, the result offers it. `connect` prints one step at a time and two questions for the person: which recent conversations to send, and whether to commit the change it prints. Each is printed with its options, yes first; ask each once, as printed, with your question tool. On yes you make the change and show the diff. Then `behavior` with `at: "production"` is how the live app's real users behave, persona by persona, and `behavior` with `against: "production"` says where simulated users behave unlike real ones. `status` about `users` holds the tables behind it for your own questions. Where conversations went badly with no question failing, `tell` with `questions` proposes one for the person's yes.
 
-## A world
-
-`test` decides what kind of test a sentence is. A world is for an AI that is not a chat, a worker that reads data and writes a verdict: Cortad builds a copy of the product's data from the app's own seed, plants problems whose answers are known, and scores what the app's own detection found. `status` about `run` with the world's id follows it.
-
 ## Making it stick
 
 `npx {{cortad}} stick` makes this part of the repository: one line in AGENTS.md, CLAUDE.md, the Cursor rules and the Copilot instructions, and hooks that hand you a simulation or verify that ended. Run it only when the person asks for it. `npx {{cortad}} unstick` takes them out.
