@@ -2,11 +2,11 @@
 
 Each result exactly as the tool returns it. The numbers are from a walk of a tutoring app; yours differ. Every tool is also `npx {{cortad}} <tool>` in a shell, with the same output.
 
-The last line of a run_status result is the next call. A plan line names what this month used and what the plan above costs and buys.
+The last line of a simulation_status result is the next call. A plan line names what this month used and what the plan above costs and buys.
 
 ## wait
 
-`npx {{cortad}} wait` returns when the next simulation ends. It prints what `run_status` prints for that finished run, and its last line is `next: behavior <jobId>`. When the connect command has been stopped for a minute it ends with `The connect command stopped, so no simulation can start from the browser.`; after six hours with no simulation, with `No simulation ended in 6 hours.`
+`npx {{cortad}} wait` returns when the next simulation or verify ends, including one the person starts with Start simulation, or with the person's choice on the setup card. It prints what `simulation_status` prints for that finished run, and its last line is `next: behavior <jobId>`. When the connect command has been stopped for a minute it ends with `The connect command stopped, so no simulation can start from the browser.`; after six hours with no simulation, with `No simulation ended in 6 hours.`
 
 ## status
 
@@ -16,6 +16,7 @@ Right after a connect, while Cortad is still studying your AI:
 Repository: tutor-app.
 Free: 1 of 1 simulation left this month; 60 verify conversations left. Pro $99 a month: simulations and reruns included, 100,000 production replies analyzed.
 App: Your app is starting on this machine.
+next: start `npx -y cortad wait` in the background now (in Claude Code, Bash with run_in_background); it returns when a simulation or verify ends, including one the person starts with Start simulation, or with the person's choice on the setup card
 ```
 
 Once a request of your own has reached the model through an endpoint, two messages on the chat, and before any simulation:
@@ -40,6 +41,7 @@ An endpoint that hands back a turn and answers afterwards stays on this list unt
 Which of these the first simulation tests is the person's choice: ask them now with your question tool (in Claude Code, AskUserQuestion with multiSelect), one option a feature, and record the answer with test and features; or they tick them on the card in the browser.
 A simulation plays 36 simulated users in about 6 minutes. About $0.38 on your OpenAI key.
 A simulation starts when the person presses Run simulation on the card in the browser or asks you for one; if they say they pressed it, call test rather than ask them again.
+next: start `npx -y cortad wait` in the background now (in Claude Code, Bash with run_in_background); it returns when a simulation or verify ends, including one the person starts with Start simulation, or with the person's choice on the setup card
 ```
 
 Before the person has said yes on the card, the last line before the link is the one question asked of them:
@@ -68,7 +70,7 @@ Conversations set aside:
 Latest simulation 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b: running, 14 of 51 conversations played.
 Production: not connected.
 The person sees this at https://cortad.com/lab
-next: run_status 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b
+next: simulation_status 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b
 ```
 
 Each section in full, with `show` (`rules`, `standards`, `journeys`, `endpoints`, `trials`, `records` or `reviews`). A list longer than one page ends with `page 1 of 3, call status with show rules and page 2`.
@@ -110,13 +112,13 @@ The app is up:
 
 ```
 Simulation started: 9a10b3d2-7c8d-4e9f-8a1b-2c3d4e5f6a7b.
-next: run_status 9a10b3d2-7c8d-4e9f-8a1b-2c3d4e5f6a7b
+next: simulation_status 9a10b3d2-7c8d-4e9f-8a1b-2c3d4e5f6a7b
 ```
 
-The app is still starting. `run_status` holds until the simulation has an id:
+The app is still starting. `simulation_status` holds until the simulation has an id:
 
 ```
-Starting your app for the simulation. Call run_status; it answers as soon as the simulation has an id.
+Starting your app for the simulation. Call simulation_status; it answers as soon as the simulation has an id.
 ```
 
 The plan is spent, and nothing ran:
@@ -134,14 +136,14 @@ Nothing ran.
 Plans and checkout are at https://cortad.com/pricing?checkout=ship
 ```
 
-## run_status
+## simulation_status
 
 Playing. The call waited up to 45 seconds:
 
 ```
 Simulation 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b: running, 14 of 51 conversations played.
 14 of 51 conversations done.
-next: run_status 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b
+next: simulation_status 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b
 ```
 
 Finished, the first simulation on a repository: its baseline. In order: what ran; the simulated users and how many of their conversations completed the request; each journey and the checks that failed most there; the checks that passed in every conversation; what failed, found only by running the app, each with how many conversations it failed in, the line that wrote the failing reply, the tools behind it, where the fix belongs and the exchange it failed on; open routes; what a code review would also find; what the numbers leave out; the simulation's model, time and cost; one line on production. Every rate has its range. The first findings are shown in full, the rest one line each; findings shows them all.
@@ -150,6 +152,7 @@ A finding that sends customers away counts, for one journey or one endpoint, the
 
 ```
 Simulation 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b: finished, 51 of 51 conversations played.
+This is the first simulation, started 9 minutes ago by your coding agent. Its conversations were written from your code; 51 conversations played.
 This was the first simulation, the baseline: 51 conversations written from your code. All of them came from the 3 simulated users below.
 The simulated users, as Cortad found them in your code:
   student in grade 9: Finish tonight's algebra homework without being caught out in class tomorrow. Writes short lowercase messages, typos, sometimes Spanish. 27 conversations; 23 of 27 completed fully or partly (16 fully): 85% (68% to 94%, the likely range).
@@ -220,13 +223,14 @@ A simulation after the first one plays what the files changed since the last sim
 Simulation 9a10b3d2-7c8d-4e9f-8a1b-2c3d4e5f6a7b: running, 9 of 34 conversations played.
 Since run 8f2a1c4e, 1 file changed (apps/api/src/agent/prompt.ts), touching the prompt in apps/api/src/agent/prompt.ts. They reach POST /api/chat. This simulation replays the 22 conversations there from that simulation, so each pairs with its earlier self, and adds 12 new conversations written for the change on billing question, order tracking (5 of them open the way your production customers did). Left out: 7 conversations on POST /api/homework/upload, which nothing that changed reaches.
 9 of 34 conversations done.
-next: run_status 9a10b3d2-7c8d-4e9f-8a1b-2c3d4e5f6a7b
+next: simulation_status 9a10b3d2-7c8d-4e9f-8a1b-2c3d4e5f6a7b
 ```
 
 Finished, it leads with what moved: each behavior whose failing count changed on the conversations both runs played, worse before better, whether the move is beyond chance, its file and line, and the conversation that turned, with what it said before and now. The rest is one line, then any new findings on the conversations written for the change, then the simulation cut open as above:
 
 ```
 Simulation 9a10b3d2-7c8d-4e9f-8a1b-2c3d4e5f6a7b: finished, 34 of 34 conversations played.
+This is the second simulation, started 5 minutes ago when you pressed Start simulation. Its conversations were written from your code; 34 conversations played. The first simulation, started 2 hours ago, played 51 conversations written from your code; behavior with at: 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b shows it.
 "Does the reply state a refund policy the product does not publish?" went from 7 failing to 0 of 22. 12 new conversations on billing question, order tracking: nothing else broke.
 Since run 8f2a1c4e, 1 file changed (apps/api/src/agent/prompt.ts), touching the prompt in apps/api/src/agent/prompt.ts. They reach POST /api/chat. This simulation replays the 22 conversations there from that simulation, so each pairs with its earlier self, and adds 12 new conversations written for the change on billing question, order tracking (5 of them open the way your production customers did). Left out: 7 conversations on POST /api/homework/upload, which nothing that changed reaches.
 Better: "Does the reply state a refund policy the product does not publish?" went from 7 failing to 0 of 22 conversations, beyond chance.
@@ -241,6 +245,7 @@ Your app answered on gpt-4o-mini. The simulation took 3 min 8 s and spent $0.19 
 Replies took 2.9 s at the median and 9.8 s at the slowest, over 81 replies.
 Nothing broke that only running your app could show.
 The next simulation is compared with run 8f2a1c4e, the last simulation that played every conversation, with everything that changed since then in its scope.
+Groq limited your app's requests 3 times; your app switched to another model each time.
 Pro: 8 of 10 simulations left this month; 560 verify conversations left.
 The report is at https://cortad.com/lab
 next: behavior 9a10b3d2-7c8d-4e9f-8a1b-2c3d4e5f6a7b
@@ -292,7 +297,7 @@ Undecided after a round, it replays the failing conversations again by itself. T
 Verify 7c31e0aa-1b2c-4d3e-8f4a-5b6c7d8e9f0a: running, 3 of 3 conversations played.
 Verify of finding:1 at apps/api/src/agent/prompt.ts:41.
 Cannot tell yet: 1 of 3 replays failed, against 3 of 3 conversations in the simulation it was found in; 1 more clean conversation would show it failing less often. After the fix one conversation still failed: conversation 41c2e0b7 said "Refunds are processed within 3 business days of the request." at reply 2, where before the fix it said "Yes, refunds are processed within 3 business days.". Round 2 is playing now: the 3 failing conversations again.
-next: run_status 7c31e0aa-1b2c-4d3e-8f4a-5b6c7d8e9f0a
+next: simulation_status 7c31e0aa-1b2c-4d3e-8f4a-5b6c7d8e9f0a
 ```
 
 A fall beyond chance with some replays still failing is not gone: `The failure shows less often but is not gone: 3 of 20 replays failed, against 12 of 12 conversations in the simulation it was found in, a fall beyond chance.`, with the conversations still failing quoted beside how they failed before.
@@ -332,6 +337,7 @@ next: status
 How the app behaved with its users at one point, top down: the line, each persona largest first with who they are, how they behave, how many achieved their goal, what the app did well and where it gave way, the app's habits, and last the code. Only simulated conversations are quoted; a production conversation is its id and the address where the owner reads it. `persona` lists every conversation of one persona; `against` gives each persona's moves with ranges; `history` is one line a point.
 
 ```
+This is the first simulation, started 2 hours ago by your coding agent. Its conversations were written from your code; 206 conversations played.
 How your app behaved with its users: the simulation of 10 November 2026 at 10:31 UTC on commit c6b655c ("fix(rag): retrieval on BM25").
 14 simulated users of 1 persona, in 206 conversations. Of the 197 conversations where it could be told, 133 achieved their goal: 68% (61% to 74%).
 
@@ -455,7 +461,7 @@ Answers like `run`, with the finding named and what it takes to decide:
 ```
 Verify of finding:1 started: 7c31e0aa-1b2c-4d3e-8f4a-5b6c7d8e9f0a.
 Verify replays its 3 failing conversations until it can decide, up to 20 replays, and plays 2 saved conversations once to test the fix; 2 clean replays show it gone.
-next: run_status 7c31e0aa-1b2c-4d3e-8f4a-5b6c7d8e9f0a
+next: simulation_status 7c31e0aa-1b2c-4d3e-8f4a-5b6c7d8e9f0a
 ```
 
 ## feedback
