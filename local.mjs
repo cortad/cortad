@@ -27,7 +27,7 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 import { COMMANDS, main as face, unknownVerb, VERBS } from "./lib/cli.mjs";
-import { addNews, homeOf, projectOf, readToken, writeApp, writeDigest, writeToken } from "./lib/home.mjs";
+import { addNews, homeOf, projectOf, readPicked, readToken, writeApp, writeDigest, writePicked, writeToken } from "./lib/home.mjs";
 import { changesOf, commandText, RELOADER, sourceOf } from "./lib/fresh.mjs";
 import { chainOf, elapsedMs, holderOf, listening, listenerOn, portInError, spawnTied, stopTree } from "./lib/proc.mjs";
 import { claimRunner, readRunner, releaseRunner, startedAtOf, writeRunner } from "./lib/runner.mjs";
@@ -55,18 +55,19 @@ import { ignoredBy, rulesOf } from "./lib/gitignore.mjs";
 import { explainText } from "./lib/explain-text.mjs";
 import { sourcesIn } from "./lib/history/sources.mjs";
 import { report as reportLive } from "./lib/setup-live.mjs";
+import { previewText, SEND, sentText } from "./lib/picks.mjs";
 import { grpcCall } from "./lib/grpc.mjs";
 
 // A count with its noun agreeing: 1 prompt, 3 prompts.
 
 const argv = process.argv.slice(2);
-const USAGE = `usage: npx cortad <code from the connect screen> -- <how you start your app>   |   npx cortad <code> --port <port of your running app>   |   npx cortad --explain   |   npx cortad ${[...VERBS, "wait"].join(" | ")}`;
+const USAGE = `usage: npx cortad <code from the connect screen> -- <how you start your app>   |   npx cortad <code> --port <port of your running app>   |   npx cortad <code> --agent-picks -- <how you start your app>   |   npx cortad --explain   |   npx cortad ${[...VERBS, "send", "wait"].join(" | ")}`;
 // Asking for help, or a flag this version does not know, prints the usage and nothing else: read as
 // a connect, `--help` signed the folder in with its saved key and ended the session running in it.
 {
   const dash = argv.indexOf("--");
   const own = dash >= 0 ? argv.slice(0, dash) : argv;
-  const FLAGS = new Set(["--port", "--start", "--explain", "--proxy", "--token", "--until-idle", "--verbose"]);
+  const FLAGS = new Set(["--port", "--start", "--explain", "--proxy", "--token", "--until-idle", "--verbose", "--agent-picks"]);
   const unknownFlag = own.some((a, i) => a.startsWith("-") && !FLAGS.has(a) && !["--port", "--start"].includes(own[i - 1] ?? ""));
   if (["help", "-h", "--help"].includes(argv[0]) || (!COMMANDS.has(argv[0] ?? "") && unknownFlag)) {
     console.log(USAGE);
@@ -149,6 +150,10 @@ const keptStart = (() => { try { return JSON.parse(readFileSync(startFile, "utf8
 const typedNow = dash >= 0 ? own.length === argv.length ? "" : argv.slice(dash + 1).join(" ").trim() : flag("--start") ?? "";
 const typed = typedNow || (flag("--port") ? "" : keptStart.cmd ?? "");
 const fromSaved = !typedNow && Boolean(typed);
+// The person's agent picks the files Cortad gets (lib/picks.mjs), and the connect sends none of its
+// own. Kept for this folder: a reconnect by its kept key, which agents are told to run, must never
+// fall back to sending the connect's own choice. A code from the connect screen says afresh.
+const picks = own.includes("--agent-picks") || (!code && keptStart.picks === true);
 // A port saved beside the command (a container's) is watched again on a reconnect with the code alone.
 const wantedPort = Number(flag("--port")) || (!typedNow ? Number(keptStart.port) || 0 : 0);
 const onPath = (bin) => (process.env.PATH ?? "").split(":").some((dir) => dir && existsSync(join(dir, bin)));
@@ -167,7 +172,8 @@ if (viaToken && !typed && !wantedPort) fail("this project has no saved start com
 
 // One process holds a project's app up (lib/runner.mjs), and its state is what every reader reports.
 // `reach: "ask"`: an agent's reach is sent by this process (lib/auto-reach.mjs), signed in where it can.
-const me = { pid: process.pid, startedAt: startedAtOf(), by: viaToken ? "token" : "connect", reach: "ask", version: VERSION };
+// `picked`: how many files the agent has sent, which status reads to say what Cortad still needs.
+const me = { pid: process.pid, startedAt: startedAtOf(), by: viaToken ? "token" : "connect", reach: "ask", version: VERSION, ...(picks ? { picks: true, picked: readPicked(project).length } : {}) };
 // The last record written, so a fact learned while the app is up is added to it.
 let became = null;
 // What this command did on this machine, once the app answers: said at connect, and kept in the
@@ -1034,14 +1040,57 @@ for (let i = files.length - 1; i >= 0; i -= 1) if (carriesKey(files[i])) kept.un
 // What a connect sends, and all --explain prints, from this one function: the AI layer the read's own
 // parsers choose (lib/layer.mjs), less any data file the layer did not choose as an eval definition
 // git tracks. The rest of the folder is never sent, and a read may not ask for it later (readable).
+const candidatesOf = (rels) => rels.flatMap((rel) => { let full; try { full = readFileSync(join(root, rel), "utf8"); } catch { return []; } return [{ path: rel, head: full.slice(0, 4000), size: Buffer.byteLength(full), full }]; });
+// A data file leaves only as an eval definition git tracks.
+const dataRefused = (rel, why, size) => (DATA.test(rel) || (/\.json$/i.test(rel) && size > DATA_JSON)) && !(why === "eval" && tracked.has(rel));
 const toSend = () => {
-  const candidates = [];
-  for (const rel of files) { let full; try { full = readFileSync(join(root, rel), "utf8"); } catch { continue; } candidates.push({ path: rel, head: full.slice(0, 4000), size: Buffer.byteLength(full), full }); }
+  const candidates = candidatesOf(files);
   const chosen = layerOf(candidates);
   const size = new Map(candidates.map((c) => [c.path, c.size]));
-  const data = (rel) => DATA.test(rel) || (/\.json$/i.test(rel) && size.get(rel) > DATA_JSON);
-  const kept = chosen.files.filter((rel) => !data(rel) || (chosen.why.get(rel) === "eval" && tracked.has(rel)));
+  const kept = chosen.files.filter((rel) => !dataRefused(rel, chosen.why.get(rel), size.get(rel)));
   return { ...chosen, files: kept, why: new Map(kept.map((rel) => [rel, chosen.why.get(rel)])) };
+};
+// The files the agent picked, with the reason the AI layer's parsers give each, read across the
+// whole set so a route is seen reaching a model call in another file.
+const pickedLayer = (rels) => {
+  const candidates = candidatesOf(rels);
+  const chosen = layerOf(candidates);
+  return { ...chosen, files: candidates.map((c) => c.path), size: new Map(candidates.map((c) => [c.path, c.size])) };
+};
+// Why a file the agent named may not leave this machine, or null: the automatic path's rules, said
+// per file.
+const refusalOf = (rel) => {
+  const name = basename(rel);
+  if (ENV_FILE.test(name) || /\.env$/i.test(name)) return "an env file";
+  if (SECRET_PATH.test(rel)) return "a key or credential file";
+  if (rel.split(sep).slice(0, -1).some((d) => SKIP_DIR.test(d)) || SKIP_FILE.test(name)) return "not source code: dependencies, build output, media, archives and keys never leave";
+  if (!shareable(rel)) return "git ignores it";
+  if (statSync(join(root, rel)).size > MAX_FILE) return "too large";
+  if (carriesKey(rel)) return "it holds a value from your env";
+  return null;
+};
+const judged = (arg) => {
+  let landed; try { landed = realpathSync(resolve(root, String(arg))); } catch { return { arg, why: "no such file in this folder" }; }
+  const home = realpathSync(root);
+  if (!landed.startsWith(home + sep)) return { arg, why: "outside this folder" };
+  if (!statSync(landed).isFile()) return { arg, why: "not a file" };
+  const rel = relative(home, landed);
+  const why = refusalOf(rel);
+  return why ? { arg, why } : { arg, rel };
+};
+// The set the agent has sent, with what one more send adds. `files`: this send's files that may go.
+// `all`: the whole set Cortad holds after it. A data file goes only as an eval definition git tracks.
+const pickedSet = (args) => {
+  const asked = args.map(judged);
+  const refused = asked.filter((j) => j.why).map(({ arg, why }) => ({ arg, why }));
+  const before = readPicked(project).filter((rel) => !judged(rel).why);
+  const all = [...new Set([...before, ...asked.filter((j) => j.rel).map((j) => j.rel)])];
+  const first = pickedLayer(all);
+  const data = new Set(all.filter((rel) => dataRefused(rel, first.why.get(rel), first.size.get(rel))));
+  for (const j of asked) if (data.has(j.rel)) refused.push({ arg: j.arg, why: "a data file; one leaves only as an eval file git tracks" });
+  const kept = all.filter((rel) => !data.has(rel));
+  const chosen = data.size ? pickedLayer(kept) : first;
+  return { files: [...new Set(asked.filter((j) => j.rel && !data.has(j.rel)).map((j) => j.rel))], all: kept, why: chosen.why, prompts: chosen.pack.prompts, chosen, refused };
 };
 // No network, no app started, nothing written.
 if (explain) {
@@ -1085,29 +1134,32 @@ key = attach.data.key;
 // before. None of this is narrated: the person agreed to it before connecting, and a count of files
 // sent read to them as alarm.
 {
-  const chosen = toSend();
+  const chosen = picks ? pickedSet([]).chosen : toSend();
   layer = { ...layerSaid(chosen), set: new Set(chosen.files) };
 }
-// What goes up. `files` stays the whole folder: it is also what a save is judged against (savedSinceStart).
-const sending = files.filter((rel) => layer.set.has(rel));
+if (!viaToken && (picks || keptStart.picks)) keepStart({ picks });
 // Taken once the code is accepted: a mistyped one never ends a runner that was working.
 if (!viaToken) holdProject();
 writeFileSync(bootLog, "", { mode: 0o600 });
 
 const list = join(work, "files.txt");
-writeFileSync(list, sending.join("\n") + "\n");
-// Which code this is, from what the files say rather than from the archive: gzip stamps the time into
-// every archive, so the same folder packed twice never matched and every reconnect bought a whole new
-// read of code that had not changed, emptying the page's counts and its price while it ran.
-const treeDigest = (() => {
+const archive = join(work, "tree.tgz");
+// `rels` packed, and which code that is, from what the files say rather than from the archive: gzip
+// stamps the time into every archive, so the same folder packed twice never matched and every
+// reconnect bought a whole new read of code that had not changed, emptying the page's counts and its
+// price while it ran.
+async function packed(rels) {
+  writeFileSync(list, rels.join("\n") + "\n");
   const h = createHash("sha256");
-  for (const rel of [...sending].sort()) {
+  for (const rel of [...rels].sort()) {
     let body = Buffer.alloc(0);
     try { body = readFileSync(join(root, rel)); } catch { continue; }
     h.update(rel).update("\0").update(createHash("sha256").update(body).digest("hex")).update("\n");
   }
-  return h.digest("hex");
-})();
+  // COPYFILE_DISABLE: a Mac's tar adds no "._name" entries.
+  await exec("tar", ["-czf", archive, "-C", root, "-T", list], { env: { ...process.env, COPYFILE_DISABLE: "1" } });
+  return { bytes: readFileSync(archive), digest: h.digest("hex") };
+}
 // The commit this tree is, sent as forty characters with the code so a simulation is tied to the code
 // it tested. Your .git and its history never leave this machine. A folder that is not a checkout
 // sends nothing, and the report says so rather than inventing one.
@@ -1120,19 +1172,15 @@ const head = (() => {
 // Started now, so it comes up while the code is packed and sent; told to the server once it has the code.
 const firstStart = startApp();
 firstStart.catch(() => { /* appLife reads the failure */ });
-const archive = join(work, "tree.tgz");
 step("connecting to your Cortad account");
-// COPYFILE_DISABLE: a Mac's tar adds no "._name" entries.
-await exec("tar", ["-czf", archive, "-C", root, "-T", list], { env: { ...process.env, COPYFILE_DISABLE: "1" } });
-const bytes = readFileSync(archive);
 const PART = 1_500_000;
 let resumed = false;
 let moved = false;
-const parts = Math.max(1, Math.ceil(bytes.length / PART));
 // The whole upload, part by part. A part that did not land is the upload's to send again, from its
 // first part, once, a few seconds later: a part numbered 0 begins the archive afresh on the server, so
 // a second pass never lands on what the first left. A refusal of this machine's key is not retried.
-async function sendTree() {
+async function sendTree({ bytes, digest }) {
+  const parts = Math.max(1, Math.ceil(bytes.length / PART));
   for (let off = 0; off < bytes.length; off += PART) {
     const last = off + PART >= bytes.length;
     step(parts > 1 ? `connecting to your Cortad account, ${Math.floor(off / PART) + 1} of ${parts}` : "connecting to your Cortad account");
@@ -1140,24 +1188,33 @@ async function sendTree() {
     // row exists, kept in ~/.cortad for the runs a coding agent asks for on later days. A connect by a
     // code asks too, since the code may be another account's: the key kept from the account before
     // signed the coding agent's tools into that one, its runs and its counts.
-    const put = await call("PUT", `/local/${box}/tree?part=${Math.floor(off / PART)}&last=${last ? 1 : 0}${last ? `&digest=${treeDigest}${head ? `&head=${head}` : ""}&layer=1&files=${layer.files}&prompts=${layer.prompts}&calls=${layer.modelCalls}&evals=${layer.evals}` : ""}`, bytes.subarray(off, off + PART),
+    const put = await call("PUT", `/local/${box}/tree?part=${Math.floor(off / PART)}&last=${last ? 1 : 0}${last ? `&digest=${digest}${head ? `&head=${head}` : ""}&layer=1&files=${layer.files}&prompts=${layer.prompts}&calls=${layer.modelCalls}&evals=${layer.evals}` : ""}`, bytes.subarray(off, off + PART),
       { raw: true, timeoutMs: 120_000, ...(last && !viaToken && (!stored || code) ? { headers: { "x-cortad-machine": folderName } } : {}) }).catch((err) => ({ ok: false, status: 0, err }));
     if (!put.ok) return put;
     if (last) {
       resumed = put.data?.resumed === true;
       moved = put.data?.moved === true;
       if (typeof put.data?.machineKey === "string" && put.data.machineKey) writeToken(project, put.data.machineKey);
-      writeDigest(project, treeDigest);
+      writeDigest(project, digest);
     }
   }
   return { ok: true };
 }
-let sent = await sendTree();
-if (!sent.ok && sent.status !== 401 && sent.status !== 404) {
-  await new Promise((r) => setTimeout(r, 2000 + Math.random() * 3000));
-  sent = await sendTree();
+async function upload(rels) {
+  const tree = await packed(rels);
+  let sent = await sendTree(tree);
+  if (!sent.ok && sent.status !== 401 && sent.status !== 404) {
+    await new Promise((r) => setTimeout(r, 2000 + Math.random() * 3000));
+    sent = await sendTree(tree);
+  }
+  return sent;
 }
-if (!sent.ok) sent.err ? unreachable(sent.err) : fail(sent.data?.error ?? `upload failed (${sent.status})`);
+// With --agent-picks and nothing sent yet, nothing goes up until the agent's first send.
+if (layer.set.size || !picks) {
+  // `files` stays the whole folder: it is also what a save is judged against (savedSinceStart).
+  const sent = await upload(picks ? [...layer.set] : files.filter((rel) => layer.set.has(rel)));
+  if (!sent.ok) sent.err ? unreachable(sent.err) : fail(sent.data?.error ?? `upload failed (${sent.status})`);
+}
 // Which history tool this folder's env names, by name only, so the setup card can say where its users'
 // messages will come from before the person is asked how many.
 {
@@ -1167,7 +1224,7 @@ if (!sent.ok) sent.err ? unreachable(sent.err) : fail(sent.data?.error ?? `uploa
 // Unchanged code has already been read: coming back says so instead of claiming a second read.
 // Said of the account, never of the app: a bare "connected" here, above an app that could not take its
 // port, was read as the app being up (2026-11-12).
-stepDone(moved ? "connected to your Cortad account: your change is in, and what Cortad read before still stands" : resumed ? "connected to your Cortad account: your code has not changed since last time" : "connected to your Cortad account");
+stepDone(picks && !layer.set.size ? "connected to your Cortad account: it has none of your files yet, and your coding agent picks them" : moved ? "connected to your Cortad account: your change is in, and what Cortad read before still stands" : resumed ? "connected to your Cortad account: your code has not changed since last time" : "connected to your Cortad account");
 // One coding agent learns about Cortad for this project: the one running this command, whose setup
 // prompt asked the person first, or the one the person names here. A run started by an agent later
 // comes back through lib/cli.mjs.
@@ -1205,6 +1262,8 @@ function sourceChanged() {
 // to so far, by address, so the card can say where test conversations write before the person's yes.
 // `watching` and `metered` say the same as `proves` to a server from before this version.
 const announce = async () => {
+  // The server takes the app once it has code to tie it to: with --agent-picks, the first send.
+  if (picks && !layer.set.size) return { ok: true };
   const hooked = Boolean(proxy ? launched || proxy.seen() : launched && capture?.watching(app.port));
   return call("POST", `/local/${box}/app`, { port: doorPort(), cmd: shownCommand(app.cmd, mask), lifted: app.lifted ?? [], watching: hooked, metered: hooked, proves: hooked, reached: reachedNow() });
 };
@@ -1391,6 +1450,34 @@ const autoReach = makeAutoReach({
   say,
   fetchImpl: countedFetch,
 });
+// The agent's `send` (lib/picks.mjs), taken whether or not the app is up: a preview of what would
+// leave, or on its yes the whole set packed and sent, which the read studies.
+async function sendPicked(args, go, spec) {
+  const set = pickedSet(args);
+  if (!go || !set.files.length) return previewText({ ...set, go, spec });
+  const before = layer;
+  layer = { ...layerSaid(set.chosen), set: new Set(set.all) };
+  const sent = await upload(set.all);
+  if (!sent.ok) { layer = before; return `Nothing was sent: ${sent.err ? `could not reach ${origin.host}` : sent.data?.error ?? `the upload failed (${sent.status})`}.\nnext: npx -y ${spec} send --yes ${args.join(" ")}`; }
+  writePicked(project, set.all);
+  me.picked = set.all.length;
+  if (became) become(became.state, became.fields);
+  if (app?.port) await announce().catch(() => {});
+  clearStep();
+  return sentText({ ...set, studied: !resumed, spec });
+}
+async function sendLoop() {
+  for (; !closing; await new Promise((r) => setTimeout(r, 500))) {
+    const ask = SEND.take(homeOf(project));
+    if (!ask) continue;
+    const spec = typeof ask.spec === "string" && /^[\w@./:-]{1,100}$/.test(ask.spec) ? ask.spec : "cortad";
+    const args = Array.isArray(ask.files) ? ask.files.filter((f) => typeof f === "string").slice(0, 500) : [];
+    let text;
+    try { text = await sendPicked(args, ask.go === true, spec); } catch (e) { text = `Nothing was sent: ${e?.message ?? e}.`; }
+    try { SEND.answer(homeOf(project), ask.id, text); } catch { /* the agent's wait runs out */ }
+  }
+}
+if (picks) void sendLoop();
 // The connection the server last heard what the agent's requests met; a reattach is a new one.
 let reachedBox = "";
 async function reachLoop() {

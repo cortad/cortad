@@ -74,6 +74,18 @@ cortad unstick   takes them out
 
 The hooks run after an edit and on your next message: the first names the prompt and tool files you changed since the last run, and both tell the agent of a run that ended while it was not looking. Both commands print every file they changed. Neither touches git.
 
+## Your agent picks the files
+
+By default a connect sends the code around your AI and nothing else (`npx cortad --explain` lists it). To choose those files yourself through your coding agent instead:
+
+```
+npx cortad <code> --agent-picks -- npm run dev     connects and starts your app, and sends no file
+npx cortad send <file> <file> ...                  shows what would be sent and which need each file covers
+npx cortad send --yes <file> <file> ...            sends them; a later send adds to the set
+```
+
+Cortad needs every prompt and prompt template, every place the code calls a model, the routes that reach those calls with their request and reply shapes, tool definitions, and eval cases. Env files, keys, files git ignores and data files are refused, each named with why. Cortad studies only the files sent, and may ask this machine for no other file later.
+
 ## Flags
 
 ```
@@ -81,6 +93,7 @@ The hooks run after an edit and on your next message: the first names the prompt
 --port 3000          use an app that is already running, as it is
 --port 3000 -- <command>   start a container and watch the port it publishes; the model base URL to set inside it is printed
 --verbose            print your app's output
+--agent-picks        send no file at connect: your coding agent picks them with `npx cortad send`
 --from <tool>        intelligence history: the tool your conversations are read from
 --stdin              intelligence history: read your own export from standard input
 --skip               intelligence history: start from the next deploy

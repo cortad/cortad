@@ -95,6 +95,46 @@ Rules in the code: 16, in 5 files.
   apps/web/src/chat/welcome.ts:11  "End each homework answer with one practice question."
 ```
 
+## send
+
+Only on a connect with `--agent-picks`, where you pick the files Cortad gets. Until the first send, `status` prints what Cortad needs:
+
+```
+You pick the files Cortad gets, and none has been sent yet. Cortad needs:
+1. Every prompt and prompt template the AI uses, so simulated users test the app's real instructions.
+2. Every place the code calls a model, so Cortad knows which AI features exist.
+3. The routes that reach those calls, with their request and reply shapes, so simulated users can talk to the app.
+4. Tool definitions, so tool use is tested.
+5. Eval cases, so simulated users cover what the team already checks.
+Show the person your list, then send only those files. Env files, keys, files git ignores and data files are refused.
+next: npx -y cortad send <file> <file> ...
+```
+
+`npx {{cortad}} send <files>` shows what would be sent, each file with the need it covers, and sends nothing:
+
+```
+Cortad would get these 3 files:
+- src/agent/prompt.ts: covers prompts
+- src/agent/model.ts: covers model calls
+- src/routes/chat.ts: covers routes
+Refused, and never sent:
+- .env: an env file
+- data/users.csv: git ignores it
+Nothing in the set covers tools or evals. Send those too if the app has them.
+Show the person this list. On their yes:
+next: npx -y cortad send --yes src/agent/prompt.ts src/agent/model.ts src/routes/chat.ts
+```
+
+With `--yes`, on the person's yes:
+
+```
+Sent 3 files. Cortad now has 3 files from this folder, and is studying your AI from them.
+- src/agent/prompt.ts: covers prompts
+- src/agent/model.ts: covers model calls
+- src/routes/chat.ts: covers routes
+next: npx -y cortad status
+```
+
 ## reach
 
 Sends the request Cortad read from your code to an endpoint no request of yours has reached, from the connect command on this machine, with the sign-in you pass it:

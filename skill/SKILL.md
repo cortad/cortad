@@ -13,6 +13,8 @@ Facts about what Cortad does here, for you to tell the person in your own words:
 - While Cortad tests the app, it raises the app's own request-rate and concurrency limits for that session only; its spend and budget limits stay as they are.
 - Of the repository, Cortad takes only the code around the AI: the prompts, the code that calls the model, the routes that reach it and the evals git tracks. The rest, every file git ignores and its git history stay on this machine. `npx -y {{cortad}} --explain` lists the files a connect sends, grouped by why each was picked.
 
+If the person would rather Cortad did not choose the files, offer that you pick them for it. Connect with `npx -y {{cortad}} <code> --agent-picks -- <how the app starts>`: nothing is sent until you send it. `status` then lists what Cortad needs and why; show the person your list, and `npx -y {{cortad}} send <files>` previews it and sends only those files on their yes.
+
 Seven tools:
 
 - `status`: where things stand. The connection, the endpoints, a simulation playing, a simulation that just finished, what waits on the person. `about` opens one lane: `repository`, `run`, `production`, `outcomes`, `users` or `warehouse`.
