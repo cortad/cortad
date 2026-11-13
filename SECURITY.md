@@ -37,7 +37,7 @@ These are never sent:
   and model weights.
 - Symbolic links, files over 25 MB, and anything past 256 MB in total.
 
-**The folder's name,** for your account's list of connected apps. Never the hostname or a path.
+**The folder's name,** for your account's list of connected apps. Never the hostname.
 
 ## What a simulation sends
 
@@ -55,8 +55,7 @@ These are never sent:
   to 2,000 characters when Cortad asks for the log, and the last 2,000 characters when your app fails to
   start or stops answering. All of it stays on your machine in `~/.cortad/<project>/app.log` (file
   mode 0600).
-- **No path of your machine.** Every path in what the command sends is relative to the project, with
-  your home folder as `~`.
+- **Paths in your project** are sent relative to it, with your home folder as `~`.
 
 ## How secrets are masked
 
@@ -139,11 +138,8 @@ Any other command the server sends is refused and noted in `~/.cortad/<project>/
 
 ## Keeping and deleting
 
-- Production conversations are kept for your plan's period: 7 days on Free, 90 days on Pro, 1 year on
-  Ultra.
 - You can delete a production conversation at any time.
-- You can delete your account in Settings. Its keys stop working at once, and its data is deleted
-  within the thirty days the Privacy Policy states. You can keep the account during the first seven.
+- You can delete your account in Settings. Its keys stop working at once.
 - Whether Cortad may also use your data to improve the service is your choice, on the Data Sharing
   screen or in Settings. It is off until you turn it on.
 
