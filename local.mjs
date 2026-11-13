@@ -18,7 +18,6 @@ import { notAnApp, withoutStores } from "./lib/app-port.mjs";
 import { holdsKeys, secretEnvValues } from "./lib/keys.mjs";
 import { envFilesNamedIn, parseEnv } from "./lib/env-files.mjs";
 import { startCause } from "./lib/start-cause.mjs";
-import { historyParts, repoFacts } from "./lib/commits.mjs";
 import { spawn, execFile, execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { appendFileSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, watch, writeFileSync } from "node:fs";
@@ -983,8 +982,17 @@ const kept = [];
 for (let i = files.length - 1; i >= 0; i -= 1) if (carriesKey(files[i])) kept.unshift(...files.splice(i, 1));
 // --explain: the files this folder would give, one line, for the check that keys and ignored files
 // stay out (lib/sent-files.test.mjs). No network, no app started, nothing written.
+// The files a connect sends: the AI layer the read's own parsers choose (lib/layer.mjs).
+const layerFiles = () => {
+  const candidates = [];
+  for (const rel of files) { let full; try { full = readFileSync(join(root, rel), "utf8"); } catch { continue; } candidates.push({ path: rel, head: full.slice(0, 4000), size: Buffer.byteLength(full), full }); }
+  return layerOf(candidates);
+};
 if (explain) {
-  console.log(`first files     ${files.slice(0, 8).join(", ")}${files.length > 8 ? ", ..." : ""}`);
+  const sent = layerFiles().files;
+  console.log(`Cortad sends only the code around your AI: ${sent.length} of this folder's ${files.length} files. The rest stays on this machine.`);
+  console.log(`sends       ${sent.join(", ") || "nothing: no model call was found here"}`);
+  console.log(`looked at   ${files.slice(0, 8).join(", ")}${files.length > 8 ? ", ..." : ""}`);
   process.exit(0);
 }
 const keepSecret = (v) => { if (v && v.length >= 12 && !secrets.includes(v)) secrets.push(v); };
@@ -1027,9 +1035,7 @@ key = attach.data.key;
 // of files sent read to them as alarm.
 // Only on the server's word: a server from before this answer sends none, and that is the tree.
 if (attach.data.upload === "layer") {
-  const candidates = [];
-  for (const rel of files) { let full; try { full = readFileSync(join(root, rel), "utf8"); } catch { continue; } candidates.push({ path: rel, head: full.slice(0, 4000), size: Buffer.byteLength(full), full }); }
-  const chosen = layerOf(candidates);
+  const chosen = layerFiles();
   const said = layerSaid(chosen);
   layer = { ...said, set: new Set(chosen.files) };
 }
@@ -1053,9 +1059,9 @@ const treeDigest = (() => {
   }
   return h.digest("hex");
 })();
-// The commit this tree is. Your .git is never uploaded; the one sha the report needs is read here
-// and sent as forty characters, and the commits themselves follow the code (sendHistory). A folder
-// that is not a checkout sends nothing, and the report says so rather than inventing one.
+// The commit this tree is, sent as forty characters with the code so a simulation is tied to the code
+// it tested. Your .git and its history never leave this machine. A folder that is not a checkout
+// sends nothing, and the report says so rather than inventing one.
 const head = (() => {
   try {
     const sha = execFileSync("git", ["-C", root, "rev-parse", "HEAD"], { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
@@ -1109,24 +1115,10 @@ if (!sent.ok) sent.err ? unreachable(sent.err) : fail(sent.data?.error ?? `uploa
   const found = sourcesIn({ ...envOf(root), ...process.env }).map((s) => s.id);
   if (found.length) void reportLive({ apiBase: api, token: readToken(project) }, { found });
 }
-// Their commit history follows the code: the commits newer than the ones Cortad holds, the whole
-// history the first time, each diff cut to the files above and to lines that carry no key
-// (lib/commits.mjs). It goes on after the connect is reported and never stops it.
-async function sendHistory() {
-  const last = await call("GET", `/local/${box}/commits/last`);
-  if (!last.ok) return;
-  const keeps = (rel) => { const parts = rel.split("/"); return !parts.slice(0, -1).some((d) => SKIP_DIR.test(d)) && !SKIP_FILE.test(parts.at(-1)) && !ENV_FILE.test(parts.at(-1)) && !kept.includes(rel) && (!layer || layer.set.has(rel)); };
-  const parts = historyParts(root, typeof last.data?.sha === "string" ? last.data.sha : null, { keep: keeps, holdsKey: (line) => holdsKeys(line, envKeys) });
-  for (const [i, commits] of parts.entries()) {
-    const put = await call("PUT", `/local/${box}/commits`, { commits, ...(i === 0 ? { repo: repoFacts(root) } : {}) }, { timeoutMs: 120_000 });
-    if (!put.ok) throw new Error(put.data?.error ?? `history upload failed (${put.status})`);
-  }
-}
 // Unchanged code has already been read: coming back says so instead of claiming a second read.
 // Said of the account, never of the app: a bare "connected" here, above an app that could not take its
 // port, was read as the app being up (2026-11-12).
 stepDone(moved ? "connected to your Cortad account: your change is in, and what Cortad read before still stands" : resumed ? "connected to your Cortad account: your code has not changed since last time" : "connected to your Cortad account");
-if (head) void sendHistory().catch((err) => { if (verbose) say(`commit history not sent: ${err?.message ?? err}`); });
 // The coding agents on this machine learn about Cortad now, once: an MCP entry and a skill in each
 // one's own home folder. A run started by an agent later comes back through lib/cli.mjs.
 // CORTAD_NO_REGISTER=1 leaves the coding agents' global skill and MCP entries alone: a stack under

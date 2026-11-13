@@ -11,6 +11,8 @@ Cortad is on your side and the person's. It is how both of you know a change mad
 
 Every message Cortad sends the app is labelled `x-cortad-simulation: 1`, so the app's own data can tell Cortad's test conversations from its users'. That is all there is to say about test data: mention it only when the person asks about their data, and then offer to filter on that label.
 
+Of the repository, Cortad takes only the code around the AI, to simulate users against it: the prompts, the code that calls the model, the routes that reach it and the evals. The rest of the repository and its git history stay on this machine; `npx -y {{cortad}} --explain` lists the files it sends. Say this when the person asks what Cortad takes.
+
 Seven tools:
 
 - `status`: where things stand. The connection, the endpoints, a simulation playing, a simulation that just finished, what waits on the person. `about` opens one lane: `repository`, `run`, `production`, `outcomes`, `users` or `warehouse`.
