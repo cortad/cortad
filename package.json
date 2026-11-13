@@ -111,6 +111,7 @@
     "lib/history/db/sigv4.mjs",
     "lib/history/db/firestore.mjs",
     "lib/history/db/pinecone.mjs",
+    "lib/history/db/cassandra.mjs",
     "lib/py/dbread.py"
   ],
   "scripts": {

@@ -155,7 +155,11 @@ class Cql:
         if spec.get("bundle"):
             self.cluster = Cluster(cloud={"secure_connect_bundle": spec["bundle"]}, auth_provider=auth)
         else:
-            self.cluster = Cluster(spec["hosts"], port=int(spec.get("port") or 9042), auth_provider=auth)
+            context = None
+            if spec.get("tls"):
+                import ssl
+                context = ssl.create_default_context()
+            self.cluster = Cluster(spec["hosts"], port=int(spec.get("port") or 9042), auth_provider=auth, ssl_context=context)
         self.session = self.cluster.connect()
 
     def run(self, req):
