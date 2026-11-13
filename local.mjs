@@ -407,9 +407,10 @@ const SECRET_PATH = /(?:^|\/)(?:\.git|\.ssh|\.gnupg|\.aws|\.npmrc|\.netrc|id_(?:
 // temp folder, never beside your code.
 const translate = (s) => String(s ?? "").split("/workspace/repo").join(root).split("/tmp/bl-boot.log").join(bootLog).split("/tmp/boot.log").join(bootLog);
 const scratch = (p) => { const r = resolve(translate(p)); return r.startsWith("/tmp/") ? join(work, r.slice(5)) : r.startsWith(work + sep) ? r : null; };
+// Only a file already sent. The app's output goes through `log`, which caps it; nothing the server
+// runs reads its own scratch files back.
 const readable = (p) => {
   const r = resolve(translate(p));
-  if (r === bootLog || r.startsWith(work + sep)) return r;
   let landed; try { landed = realpathSync(r); } catch { return null; }
   const home = realpathSync(root);
   if (!landed.startsWith(home + sep) || ENV_FILE.test(basename(landed)) || SECRET_PATH.test(landed)) return null;
