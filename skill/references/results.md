@@ -6,7 +6,7 @@ The last line of a simulation_status result is the next call. A plan line names 
 
 ## wait
 
-`npx {{cortad}} wait` returns when the next simulation or verify ends, including one the person starts with Start simulation, or with the person's choice on the setup card. It prints what `simulation_status` prints for that finished run, and its last line is `next: behavior <jobId>`. When the connect command has been stopped for a minute it ends with `The connect command stopped, so no simulation can start from the browser.`; after six hours with no simulation, with `No simulation ended in 6 hours.`
+`npx {{cortad}} wait` returns when the next simulation or verify ends, including one the person starts with Start simulation, or with the person's choice on the setup card. It prints what `simulation_status` prints for that finished run, and its last line is `next: behavior <jobId>`. When a simulation asked for while the app started could not start, it returns at once with the reason, as `simulation_status` says it, and `next: status`. When the connect command has been stopped for a minute it ends with `The connect command stopped, so no simulation can start from the browser.`; after six hours with no simulation, with `No simulation ended in 6 hours.`
 
 ## status
 
@@ -155,10 +155,11 @@ Simulation started: 9a10b3d2-7c8d-4e9f-8a1b-2c3d4e5f6a7b.
 next: simulation_status 9a10b3d2-7c8d-4e9f-8a1b-2c3d4e5f6a7b
 ```
 
-The app is still starting. `simulation_status` holds until the simulation has an id:
+The app is still starting. The simulation is asked for once it answers; `wait` returns when it ends, or at once with the reason it could not start:
 
 ```
-Starting your app for the simulation. Call simulation_status; it answers as soon as the simulation has an id.
+Starting your app for the simulation. The simulation starts once your app answers.
+next: start `npx -y cortad wait` in the background now (in Claude Code, Bash with run_in_background); it returns when the simulation ends, or at once with the reason it could not start
 ```
 
 The plan is spent, and nothing ran:
