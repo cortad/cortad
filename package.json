@@ -110,6 +110,7 @@
     "lib/history/db/dynamo.mjs",
     "lib/history/db/sigv4.mjs",
     "lib/history/db/firestore.mjs",
+    "lib/history/db/pinecone.mjs",
     "lib/py/dbread.py"
   ],
   "scripts": {
