@@ -1967,7 +1967,7 @@ def _install():
             ended(req)
 
     def wsgi(app):
-        if getattr(app, "_brainsless", False):
+        if getattr(app, "_cortad_wrapped", False):
             return app
 
         def wrapped(environ, start_response):
@@ -2002,7 +2002,7 @@ def _install():
                     ctx.reset(token)
             return inside(req, out, asks)
 
-        wrapped._brainsless = True
+        wrapped._cortad_wrapped = True
         return wrapped
 
     # The app's own route table, read off the app object the server was handed, so the run knows

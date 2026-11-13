@@ -103,7 +103,7 @@ const origin = new URL(process.env.CORTAD_ORIGIN || "https://cortad.com");
 // Ours, and only ours. The service's earlier name was dropped with its domain, and a domain we no
 // longer hold is a host somebody else can register and be trusted as us, so it is not on this list.
 // The second is our own Pages project: its subdomains are our branch deploys, staging among them.
-const OURS = ["cortad.com", "brainsless-frontend.pages.dev"];
+const OURS = ["cortad.com"];
 const trusted = (origin.protocol === "https:" && OURS.some((host) => origin.hostname === host || origin.hostname.endsWith(`.${host}`)))
   || origin.hostname === "localhost" || origin.hostname === "127.0.0.1";
 if (!trusted) fail(`refusing: ${origin.host} is not Cortad.`);
