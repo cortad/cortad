@@ -95,6 +95,8 @@ Cortad needs every prompt and prompt template, every place the code calls a mode
 --verbose            print your app's output
 --agent-picks        send no file at connect: your coding agent picks them with `npx cortad send`
 --no-samples         open none of your app's search or vector stores for samples of its content (--agent-picks implies it)
+--explain            list every file a connect would send and why each was picked; connects to nothing and writes nothing
+--yes                send: send the files the preview listed
 --from <tool>        intelligence history: the tool your conversations are read from
 --stdin              intelligence history: read your own export from standard input
 --skip               intelligence history: start from the next deploy
