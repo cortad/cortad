@@ -28,7 +28,7 @@ import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 import { COMMANDS, main as face, unknownVerb, VERBS } from "./lib/cli.mjs";
 import { addNews, homeOf, projectOf, readPicked, readToken, writeApp, writeDigest, writePicked, writeToken } from "./lib/home.mjs";
-import { changesOf, commandText, RELOADER, sourceOf } from "./lib/fresh.mjs";
+import { changesOf, commandText, RELOADED, RELOADER, sourceOf } from "./lib/fresh.mjs";
 import { chainOf, elapsedMs, holderOf, listening, listenerOn, portInError, spawnTied, stopTree } from "./lib/proc.mjs";
 import { claimRunner, readRunner, releaseRunner, startedAtOf, writeRunner } from "./lib/runner.mjs";
 import { agentOf, AGENTS, askAgent, register } from "./lib/register.mjs";
@@ -791,17 +791,18 @@ function whyNot(up) {
 }
 
 // What the running app was started from, noted in app.json for the verbs, which run in another
-// process (lib/fresh.mjs): when it started, whether this command started it, whether it reloads on
-// save, and what each source file said then. An app found already running is noted by its own
-// process's age and command line, with the file names alone.
+// process (lib/fresh.mjs): when it started, whether this command started it, when its output last
+// showed it reloading, and what each source file said at the latest of the two. An app found already
+// running is noted by its own process's age, with the file names alone.
 let loaded = null;
+const loadedSince = () => loaded.reloadedAt ?? loaded.at;
 const noteApp = () => writeApp(project, loaded?.at
-  ? { runner: process.pid, own: loaded.own, startedAt: new Date(loaded.at).toISOString(), reloads: loaded.reloads, files: loaded.files }
+  ? { runner: process.pid, own: loaded.own, startedAt: new Date(loaded.at).toISOString(), ...(loaded.reloadedAt ? { reloadedAt: new Date(loaded.reloadedAt).toISOString() } : {}), files: loaded.files }
   : { runner: process.pid });
 async function noteAttached(port) {
   const pid = await listenerOn(port);
   const chain = pid ? await chainOf(pid).catch(() => []) : [];
-  loaded = { own: false, at: chain.length ? Date.now() - elapsedMs(chain[0].etime) : null, reloads: RELOADER.test(chain.map((p) => p.args).join("\n")), files: sourceOf(root, files, false) };
+  loaded = { own: false, at: chain.length ? Date.now() - elapsedMs(chain[0].etime) : null, files: sourceOf(root, files, false) };
   noteApp();
 }
 
@@ -883,7 +884,10 @@ async function start(waitMs) {
   let seen = "";
   const onData = (log) => (d) => {
     const s = d.toString(); log(d); seen = (seen + s).slice(-20_000); lastSaid = seen; lastOutputAt = Date.now(); if (verbose) process.stdout.write(s);
-    if (!note.reloads && RELOADER.test(s)) { note.reloads = true; if (note.answered && loaded === note) noteApp(); }
+    if (!note.reloads && RELOADER.test(s)) note.reloads = true;
+    // Taken as the reload begins, before the new process loads a file.
+    // ponytail: a reload line split across two chunks is missed, which costs one extra restart.
+    if (RELOADED.test(s)) { note.reloadedAt = Date.now(); note.files = sourceOf(root, files); if (note.answered && loaded === note) noteApp(); }
   };
   mine.stdout.on("data", onData(logTo()));
   mine.stderr.on("data", onData(logTo()));
@@ -960,7 +964,7 @@ function restartOnce(work) {
   })();
   return restartDone;
 }
-const SAVED_CODE = "starting your app again so it runs the code you saved, since it does not reload by itself";
+const SAVED_CODE = "starting your app again so it runs the code you saved since it last started or reloaded";
 // Your app read its env files when it started and nothing reloads them, so a value saved into one is
 // a value it is not running on. A customer changed one and had to stop this command and run it again
 // for every change; one of his apps was left running each time.
@@ -981,12 +985,12 @@ function restartApp(why = SAVED_CODE) {
 // Saved since your app started, in a file it runs: bytes written back as they were are not a change,
 // and neither is a file the app wrote itself.
 const savedSinceStart = () => Boolean(loaded?.files) && changesOf({
-  root, app: { startedAt: new Date(loaded.at).toISOString(), files: loaded.files }, skip: writtenPaths(writesDirOf(homeOf(project))),
+  root, app: { startedAt: new Date(loadedSince()).toISOString(), files: loaded.files }, skip: writtenPaths(writesDirOf(homeOf(project))),
 }).changed.length > 0;
 // An env file of the app's own, saved since it started: compared by the time on the file, since what
 // it holds is never read into this command's own record. An example file is nobody's settings.
 const envSavedSinceStart = () => Boolean(loaded?.own && loaded.at) && envFiles.some((f) => {
-  try { return !/\.(example|sample)$/.test(f) && statSync(f).mtimeMs > loaded.at; } catch { return false; }
+  try { return !/\.(example|sample)$/.test(f) && statSync(f).mtimeMs > loadedSince(); } catch { return false; }
 });
 // Why the app has to start again now, or nothing when it is running what is on disk.
 const whyRestart = () => (savedSinceStart() ? SAVED_CODE : envSavedSinceStart() ? SAVED_ENV : null);
