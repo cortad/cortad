@@ -1,12 +1,12 @@
 # cortad
 
-Runs Cortad's test conversations against the AI app on your machine, gives your coding agent the tools to run them, and sets up Cortad Intelligence for the live app. The command it installs is `cortad`.
+Runs Cortad's test conversations against the AI app on your machine, gives your coding agent the tools to start them, and sets up Cortad Intelligence for the live app. The command it installs is `cortad`.
 
 ```
 npx cortad <code>
 ```
 
-Run it in your app's folder with the code from cortad.com and your own start command after `--`: Cortad runs that command as you typed it, with its hook inside and nothing else added, connects the app, and adds Cortad for this project to the coding agent running the command (Claude Code, Codex, Cursor or Copilot), or, from a plain terminal, to the one you name when it asks, or to none. Cortad then sends each AI endpoint you choose one test request from this machine and learns the endpoint from the answer; you send one message yourself only where an endpoint needs a signed-in user. Runs start when you press Run simulation in the browser or ask your agent for one. Ctrl-C disconnects.
+Run it in your app's folder with the code from cortad.com and your own start command after `--`: Cortad runs that command as you typed it, with its hook inside and nothing else added, connects the app, and adds Cortad for this project to the coding agent running the command (Claude Code, Codex, Cursor or Copilot), or, from a plain terminal, to the one you name when it asks, or to none. Cortad then sends each AI endpoint you choose one test request from this machine and learns the endpoint from the answer; you send one message yourself only where an endpoint needs a signed-in user. Simulations start when you press Start simulation in the browser or ask your agent for one. Ctrl-C disconnects.
 
 ```
 npx cortad <code> -- npm run dev     your command, as you start it, from the terminal that holds its settings
@@ -61,9 +61,9 @@ cortad findings
 cortad verify <findingId>
 ```
 
-`cortad wait` returns when the next run ends, with what it found; an agent starts it in the background so the run's end wakes it.
+`cortad wait` returns when the next simulation ends, with what it found; an agent starts it in the background so the simulation's end wakes it.
 
-A run needs your app up. If nothing on this machine is holding it, the command starts it with the key and the start command kept in `~/.cortad`, and stops it ten minutes after the last run.
+A simulation needs your app up. If nothing on this machine is holding it, the command starts it with the key and the start command kept in `~/.cortad`, and stops it ten minutes after the last simulation.
 
 To make checking with Cortad part of the repository:
 
@@ -72,7 +72,7 @@ cortad stick     one line in AGENTS.md, CLAUDE.md, .cursor/rules and .github/cop
 cortad unstick   takes them out, and the skill a connect added to this project
 ```
 
-The hooks run after an edit and on your next message: the first names the prompt and tool files you changed since the last run, and both tell the agent of a run that ended while it was not looking. Both commands print every file they changed. Neither touches git.
+The hooks run after an edit and on your next message: the first names the prompt and tool files you changed since the last simulation, and both tell the agent of a simulation that ended while it was not looking. Both commands print every file they changed. Neither touches git.
 
 ## Your agent picks the files
 
@@ -107,11 +107,11 @@ Cortad needs every prompt and prompt template, every place the code calls a mode
 --wait               intelligence: return when the history is read
 ```
 
-Your app gets this terminal's environment and its request-rate and concurrency limits raised while Cortad tests it (never a spend or budget limit), so its simulated users are not blocked. Test conversations write where your app writes, after your yes in the browser.
+Your app gets this terminal's environment and its request-rate and concurrency limits raised while Cortad tests it (never a spend or budget limit), so its simulated users are not blocked. Test conversations write where your app writes, after your yes in the browser or to your coding agent.
 
 ## Files it creates
 
-- `~/.cortad/<project>/`     the key, the start command, the last tree digest, which process holds your app up, your app's output in `app.log`, after your yes to test sign-ins the sign-ins Cortad's test requests used, in `refused.log` any command Cortad's server sent that this machine refused to run, the run it asked for last, in `news.txt` the line a finished run left for your agent, removed once the agent has it, in `heard.txt` the ids of the runs your agent has read, and in `pairing.json` a link waiting for your approval
+- `~/.cortad/<project>/`     the key, the start command, the last tree digest, which process holds your app up, your app's output in `app.log`, after your yes to test sign-ins the sign-ins Cortad's test requests used and in `test-account.json` the one test account made on your app's sign-up, in `sign-in-yes.json` (readable only by you) your yes given to your coding agent, without which no token is signed with your app's JWT secret, in `refused.log` any command Cortad's server sent that this machine refused to run, the simulation it asked for last, in `news.txt` the line a finished simulation left for your agent, removed once the agent has it, in `heard.txt` the ids of the simulations your agent has read, and in `pairing.json` a link waiting for your approval
 - Cortad's tools and skill, added to one coding agent, inside this project only: for Claude Code `.mcp.json` and `.claude/skills/cortad/`, for Codex `.codex/config.toml` and `.agents/skills/cortad/`, for Cursor `.cursor/mcp.json` and `.cursor/skills/cortad/`, for Copilot `.mcp.json` and `.github/skills/cortad/`. Nothing is written to your home folder for any agent, and a Cortad skill an older version left in `~/.claude/skills`, `~/.agents/skills` or `~/.copilot/skills` is removed. `cortad unstick` removes the skill from this project
 - `~/.cortad/<project>/pseudonym.salt`   the salt that pseudonymizes your conversation and user ids, readable only by you; it never leaves this computer
 - `~/.cortad/<project>/history-dry-run.jsonl`   what a dry run would have sent, readable only by you
