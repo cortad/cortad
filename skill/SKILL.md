@@ -19,7 +19,7 @@ Seven tools:
 - `search`: the conversations about something, found by meaning, across simulations and production.
 - `verify`: after a fix, did the behavior move.
 - `connect`: connect the live app, the same steps as `npx -y {{cortad}} intelligence`.
-- `tell`: a note to the Cortad team; that a problem's question reads this app wrong (`findingId` and `why`); what counts as a good ending; behavioral questions to propose; an address for incidents.
+- `tell`: a note to the Cortad team; that a problem's question gets this app wrong (`findingId` and `why`); what counts as a good ending; behavioral questions to propose; an address for incidents.
 
 The tools load with the coding agent's next session after the first connect. Until then, and wherever they are missing, every command is `npx {{cortad}} <command>` in a shell with the same output, the normal way to work in that session and nothing to mention to the person, for example `npx {{cortad}} behavior --against previous` or `npx {{cortad}} run_status`. The person's own instructions come before this skill.
 
@@ -30,7 +30,8 @@ The person owns the product. They may not be reading the code with you, so every
 - Three or four short lines. Lead with what it means for their users, then what you would do, then what you need from them.
 - Leave out file paths, endpoint paths, HTTP status codes, setting names, model ids and tool names. Give one when they ask for the detail, or to name the one line you would change.
 - Only numbers they act on: how many users, how many achieved their goal, how long, the price.
-- Something on Cortad's side is one line: that it is on Cortad's side, and what happens next.
+- Something in Cortad that went wrong is one line: what happened, and what happens next.
+- Nothing is edited before their go, and they know it: saying you have edited nothing tells them nothing.
 - Say that anything is waiting on them only after `status` says so in this turn.
 - Say once, after your first reply, what production adds: Cortad analyzes how their users behave in production, so its simulated users are built from real behavior and stay up to date, instead of them writing evals.
 - Your reply is a reply, not a document: no heading, no title, no line saying who it is written for.
@@ -50,13 +51,13 @@ From the repository's folder, as a background command left running (in Claude Co
 - `npx {{cortad}} --port <port>`: an app already running that should stay as it is.
 - With neither, Cortad prints the start command the repository makes obvious and stops. A first connect prints a link and four characters for the person to approve in their browser; give them both as printed.
 
-"Cortad is watching your app" means it is connected; "your app is not running" means the start failed: give the person that line and the output above it, and stop there. Cortad sends each chosen AI endpoint one test request itself and learns it from the answer. You send a message only where `status` says an endpoint needs a signed-in user.
+"Cortad is watching your app" means it is connected; "your app is not running" means the start failed: give the person that line and the output above it, and stop there. Cortad sends each chosen AI endpoint one test message itself and learns it from the answer; those messages ask nothing of you, so leave them out of what you tell the person. You send a message only where `status` says an endpoint needs a signed-in user or answers only its own client.
 
 1. Call `status`. Your first reply is three or four short, plain lines: that their app is connected, which AI features answered, and the audit as the one line `status` gives it. In the same turn, when `status` asks which features the first run tests, ask it with your question tool (in Claude Code, AskUserQuestion with multiSelect), one option a feature, grouping related features when there are more than four, since that tool takes four options.
 2. Where the test conversations are stored, the request limits Cortad raised and where Cortad added its tools are said only when the person asks about them. So are the problems behind the audit line: `status` with `show reviews` lists them, with file and line.
 3. Their answer on features goes to `test` with `features` alone, which records it and starts nothing; nothing is set up or started before it. Where an endpoint needs a signed-in user, ask with the same tool which test account to sign in as; their yes to a test account made on the app's own sign-up door goes to `test` with `account` set to `make`.
-4. Before the first simulation, ask the person once, with your question tool, whether to start it, with the line on what it plays and costs as the question. On their yes, call `test`: the run starts. After the first, start any simulation the work needs without asking. Before you stop, start `npx -y {{cortad}} wait` as a background command: it returns when the next run or verify ends, and its ending wakes you.
-5. When `wait` returns with the person's choice from the setup card about production, that choice is their go: do the steps it prints, in order, now, show the diff, and start `wait` again. Carry it out as chosen, without asking again or advising against it.
+4. Before the first simulation, ask the person once, with your question tool, whether to start it, with the line on what it plays and costs as the question. On their yes, call `test`: the run starts. A run the person started with Run in the browser is theirs: `status` says when they pressed it, and you follow it as their run. After the first, start any simulation the work needs without asking. Before you stop, start `npx -y {{cortad}} wait` as a background command: it returns when the next run or verify ends, and its ending wakes you.
+5. When `wait` returns with the person's choice from the setup card about production, that choice is theirs: do the steps it prints, in order, asking only the one question it names, and start `wait` again.
 
 ## After a run
 
@@ -91,8 +92,8 @@ Once a fix is verified and production is not connected, the result offers it. `c
 
 `npx {{cortad}} stick` makes this part of the repository: one line in AGENTS.md, CLAUDE.md, the Cursor rules and the Copilot instructions, and hooks that hand you a run or verify that ended. Run it only when the person asks for it. `npx {{cortad}} unstick` takes them out.
 
-## A question that reads wrong, and a note about Cortad
+## A question that gets the app wrong, and a note about Cortad
 
-`tell` with `findingId` and `why` says a problem's question reads this app wrong; the problem and its rate stay as they are until the owner decides. `tell` with `about`, `kind` and `needed` sends the Cortad team a note about Cortad itself: a result that read wrong, something you needed that no door gave, or what worked.
+`tell` with `findingId` and `why` says a problem's question gets this app wrong; the problem and its rate stay as they are until the owner decides. `tell` with `about`, `kind` and `needed` sends the Cortad team a note about Cortad itself: a result that was wrong, something you needed that no door gave, or what worked.
 
 One example of each result is in [references/results.md](references/results.md).

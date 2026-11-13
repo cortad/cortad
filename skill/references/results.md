@@ -10,11 +10,11 @@ The last line of a run_status result is the next call. A plan line names what th
 
 ## status
 
-Right after a connect, while your code is still being read:
+Right after a connect, while Cortad is still studying your code:
 
 ```
 Repository: tutor-app.
-Free: 1 of 1 run left this month; 60 verify conversations left. Pro $99 a month: runs and reruns included, 100,000 production replies read.
+Free: 1 of 1 run left this month; 60 verify conversations left. Pro $99 a month: runs and reruns included, 100,000 production replies analyzed.
 App: Your app is starting on this machine.
 ```
 
@@ -22,11 +22,11 @@ Once a request of your own has reached the model through an endpoint, two messag
 
 ```
 Repository: tutor-app.
-Free: 1 of 1 run left this month; 60 verify conversations left. Pro $99 a month: runs and reruns included, 100,000 production replies read.
+Free: 1 of 1 run left this month; 60 verify conversations left. Pro $99 a month: runs and reruns included, 100,000 production replies analyzed.
 App: Your app answered on port 3100.
 Endpoints that answered (1):
   POST /api/chat: 2 requests reached gpt-4o-mini, 2 model calls each, 3.1 seconds a reply.
-    The prompts carried 9 of the 46 rules read from your code, for example apps/api/src/agent/prompt.ts:41 "Never state a refund policy the product does not publish.".
+    The prompts carried 9 of the 46 rules found in your code, for example apps/api/src/agent/prompt.ts:41 "Never state a refund policy the product does not publish.".
     Tools that ran: search_lessons.
     Passages handed to the model: 3.
     Problem at apps/api/src/agent/system.ts:30: The reply carried "</student_profile>", markup from the prompt your app sent the model.
@@ -49,13 +49,13 @@ Test conversations use your app as it is: they write where it wrote during your 
 The person sees this at https://cortad.com/lab
 ```
 
-Once a run is playing, what reading your code found and the run:
+Once a run is playing, what Cortad found in your code and the run:
 
 ```
 Repository: tutor-app.
-Free: this month's 1 run is used; 60 verify conversations left. Pro $99 a month: runs and reruns included, 100,000 production replies read.
+Free: this month's 1 run is used; 60 verify conversations left. Pro $99 a month: runs and reruns included, 100,000 production replies analyzed.
 App: Your app answered on port 3100.
-What Cortad read:
+What Cortad found in your code:
 Rules in the code: 46, in 5 files. 3 of them:
   apps/api/src/agent/prompt.ts:41  "Never state a refund policy the product does not publish."
   apps/api/src/agent/system.ts:12  "Answer in the language the student writes in."
@@ -196,7 +196,7 @@ access:1  GET /api/admin/students answered 200 to a request with no sign-in; it 
   verify access:1 sends the requests again.
 What the numbers leave out, and why:
   Set aside: 7 conversations (POST /api/homework/upload: the route needs a signed file URL, and no test account can make one).
-  28 questions with no reply to read: 16 need a conversation past the first reply; 8 never met their condition (the parent asks what the plan costs); 4 have no conversation yet.
+  28 questions with no reply to check: 16 need a conversation past the first reply; 8 never met their condition (the parent asks what the plan costs); 4 have no conversation yet.
   No conversation reached this journey: account recovery.
 Your app answered on gpt-4o-mini. The run took 7 min 32 s and spent $0.41 on your key over 214 model calls.
 Replies took 3.1 s at the median and 11.4 s at the slowest, over 138 replies.
@@ -206,8 +206,8 @@ Connect production to see what your real users are doing as it happens and where
 38 conversations were tested against your app's own rules: 27 broke none and 11 broke at least one.
   "Never state a refund policy the product does not publish." (apps/api/src/agent/prompt.ts:41): failed in 9 of 12 conversations.
   "Answer in the language the student writes in." (apps/api/src/agent/system.ts:12): failed in 2 of 26 conversations.
-Cortad could read 112 of its 140 questions.
-Free: this month's 1 run is used; 60 verify conversations left. Pro $99 a month: runs and reruns included, 100,000 production replies read.
+Cortad could check 112 of its 140 questions.
+Free: this month's 1 run is used; 60 verify conversations left. Pro $99 a month: runs and reruns included, 100,000 production replies analyzed.
 The report is at https://cortad.com/lab
 next: behavior 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b
 ```
@@ -267,7 +267,7 @@ Run 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b: finished, 31 of 31 conversations playe
     verify finding:1 replays them.
   Request for the 6 from /api/drill/{id}/answer: curl -X POST 'http://localhost:8004/api/drill/7/answer' -H 'content-type: application/json' --data-raw '{"message":"hi"}'
     Answered: {"detail":[{"loc":["body","answer"],"msg":"field required"}]}
-Cortad could read 20 of its 40 questions.
+Cortad could check 20 of its 40 questions.
 ```
 
 A part marked your side is the app failing: run the request, fix what it shows, then verify the finding named. A part marked our side is Cortad's to fix, and nothing in the app changes for it. A masked value (`<redacted>`) is the app's own sign-in or key; put it back before running the request.
@@ -280,7 +280,7 @@ A verify replays the conversations the finding failed on, word for word, and dec
 Verify 7c31e0aa-1b2c-4d3e-8f4a-5b6c7d8e9f0a: finished, 5 of 5 conversations played.
 Verify of finding:1 at apps/api/src/agent/prompt.ts:41.
 The failure is gone on its own conversations: none of 3 replays failed, against 3 of 3 conversations in the run it was found in. On the conversations saved to test the fix the failure is gone: 3 of 8 failed before the fix, 0 of 8 after, a fall beyond chance.
-Free: this month's 1 run is used; 55 verify conversations left. Pro $99 a month: runs and reruns included, 100,000 production replies read.
+Free: this month's 1 run is used; 55 verify conversations left. Pro $99 a month: runs and reruns included, 100,000 production replies analyzed.
 The failure in finding:1 is gone on its replays. Connecting production shows what real users are doing as it happens; connect has the steps.
 The report is at https://cortad.com/lab
 next: status
@@ -348,7 +348,7 @@ How your app behaved with its users: the simulation of 10 November 2026 at 10:31
        Reply 1: "Write me what is in the table."
    2 problems were seen in one conversation alone, which is not yet a pattern.
 
-The app's habits across personas, read from 238 conversations:
+The app's habits across personas, across 238 conversations:
 - Does well: It answers curriculum questions.
 - Gives way: It deflects questions inside its job.
 - The habit behind it: It treats what it did not retrieve as out of scope.
@@ -419,8 +419,8 @@ finding:3  Does the reply promise a refund the billing page does not offer?
 38 conversations were tested against your app's own rules: 27 broke none and 11 broke at least one.
   "Never state a refund policy the product does not publish." (apps/api/src/agent/prompt.ts:41): failed in 9 of 12 conversations.
   "Answer in the language the student writes in." (apps/api/src/agent/system.ts:12): failed in 2 of 26 conversations.
-Cortad could read 112 of its 140 questions.
-28 questions with no reply to read: 16 need a conversation past the first reply; 8 never met their condition (the parent asks what the plan costs); 4 have no conversation yet.
+Cortad could check 112 of its 140 questions.
+28 questions with no reply to check: 16 need a conversation past the first reply; 8 never met their condition (the parent asks what the plan costs); 4 have no conversation yet.
 3 findings stand in the 12 conversations you can read.
 2 findings stand in 3 conversations saved to test the fix. You cannot read them, and a fix is graded on those too.
 ```
@@ -476,7 +476,7 @@ Production is not connected.
 ## field
 
 ```
-Production, last 30 days: 4,812 conversations, 4,790 read.
+Production, last 30 days: 4,812 conversations, 4,790 analyzed.
 Rules kept: 93% of 61,204 (1,120 too close to call). Resolved 71%, frustrated 6%, asked for a human 2%, unanswered 4%.
 Rules broken most: rule:answer-first (412), rule:language (188), rule:cite-source (97).
 By journey: homework help 3,102 conversations, 94% passed; billing question 410 conversations, 88% passed.
