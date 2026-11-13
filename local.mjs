@@ -443,17 +443,25 @@ function refused(b) {
   try { mkdirSync(homeOf(project), { recursive: true, mode: 0o700 }); appendFileSync(join(homeOf(project), "refused.log"), `${new Date().toISOString()} ${asked}\n`, { mode: 0o600 }); } catch { /* said in this terminal */ }
   return { success: false, exitCode: 126, stdout: "", stderr: `refused: this machine runs only Cortad's own operations (${Object.keys(OPS).join(", ")}), never a command it is sent` };
 }
+const OUTPUT_SENT = 20_000;
 function runLocked(cmd) {
   if (!lock) return { success: false, exitCode: 126, stdout: "", stderr: "refused: this machine has no sandbox tool (sandbox-exec or bubblewrap), so nothing is run here" };
   const { file, args } = lock.wrap(cmd);
   return new Promise((done) => {
     const child = spawn(file, args, { cwd: root, env: plainEnv, stdio: ["ignore", "pipe", "pipe"] });
     let out = "", err = "";
-    const cap = (s, chunk) => (s.length < 2_000_000 ? s + chunk : s);
-    child.stdout.on("data", (d) => { out = cap(out, d.toString()); });
-    child.stderr.on("data", (d) => { err = cap(err, d.toString()); });
+    // Kept a little past what is sent, so a value cut at the edge is still whole when it is masked.
+    const tail = (s, chunk) => (s + chunk).slice(-(OUTPUT_SENT + 4096));
+    child.stdout.on("data", (d) => { out = tail(out, d.toString()); });
+    child.stderr.on("data", (d) => { err = tail(err, d.toString()); });
     const timer = setTimeout(() => child.kill("SIGKILL"), 280_000);
-    child.on("close", (code) => { clearTimeout(timer); done({ success: code === 0, exitCode: code ?? 1, stdout: mask(out), stderr: mask(err) }); });
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      // The last OUTPUT_SENT characters of the two together, the error stream's first.
+      const stderr = mask(err).slice(-OUTPUT_SENT);
+      const room = OUTPUT_SENT - stderr.length;
+      done({ success: code === 0, exitCode: code ?? 1, stdout: room > 0 ? mask(out).slice(-room) : "", stderr });
+    });
     child.on("error", (e) => { clearTimeout(timer); done({ success: false, exitCode: 127, stdout: "", stderr: String(e.message) }); });
   });
 }
