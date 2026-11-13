@@ -107,6 +107,8 @@
     "lib/history/db/pending.mjs",
     "lib/history/db/index.mjs",
     "lib/history/db/milvus.mjs",
+    "lib/history/db/dynamo.mjs",
+    "lib/history/db/sigv4.mjs",
     "lib/py/dbread.py"
   ],
   "scripts": {
