@@ -152,6 +152,7 @@ A finding that sends customers away counts, for one journey or one endpoint, the
 
 ```
 Simulation 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b: finished, 51 of 51 conversations played.
+This is the first simulation, started 9 minutes ago by your coding agent. Its conversations were written from your code; 51 conversations played.
 This was the first simulation, the baseline: 51 conversations written from your code. All of them came from the 3 simulated users below.
 The simulated users, as Cortad found them in your code:
   student in grade 9: Finish tonight's algebra homework without being caught out in class tomorrow. Writes short lowercase messages, typos, sometimes Spanish. 27 conversations; 23 of 27 completed fully or partly (16 fully): 85% (68% to 94%, the likely range).
@@ -229,6 +230,7 @@ Finished, it leads with what moved: each behavior whose failing count changed on
 
 ```
 Simulation 9a10b3d2-7c8d-4e9f-8a1b-2c3d4e5f6a7b: finished, 34 of 34 conversations played.
+This is the second simulation, started 5 minutes ago when you pressed Start simulation. Its conversations were written from your code; 34 conversations played. The first simulation, started 2 hours ago, played 51 conversations written from your code; behavior with at: 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b shows it.
 "Does the reply state a refund policy the product does not publish?" went from 7 failing to 0 of 22. 12 new conversations on billing question, order tracking: nothing else broke.
 Since run 8f2a1c4e, 1 file changed (apps/api/src/agent/prompt.ts), touching the prompt in apps/api/src/agent/prompt.ts. They reach POST /api/chat. This simulation replays the 22 conversations there from that simulation, so each pairs with its earlier self, and adds 12 new conversations written for the change on billing question, order tracking (5 of them open the way your production customers did). Left out: 7 conversations on POST /api/homework/upload, which nothing that changed reaches.
 Better: "Does the reply state a refund policy the product does not publish?" went from 7 failing to 0 of 22 conversations, beyond chance.
@@ -243,6 +245,7 @@ Your app answered on gpt-4o-mini. The simulation took 3 min 8 s and spent $0.19 
 Replies took 2.9 s at the median and 9.8 s at the slowest, over 81 replies.
 Nothing broke that only running your app could show.
 The next simulation is compared with run 8f2a1c4e, the last simulation that played every conversation, with everything that changed since then in its scope.
+Groq limited your app's requests 3 times; your app switched to another model each time.
 Pro: 8 of 10 simulations left this month; 560 verify conversations left.
 The report is at https://cortad.com/lab
 next: behavior 9a10b3d2-7c8d-4e9f-8a1b-2c3d4e5f6a7b
@@ -334,6 +337,7 @@ next: status
 How the app behaved with its users at one point, top down: the line, each persona largest first with who they are, how they behave, how many achieved their goal, what the app did well and where it gave way, the app's habits, and last the code. Only simulated conversations are quoted; a production conversation is its id and the address where the owner reads it. `persona` lists every conversation of one persona; `against` gives each persona's moves with ranges; `history` is one line a point.
 
 ```
+This is the first simulation, started 2 hours ago by your coding agent. Its conversations were written from your code; 206 conversations played.
 How your app behaved with its users: the simulation of 10 November 2026 at 10:31 UTC on commit c6b655c ("fix(rag): retrieval on BM25").
 14 simulated users of 1 persona, in 206 conversations. Of the 197 conversations where it could be told, 133 achieved their goal: 68% (61% to 74%).
 
