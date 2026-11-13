@@ -45,17 +45,12 @@ These are never sent:
   with the header `x-cortad-simulation: 1`. Your app's replies go to Cortad. Your app stores the
   conversations wherever it stores its own chats. A simulation starts only after your yes, given in
   the browser or to your coding agent.
-- **Your app's model calls.** What your app sent its model while answering a test message, including
-  anything it retrieved, and what the model answered.
+- **Your app's model calls.** What your app sent its model while answering a test message, and what
+  the model answered.
 - **Your app's routes,** as your app lists them.
-- **Samples of your app's own content.** Where your app uses a search or vector store (such as Qdrant
-  or Elasticsearch), the command opens it on your machine at the address in your app's env, and
-  only there: an address Cortad's server sends is ignored, and a key goes only to the store of its
-  own variable family (`QDRANT_API_KEY` to the host in `QDRANT_URL`). It sends up to 60 records per
-  collection, each cut to 700 characters, after the same rules as production history below remove
-  personal details. For a document folder your env names, it sends each file's name and first line,
-  only from inside the project folder. Simulated users then ask about your real content.
-  `--no-samples` turns this off, and so does `--agent-picks`.
+- **Samples of your app's own content,** from the search or vector stores your app's env names,
+  opened on your machine, with personal details removed by the same rules as production history
+  below, so simulated users ask about your real content. `--no-samples` turns this off.
 - **Your app's output,** masked: the first error line printed while answering each test message, up
   to 2,000 characters when Cortad asks for the log, and the last 2,000 characters when your app fails to
   start or stops answering. All of it stays on your machine in `~/.cortad/<project>/app.log` (file
@@ -73,8 +68,9 @@ output and in everything it sends.
 
 - Send requests to your app's own port, and to no other port or host, the way a visitor of your app
   does. The replies go to Cortad. Where an endpoint needs a signed-in user and you send it one message
-  yourself, later test messages to that endpoint carry that same sign-in. To learn the request your own page makes, the command may open that page
-  on your machine in a headless browser; nothing the browser sees is sent.
+  yourself, later test messages to that endpoint carry that same sign-in. To learn the request your
+  own page makes, the command may open that page on your machine in a headless browser; nothing the
+  browser sees is sent.
 - Get a copy of a file it was sent, and of no other.
 - Take samples of your app's stores, as above.
 - Restart your app with your own start command.
@@ -96,9 +92,8 @@ Any other command the server sends is refused and noted in `~/.cortad/<project>/
 - Cortad's tools and skill are added to one coding agent, inside this project only: the agent running
   the connect, or on a plain terminal the one you name, or none. For Claude Code its entry is the
   per-project one in `~/.claude.json`, as `claude mcp add` writes it; nothing else is written to your
-  home folder for any agent, and a Cortad skill an older version left there is removed. The command prints
-  every file it changed, `cortad unstick` removes the skill, and `README.md` lists every file it
-  creates.
+  home folder for any agent. The command prints every file it changed, `cortad unstick` removes the
+  skill, and `README.md` lists every file it creates.
 
 ## Production conversations, when you send them
 
