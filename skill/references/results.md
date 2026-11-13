@@ -62,10 +62,7 @@ Rules in the code: 46, in 5 files. 3 of them:
   apps/api/src/tools/search.ts:8  "Cite the lesson a fact comes from."
 Journeys (4): homework help; billing question; account recovery; first lesson.
 Simulated users (3): student in grade 9; parent paying for the plan; teacher checking progress.
-Engineering standards: your code misses 3 of the 38 Cortad standards.
-  apps/api/src/agent/client.ts:9  The model call has a timeout: the OpenAI client is created with no timeout, so a slow reply holds the request open (decided by code)
-  apps/api/src/agent/system.ts:30  User text stays out of the system prompt: the student's name is written into the system prompt (decided by a model)
-  apps/api/src/tools/search.ts:51  Tool errors reach the model as errors: search returns an empty list when the index is down (decided by a model)
+Engineering standards: your code misses 3 of the 38 Cortad standards. Each problem is listed by status with show standards.
 Conversations set aside:
   POST /api/homework/upload: 7 conversations, on the app's side: the route needs a signed file URL, and no test account can make one
 Latest run 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b: running, 14 of 51 conversations played.

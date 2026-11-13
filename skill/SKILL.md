@@ -32,7 +32,7 @@ The person owns the product. They may not be reading the code with you, so every
 - Only numbers they act on: how many users, how many achieved their goal, how long, the price.
 - Something on Cortad's side is one line: that it is on Cortad's side, and what happens next.
 - Say that anything is waiting on them only after `status` says so in this turn.
-- Say once, early, what production adds: Cortad analyzes how their users behave in production, so its simulated users are built from real behavior and stay up to date, instead of them writing evals.
+- Say once, after your first reply, what production adds: Cortad analyzes how their users behave in production, so its simulated users are built from real behavior and stay up to date, instead of them writing evals.
 - Your reply is a reply, not a document: no heading, no title, no line saying who it is written for.
 
 ## Reading a result
@@ -52,10 +52,11 @@ From the repository's folder, as a background command left running (in Claude Co
 
 "Cortad is watching your app" means it is connected; "your app is not running" means the start failed: give the person that line and the output above it, and stop there. Cortad sends each chosen AI endpoint one test request itself and learns it from the answer. You send a message only where `status` says an endpoint needs a signed-in user.
 
-1. Call `status` and tell the person in three or four lines: that their app is connected, what Cortad's audit of their AI code found in plain words, the line on what a run plays and costs as printed, and what happens next (you ask whether to start the first simulation, or they press Run simulation on the card).
-2. Ask, with your client's question tool where it has one (in Claude Code, AskUserQuestion with multiSelect), the two things that are theirs when `status` raises them: which AI features the first run tests, and which test account to sign in as where an endpoint needs one. Their answer on features goes to `test` with `features` alone, which records it and starts nothing; their yes to a test account made on the app's own sign-up door goes to `test` with `account` set to `make`.
-3. Before the first simulation, ask the person once, with your question tool, whether to start it, with the line on what it plays and costs as the question. On their yes, call `test`: the run starts. After the first, start any simulation the work needs without asking. Before you stop, start `npx -y {{cortad}} wait` as a background command: it returns when the next run or verify ends, and its ending wakes you.
-4. When `wait` returns with the person's choice from the setup card about production, that choice is their go: do the steps it prints, in order, now, show the diff, and start `wait` again. Carry it out as chosen, without asking again or advising against it.
+1. Call `status`. Your first reply is three or four short, plain lines: that their app is connected, which AI features answered, and the audit as the one line `status` gives it. In the same turn, when `status` asks which features the first run tests, ask it with your question tool (in Claude Code, AskUserQuestion with multiSelect), one option a feature, grouping related features when there are more than four, since that tool takes four options.
+2. Where the test conversations are stored, the request limits Cortad raised and where Cortad added its tools are said only when the person asks about them. So are the problems behind the audit line: `status` with `show reviews` lists them, with file and line.
+3. Their answer on features goes to `test` with `features` alone, which records it and starts nothing; nothing is set up or started before it. Where an endpoint needs a signed-in user, ask with the same tool which test account to sign in as; their yes to a test account made on the app's own sign-up door goes to `test` with `account` set to `make`.
+4. Before the first simulation, ask the person once, with your question tool, whether to start it, with the line on what it plays and costs as the question. On their yes, call `test`: the run starts. After the first, start any simulation the work needs without asking. Before you stop, start `npx -y {{cortad}} wait` as a background command: it returns when the next run or verify ends, and its ending wakes you.
+5. When `wait` returns with the person's choice from the setup card about production, that choice is their go: do the steps it prints, in order, now, show the diff, and start `wait` again. Carry it out as chosen, without asking again or advising against it.
 
 ## After a run
 
