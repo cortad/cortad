@@ -192,7 +192,7 @@ const heldLine = (held) => `another cortad is already connected in this folder: 
 function holdProject() {
   const held = claimRunner(project, { ...me, state: "starting", at: new Date().toISOString() });
   if (!held) return;
-  if (viaToken) { say(`pid ${held.pid} already holds this project's app up and serves the run`); process.exit(0); }
+  if (viaToken) { say(`pid ${held.pid} already holds this project's app up and serves the simulation`); process.exit(0); }
   fail(heldLine(held));
 }
 // A verb waits on this record from the moment it starts this process, so it is taken first.
@@ -610,7 +610,7 @@ async function verb(job) {
         if (!later || got.status < 200 || got.status >= 300) return got;
         const until = began + Math.min(holdMs, laterMs > 0 ? laterMs : Infinity) - LATER_MARGIN_MS;
         const said = capture ? await capture.answered(turn || headers["x-cortad-turn"], until, letGo) : null;
-        if (letGo.aborted) return { error: "cancelled by the run" };
+        if (letGo.aborted) return { error: "cancelled by the simulation" };
         if (!said?.reply.trim()) return { ...got, headers: { ...got.headers, [LATER_MISSED]: JSON.stringify(said ? { model: said.status } : { waited: Math.round((Date.now() - began) / 1000) }) } };
         // The app's own reply rides beside the answer: the thread it opened is named there and nowhere
         // else, and a run's next message on that conversation sends it back.
@@ -619,13 +619,13 @@ async function verb(job) {
       };
       try { return await answered(await counted()); }
       catch (e) {
-        if (letGo.aborted) return { error: "cancelled by the run" };
+        if (letGo.aborted) return { error: "cancelled by the simulation" };
         const code = String(e.cause?.code ?? e.code ?? "");
         if (!/ECONNREFUSED|ECONNRESET|EPIPE|UND_ERR_SOCKET/.test(code)) return { error: `nothing answered at port ${port}: ${code || e.message}` };
         // Held through a restart of ours however long it takes: a request it cut is sent again after it.
         for (let i = 0; (i < 45 || restarting) && !letGo.aborted && !(await answers(app.port)); i++) await new Promise((r) => setTimeout(r, 1000));
         try { return { ...(await answered(await counted())), heldForRestart: true }; }
-        catch (again) { return { error: letGo.aborted ? "cancelled by the run" : `nothing answered at port ${port}: ${String(again.cause?.code ?? again.message)}` }; }
+        catch (again) { return { error: letGo.aborted ? "cancelled by the simulation" : `nothing answered at port ${port}: ${String(again.cause?.code ?? again.message)}` }; }
       } finally { held.done(job.id); }
     }
     // The run gave up on a request it asked for: its wait ran out, or the run ended.
@@ -820,7 +820,7 @@ async function useProxy() {
     onUnseen: (door) => { unseen = door; noted(); say(unseenText(door)); },
   });
   keepStart({ modelPort: proxy.modelPort });
-  say("your app's model calls are seen through a local proxy on this machine, so the line of code that made each call is not known. During a run, its calls to other services go out as they would for a real customer: a conversation that books, charges or emails does it for real");
+  say("your app's model calls are seen through a local proxy on this machine, so the line of code that made each call is not known. During a simulation, its calls to other services go out as they would for a real customer: a conversation that books, charges or emails does it for real");
 }
 const sayIf = (line) => { if (line) say(line); };
 // An app run in a container: the proxy's settings never reach it, and 127.0.0.1 inside it is not this machine.
@@ -1008,7 +1008,7 @@ async function restartNow() {
   if (moved) app = up;
   const told = await announce().catch(() => null);
   if (moved && !told?.ok) return { error: `Your app came back on port ${up.port}, not ${port}. Run the command again to reconnect.` };
-  if (moved) say(`your app came back on port ${up.port}; the run follows it there`);
+  if (moved) say(`your app came back on port ${up.port}; the simulation follows it there`);
   return { restarted: true, port: up.port };
 }
 const sentence = (s) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -1524,7 +1524,7 @@ if (argv.includes("--until-idle") && stored) {
   setInterval(async () => {
     const res = await call("GET", "/mcp/status?quiet=1", undefined, { headers: { authorization: `Bearer ${stored}` } }).catch(() => null);
     if (res?.ok && res.data?.run && !finished(res.data.run)) idleSince = Date.now();
-    else if (Date.now() - idleSince > IDLE_MS) { say("no run for ten minutes, leaving"); await close(0); }
+    else if (Date.now() - idleSince > IDLE_MS) { say("no simulation for ten minutes, leaving"); await close(0); }
   }, 60_000).unref();
 }
 

@@ -40,7 +40,7 @@ One of them refused a visitor: ask the person first, with your question tool and
 An endpoint that hands back a turn and answers afterwards stays on this list until Cortad has seen the answer its model wrote: the first reply alone does not take it off.
 Which of these the first simulation tests is the person's choice: ask them now with your question tool (in Claude Code, AskUserQuestion with multiSelect), one option a feature, and record the answer with test and features; or they tick them on the card in the browser.
 A simulation plays 36 simulated users in about 6 minutes. About $0.38 on your OpenAI key.
-A simulation starts when the person presses Run simulation on the card in the browser or asks you for one; if they say they pressed it, call test rather than ask them again.
+A simulation starts when the person presses Start simulation on the card in the browser or asks you for one; if they say they pressed it, call test rather than ask them again.
 next: start `npx -y cortad wait` in the background now (in Claude Code, Bash with run_in_background); it returns when a simulation or verify ends, including one the person starts with Start simulation, or with the person's choice on the setup card
 ```
 
@@ -261,18 +261,18 @@ A simulation after the first one plays what the files changed since the last sim
 
 ```
 Simulation 9a10b3d2-7c8d-4e9f-8a1b-2c3d4e5f6a7b: running, 9 of 34 conversations played.
-Since run 8f2a1c4e, 1 file changed (apps/api/src/agent/prompt.ts), touching the prompt in apps/api/src/agent/prompt.ts. They reach POST /api/chat. This simulation replays the 22 conversations there from that simulation, so each pairs with its earlier self, and adds 12 new conversations written for the change on billing question, order tracking (5 of them open the way your production customers did). Left out: 7 conversations on POST /api/homework/upload, which nothing that changed reaches.
+Since simulation 8f2a1c4e, 1 file changed (apps/api/src/agent/prompt.ts), touching the prompt in apps/api/src/agent/prompt.ts. They reach POST /api/chat. This simulation replays the 22 conversations there from that simulation, so each pairs with its earlier self, and adds 12 new conversations written for the change on billing question, order tracking (5 of them open the way your production customers did). Left out: 7 conversations on POST /api/homework/upload, which nothing that changed reaches.
 9 of 34 conversations done.
 next: simulation_status 9a10b3d2-7c8d-4e9f-8a1b-2c3d4e5f6a7b
 ```
 
-Finished, it leads with what moved: each behavior whose failing count changed on the conversations both runs played, worse before better, whether the move is beyond chance, its file and line, and the conversation that turned, with what it said before and now. The rest is one line, then any new findings on the conversations written for the change, then the simulation cut open as above:
+Finished, it leads with what moved: each behavior whose failing count changed on the conversations both simulations played, worse before better, whether the move is beyond chance, its file and line, and the conversation that turned, with what it said before and now. The rest is one line, then any new findings on the conversations written for the change, then the simulation cut open as above:
 
 ```
 Simulation 9a10b3d2-7c8d-4e9f-8a1b-2c3d4e5f6a7b: finished, 34 of 34 conversations played.
 This is the second simulation, started 5 minutes ago when you pressed Start simulation. Its conversations were written from your code; 34 conversations played. The first simulation, started 2 hours ago, played 51 conversations written from your code; behavior with at: 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b shows it.
 "Does the reply state a refund policy the product does not publish?" went from 7 failing to 0 of 22. 12 new conversations on billing question, order tracking: nothing else broke.
-Since run 8f2a1c4e, 1 file changed (apps/api/src/agent/prompt.ts), touching the prompt in apps/api/src/agent/prompt.ts. They reach POST /api/chat. This simulation replays the 22 conversations there from that simulation, so each pairs with its earlier self, and adds 12 new conversations written for the change on billing question, order tracking (5 of them open the way your production customers did). Left out: 7 conversations on POST /api/homework/upload, which nothing that changed reaches.
+Since simulation 8f2a1c4e, 1 file changed (apps/api/src/agent/prompt.ts), touching the prompt in apps/api/src/agent/prompt.ts. They reach POST /api/chat. This simulation replays the 22 conversations there from that simulation, so each pairs with its earlier self, and adds 12 new conversations written for the change on billing question, order tracking (5 of them open the way your production customers did). Left out: 7 conversations on POST /api/homework/upload, which nothing that changed reaches.
 Better: "Does the reply state a refund policy the product does not publish?" went from 7 failing to 0 of 22 conversations, beyond chance.
   At apps/api/src/agent/prompt.ts:41
   Conversation 41c2e0b7, sent: "Can I get my money back if I cancel this week?"
@@ -280,11 +280,11 @@ Better: "Does the reply state a refund policy the product does not publish?" wen
     Now: "I can't confirm a refund policy here; the billing page has the current terms."
 Better: "Does the reply answer in the language the student wrote in?" went from 2 failing to 1 of 22 conversations, not beyond chance at this count.
   At apps/api/src/agent/system.ts:12
-31 other behaviors did not move on the conversations both runs played; 2 of them fail in both.
+31 other behaviors did not move on the conversations both simulations played; 2 of them fail in both.
 Your app answered on gpt-4o-mini. The simulation took 3 min 8 s and spent $0.19 on your key over 96 model calls.
 Replies took 2.9 s at the median and 9.8 s at the slowest, over 81 replies.
 Nothing broke that only running your app could show.
-The next simulation is compared with run 8f2a1c4e, the last simulation that played every conversation, with everything that changed since then in its scope.
+The next simulation is compared with simulation 8f2a1c4e, the last simulation that played every conversation, with everything that changed since then in its scope.
 Groq limited your app's requests 3 times; your app switched to another model each time.
 Pro: 8 of 10 simulations left this month; 560 verify conversations left.
 The report is at https://cortad.com/lab
@@ -296,8 +296,8 @@ Stopped early. Each stop and fault names the side it is on and what comes next:
 ```
 Simulation 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b: finished, 11 of 51 conversations played.
 1 finding.
-Stopped at 11 of 51 conversations, on the app's side: your app stopped answering after 11 replies. Bring your app back up, then run again.
-Fault on the app's side: Your code names llama-3.1-8b-instant, which api.groq.com does not serve. Rename the model in your code, then run again.
+Stopped at 11 of 51 conversations, on the app's side: your app stopped answering after 11 replies. Bring your app back up, then start the simulation again.
+Fault on the app's side: Your code names llama-3.1-8b-instant, which api.groq.com does not serve. Rename the model in your code, then start the simulation again.
 The report is at https://cortad.com/lab
 next: behavior 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b
 ```
@@ -305,7 +305,7 @@ next: behavior 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b
 Replies that did not count come before the counts, each part saying whose it is, with the request to paste where there is one:
 
 ```
-Run 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b: finished, 31 of 31 conversations played.
+Simulation 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b: finished, 31 of 31 conversations played.
 17 of 33 replies did not count: 9 answered HTTP 502 at backend/app/api/resume_writing.py:91 (your side; request below), 6 answered HTTP 422 to the request Cortad built for POST /api/drill/{id}/answer (our side; request below), 2 got no answer from /api/chat before Cortad stopped waiting at 90 seconds (our side).
   Request for the 9 at backend/app/api/resume_writing.py:91: curl -X POST 'http://localhost:8004/api/resume/writing' -H 'authorization: <redacted>' -H 'content-type: application/json' --data-raw '{"message":"rewrite my summary"}'
     Answered: Bad Gateway
@@ -421,7 +421,7 @@ next: behavior with persona: "Asks for a summary" shows how that persona fared a
 
 ## findings
 
-What only running the app could show comes first, the findings that may lead before the rest, then the app stopping mid-run, then what a code review would also have found and the open gates last, each counted in conversations, at its endpoint, with its rate and range. A finding failed in two conversations or more. "Played again" counts the fresh conversations of the same ask that failed again. What the app's promises measured comes after the findings. A list longer than one page ends with `page 1 of 3, call findings with page 2`.
+What only running the app could show comes first, the findings that may lead before the rest, then the app stopping during the simulation, then what a code review would also have found and the open gates last, each counted in conversations, at its endpoint, with its rate and range. A finding failed in two conversations or more. "Played again" counts the fresh conversations of the same ask that failed again. What the app's promises measured comes after the findings. A list longer than one page ends with `page 1 of 3, call findings with page 2`.
 
 ```
 Simulation 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b: 3 findings.
@@ -476,7 +476,7 @@ Cortad could check 112 of its 140 questions.
 Every number the simulation measured, one table per measurement and per question, each group on its own row: its counts in the order the table names, of how many conversations or replies, and the 95% interval on the share named. A group saved to test a fix shows its numbers and never its exchanges.
 
 ```
-Run 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b: every number it measured, 6 measurements and 112 questions over 51 conversations, 138 replies and 9,806 readings.
+Simulation 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b: every number it measured, 6 measurements and 112 questions over 51 conversations, 138 replies and 9,806 readings.
 A conversation counts once in each group it played in; a reply split counts each conversation at that reply.
 
 Where each conversation ended, at its last reply
