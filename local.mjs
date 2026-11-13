@@ -156,7 +156,7 @@ const fromSaved = !typedNow && Boolean(typed);
 // fall back to sending the connect's own choice. A code from the connect screen says afresh.
 const picks = own.includes("--agent-picks") || (!code && keptStart.picks === true);
 // No store of the app's is opened for samples (lib/sample.mjs). Kept like picks, and implied by it:
-// an agent that chooses every file sent also chooses that no store is read.
+// an agent that chooses every file sent also chooses that no store is opened.
 const noSamples = picks || own.includes("--no-samples") || (!code && keptStart.noSamples === true);
 // A port saved beside the command (a container's) is watched again on a reconnect with the code alone.
 const wantedPort = Number(flag("--port")) || (!typedNow ? Number(keptStart.port) || 0 : 0);
@@ -664,9 +664,11 @@ async function verb(job) {
         // Masked before it is cut, so a value is never cut in two where the mask could no longer see it.
         const wide = mask(all.subarray(Math.max(0, all.length - want - 4096)).toString("utf8").replace(/\x1b\[[0-9;]*[A-Za-z]/g, ""));
         const text = wide.slice(-want);
-        // A JVM stack names a class, not a path: the source files it could be are sent with it, from what was sent already.
+        // The files already sent, which the server matches a traceback's relative paths against. A JVM
+        // stack names a class, not a path: only the JVM sources are the files it could be.
         const jvm = /\bat\s+[\w$.]+\([\w$]+\.(?:java|kt|scala|groovy):\d+\)/.test(text);
-        return { text, size: all.length, ...(jvm ? { files: [...(layer?.set ?? [])].filter((f) => /\.(?:java|kt|scala|groovy)$/.test(f)).slice(0, 20_000) } : {}) };
+        const sent = [...(layer?.set ?? [])].filter((f) => !jvm || /\.(?:java|kt|scala|groovy)$/.test(f));
+        return { text, size: all.length, files: sent.slice(0, 20_000) };
       } catch { return { text: "", size: 0 }; }
     }
     // The person changed what they said yes to while this command runs.
