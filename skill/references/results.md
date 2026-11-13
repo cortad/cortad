@@ -37,7 +37,7 @@ Endpoints found in your code that Cortad has seen no answer from yet (2):
 Once a failure above is fixed, call test with endpoints to send its test request again.
 One of them refused a visitor: ask the person for a test account to sign in as (an existing one; Cortad makes none), or whether to leave it out of the first run.
 An endpoint that hands back a turn and answers afterwards stays on this list until Cortad has seen the answer its model wrote: the first reply alone does not take it off.
-Which of these the first run tests is the person's choice: ask them now and record the answer with test and features, or they tick them on the card in the browser.
+Which of these the first run tests is the person's choice: ask them now with your question tool (in Claude Code, AskUserQuestion with multiSelect), one option a feature, and record the answer with test and features; or they tick them on the card in the browser.
 A run plays 36 simulated users in about 6 minutes. About $0.38 on your OpenAI key.
 A run starts when the person presses Run simulation on the card in the browser or asks you for one; if they say they pressed it, call test rather than ask them again.
 ```
@@ -209,7 +209,7 @@ Connect production to see what your real users are doing as it happens and where
 38 conversations were tested against your app's own rules: 27 broke none and 11 broke at least one.
   "Never state a refund policy the product does not publish." (apps/api/src/agent/prompt.ts:41): failed in 9 of 12 conversations.
   "Answer in the language the student writes in." (apps/api/src/agent/system.ts:12): failed in 2 of 26 conversations.
-112 of 140 questions answered.
+Cortad could read 112 of its 140 questions.
 Free: this month's 1 run is used; 60 verify conversations left. Pro $99 a month: runs and reruns included, 100,000 production replies read.
 The report is at https://cortad.com/lab
 next: behavior 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b
@@ -270,7 +270,7 @@ Run 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b: finished, 31 of 31 conversations playe
     verify finding:1 replays them.
   Request for the 6 from /api/drill/{id}/answer: curl -X POST 'http://localhost:8004/api/drill/7/answer' -H 'content-type: application/json' --data-raw '{"message":"hi"}'
     Answered: {"detail":[{"loc":["body","answer"],"msg":"field required"}]}
-20 of 40 questions answered.
+Cortad could read 20 of its 40 questions.
 ```
 
 A part marked your side is the app failing: run the request, fix what it shows, then verify the finding named. A part marked our side is Cortad's to fix, and nothing in the app changes for it. A masked value (`<redacted>`) is the app's own sign-in or key; put it back before running the request.
@@ -422,7 +422,7 @@ finding:3  Does the reply promise a refund the billing page does not offer?
 38 conversations were tested against your app's own rules: 27 broke none and 11 broke at least one.
   "Never state a refund policy the product does not publish." (apps/api/src/agent/prompt.ts:41): failed in 9 of 12 conversations.
   "Answer in the language the student writes in." (apps/api/src/agent/system.ts:12): failed in 2 of 26 conversations.
-112 of 140 questions answered.
+Cortad could read 112 of its 140 questions.
 28 questions with no reply to read: 16 need a conversation past the first reply; 8 never met their condition (the parent asks what the plan costs); 4 have no conversation yet.
 3 findings stand in the 12 conversations you can read.
 2 findings stand in 3 conversations saved to test the fix. You cannot read them, and a fix is graded on those too.

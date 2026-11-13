@@ -45,6 +45,7 @@ import { downLine, makeHealth } from "./lib/health.mjs";
 import { markRun, writesDirOf, writtenPaths } from "./lib/writes.mjs";
 import { makeHeld } from "./lib/held.mjs";
 import { answerAsk, ASK, makeAutoReach, takeAsk } from "./lib/auto-reach.mjs";
+import { SIMULATION_HEADER } from "./lib/reach.mjs";
 import { clientOriginOf, envOf, keysFromEnv } from "./lib/origins.mjs";
 import { forgetSignIn, keptSignIn, mintJwt, rememberSignIn, signUpAndIn, testAccount } from "./lib/sign-in.mjs";
 import { clientRequestOf } from "./lib/browser-rung.mjs";
@@ -439,6 +440,7 @@ async function verb(job) {
           for (const [name, value] of Object.entries(theirs ?? {})) { for (const k of Object.keys(headers)) if (k.toLowerCase() === name) delete headers[k]; headers[name] = value; }
         }
       }
+      headers[SIMULATION_HEADER] = "1";
       const method = String(b.method ?? "GET").toUpperCase();
       // A gRPC door: dialled with the app's own @grpc/grpc-js and its .proto files (lib/grpc.mjs); the
       // reply comes back as JSON text the way an HTTP door's body does.
