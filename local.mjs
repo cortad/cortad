@@ -1075,8 +1075,8 @@ for (const named of envFilesNamedIn(typed, appDir)) if (!envFiles.includes(named
 const shellSecrets = environmentSecrets(process.env);
 secrets = secretValues(envFiles, shellSecrets);
 envKeys = [...secretEnvValues(envFiles, (f) => readFileSync(f, "utf8")), ...shellSecrets];
-const kept = [];
-for (let i = files.length - 1; i >= 0; i -= 1) if (carriesKey(files[i])) kept.unshift(...files.splice(i, 1));
+const keyed = [];
+for (let i = files.length - 1; i >= 0; i -= 1) if (carriesKey(files[i])) keyed.unshift(...files.splice(i, 1));
 // What a connect sends, and all --explain prints, from this one function: the AI layer the read's own
 // parsers choose (lib/layer.mjs), less every data file, which --explain names as held back. The rest
 // of the folder is never sent, and a read may not ask for it later (readable).
@@ -1088,16 +1088,19 @@ const mayOpen = (rel) => {
   if (!(walked ??= new Set(files)).has(rel) || !shareable(rel)) return false;
   try { return !isData(rel, statSync(join(root, rel)).size) && !carriesKey(rel); } catch { return false; }
 };
+// A file with a key in it is read with the rest only so that one the layer picks is said as held.
 const toSend = () => {
-  const candidates = candidatesOf(files);
+  const candidates = candidatesOf([...files, ...keyed]);
   const chosen = layerOf(candidates);
   const size = new Map(candidates.map((c) => [c.path, c.size]));
-  const kept = chosen.files.filter((rel) => !isData(rel, size.get(rel)));
+  const key = (rel) => keyed.includes(rel);
+  const kept = chosen.files.filter((rel) => !isData(rel, size.get(rel)) && !key(rel));
   // What the person sent with `send` on an earlier connect stays sent.
   const sentBefore = readPicked(project).filter((rel) => !kept.includes(rel) && !judged(rel).why);
   const all = [...kept, ...sentBefore];
   const why = new Map([...kept.map((rel) => [rel, chosen.why.get(rel)]), ...sentBefore.map((rel) => [rel, "sent"])]);
-  return { ...chosen, files: all, why, data: chosen.files.filter((rel) => !kept.includes(rel)), fed: chosen.fed.filter((rel) => !all.includes(rel)) };
+  const held = [...chosen.held, ...[...chosen.files, ...chosen.fed].filter(key).map((path) => ({ path, why: "secret" }))].sort((a, b) => a.path.localeCompare(b.path));
+  return { ...chosen, files: all, why, data: chosen.files.filter((rel) => !kept.includes(rel) && !key(rel)), fed: chosen.fed.filter((rel) => !all.includes(rel) && !key(rel)), held };
 };
 // The files the agent picked, with the reason the AI layer's parsers give each, read across the
 // whole set so a route is seen reaching a model call in another file.
@@ -1142,7 +1145,7 @@ const pickedSet = (args) => {
 };
 // No network, no app started, nothing written.
 if (explain) {
-  console.log(explainText(toSend(), files.length));
+  console.log(explainText(toSend(), files.length + keyed.length));
   process.exit(0);
 }
 mkdirSync(work, { recursive: true });
