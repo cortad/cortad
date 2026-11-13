@@ -50,7 +50,7 @@ import { ADMIN_CONTROL, SIMULATION_HEADER } from "./lib/reach.mjs";
 import { clientOriginOf, envOf, keysFromEnv } from "./lib/origins.mjs";
 import { forgetSignIn, keptSignIn, mintAfterYes, rememberSignIn, signUpAndIn, testAccount } from "./lib/sign-in.mjs";
 import { clientRequestOf } from "./lib/browser-rung.mjs";
-import { layerOf, layerSaid } from "./lib/layer.mjs";
+import { layerOf, layerSaid, setsSecret } from "./lib/layer.mjs";
 import { ignoredBy, rulesOf } from "./lib/gitignore.mjs";
 import { explainText } from "./lib/explain-text.mjs";
 import { sourcesIn } from "./lib/history/sources.mjs";
@@ -276,8 +276,14 @@ function shareable(rel, askGit = true) {
 let listed = null;
 // Read the same way for the upload and for any read the engine asks for later.
 let envKeys = [];
+// A text file that is not code: a line in it that sets a password, token or key keeps it here, even
+// when the value is too short or unquoted to look like one.
+const TEXT_FILE = /\.(?:md|txt|ya?ml|json|ini|toml|cfg|conf|properties)$/i;
+// Why the file may not leave for what it holds, or null.
 function carriesKey(rel) {
-  try { return holdsKeys(readFileSync(join(root, rel), "utf8"), envKeys); } catch { return false; }
+  let text; try { text = readFileSync(join(root, rel), "utf8"); } catch { return null; }
+  if (holdsKeys(text, envKeys)) return "it holds a value from your env";
+  return TEXT_FILE.test(rel) && setsSecret(text) ? "a line in it sets a password, key or token" : null;
 }
 
 let secrets = [];
@@ -1106,8 +1112,7 @@ const refusalOf = (rel) => {
   const { size } = statSync(join(root, rel));
   if (isData(rel, size)) return "a data file (CSV, JSON Lines, Parquet, a spreadsheet or JSON over 64 KB), and data files never leave";
   if (size > MAX_FILE) return "too large";
-  if (carriesKey(rel)) return "it holds a value from your env";
-  return null;
+  return carriesKey(rel);
 };
 const judged = (arg) => {
   let landed; try { landed = realpathSync(resolve(root, String(arg))); } catch { return { arg, why: "no such file in this folder" }; }
