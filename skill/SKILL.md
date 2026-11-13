@@ -9,7 +9,7 @@ Cortad is a review of behavior, kept like history. Simulated users written from 
 
 ## Every change to the AI ends with a test
 
-When you change a prompt, a model call, a tool, retrieval, or a route that reaches them, call `test` with one sentence on what you built before you tell the person the work is done. Cortad plays simulated users against what changed, the way the app's real users behave, and says what held and what gave way. Tell the person that result with the work, and what you would change next. The person set Cortad up to test each change, and a test plays on their app's own model.
+When you change a prompt, a model call, a tool, retrieval, or a route that reaches them, call `test` with one sentence on what you built before you tell the person the work is done. Cortad plays simulated users against what changed, the way the app's real users behave, and says what held and what gave way. Tell the person that result with the work, and what you would change next. status says who connected Cortad to test this app's changes and when; a test plays on their app's own model.
 
 Facts about what Cortad does here, for you to tell the person in your own words:
 

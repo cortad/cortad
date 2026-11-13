@@ -1093,7 +1093,11 @@ const toSend = () => {
   const chosen = layerOf(candidates);
   const size = new Map(candidates.map((c) => [c.path, c.size]));
   const kept = chosen.files.filter((rel) => !isData(rel, size.get(rel)));
-  return { ...chosen, files: kept, why: new Map(kept.map((rel) => [rel, chosen.why.get(rel)])), data: chosen.files.filter((rel) => !kept.includes(rel)) };
+  // What the person sent with `send` on an earlier connect stays sent.
+  const sentBefore = readPicked(project).filter((rel) => !kept.includes(rel) && !judged(rel).why);
+  const all = [...kept, ...sentBefore];
+  const why = new Map([...kept.map((rel) => [rel, chosen.why.get(rel)]), ...sentBefore.map((rel) => [rel, "sent"])]);
+  return { ...chosen, files: all, why, data: chosen.files.filter((rel) => !kept.includes(rel)), fed: chosen.fed.filter((rel) => !all.includes(rel)) };
 };
 // The files the agent picked, with the reason the AI layer's parsers give each, read across the
 // whole set so a route is seen reaching a model call in another file.
@@ -1125,14 +1129,16 @@ const judged = (arg) => {
   return why ? { arg, why } : { arg, rel };
 };
 // The set the agent has sent, with what one more send adds. `files`: this send's files that may go.
-// `all`: the whole set Cortad holds after it.
+// `picked`: every file sent by hand after it. `all`: the whole set Cortad holds after it, which
+// without --agent-picks is the AI layer as well.
 const pickedSet = (args) => {
   const asked = args.map(judged);
   const refused = asked.filter((j) => j.why).map(({ arg, why }) => ({ arg, why }));
-  const before = readPicked(project).filter((rel) => !judged(rel).why);
-  const all = [...new Set([...before, ...asked.filter((j) => j.rel).map((j) => j.rel)])];
+  const files = [...new Set(asked.filter((j) => j.rel).map((j) => j.rel))];
+  const picked = [...new Set([...readPicked(project).filter((rel) => !judged(rel).why), ...files])];
+  const all = [...new Set([...(picks ? [] : layer?.set ?? []), ...picked])];
   const chosen = pickedLayer(all);
-  return { files: [...new Set(asked.filter((j) => j.rel).map((j) => j.rel))], all, why: chosen.why, prompts: chosen.pack.prompts, chosen, refused };
+  return { files, picked, all, why: chosen.why, prompts: chosen.pack.prompts, chosen, refused };
 };
 // No network, no app started, nothing written.
 if (explain) {
@@ -1178,6 +1184,8 @@ key = attach.data.key;
 {
   const chosen = picks ? pickedSet([]).chosen : toSend();
   layer = { ...layerSaid(chosen), set: new Set(chosen.files) };
+  // Said by status, so the person decides on each: no screen tells a class list from a prompt.
+  if (!picks) me.fed = chosen.fed;
 }
 if (!viaToken && (picks || keptStart.picks)) keepStart({ picks });
 if (!viaToken && (noSamples || keptStart.noSamples)) keepStart({ noSamples });
@@ -1506,7 +1514,8 @@ const autoReach = makeAutoReach({
   fetchImpl: countedFetch,
 });
 // The agent's `send` (lib/picks.mjs), taken whether or not the app is up: a preview of what would
-// leave, or on its yes the whole set packed and sent, which the read studies.
+// leave, or on its yes the whole set packed and sent, which the read studies. Without --agent-picks
+// it adds to the AI layer the connect chose.
 async function sendPicked(args, go, spec) {
   const set = pickedSet(args);
   if (!go || !set.files.length) return previewText({ ...set, go, spec });
@@ -1514,8 +1523,9 @@ async function sendPicked(args, go, spec) {
   layer = { ...layerSaid(set.chosen), set: new Set(set.all) };
   const sent = await upload(set.all);
   if (!sent.ok) { layer = before; return `Nothing was sent: ${sent.err ? `could not reach ${origin.host}` : sent.data?.error ?? `the upload failed (${sent.status})`}.\nnext: npx -y ${spec} send --yes ${args.join(" ")}`; }
-  writePicked(project, set.all);
+  writePicked(project, set.picked);
   me.picked = set.all.length;
+  if (me.fed) me.fed = me.fed.filter((rel) => !layer.set.has(rel));
   if (became) become(became.state, became.fields);
   if (app?.port) await announce().catch(() => {});
   clearStep();
@@ -1532,7 +1542,7 @@ async function sendLoop() {
     try { SEND.answer(homeOf(project), ask.id, text); } catch { /* the agent's wait runs out */ }
   }
 }
-if (picks) void sendLoop();
+void sendLoop();
 // The connection the server last heard what the agent's requests met; a reattach is a new one.
 let reachedBox = "";
 async function reachLoop() {
