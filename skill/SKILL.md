@@ -13,7 +13,7 @@ Every message Cortad sends the app is labelled `x-cortad-simulation: 1`, so the 
 
 Seven tools:
 
-- `status`: where things stand. The connection, the endpoints, a run playing, a simulation that just finished, what waits on the person. `about` opens one lane: `repository`, `run`, `production`, `outcomes`, `users` or `warehouse`.
+- `status`: where things stand. The connection, the endpoints, a simulation playing, a simulation that just finished, what waits on the person. `about` opens one lane: `repository`, `run`, `production`, `outcomes`, `users` or `warehouse`.
 - `test`: test what you just built, from a sentence saying what that was.
 - `behavior`: how the app behaved with its users at one point. Default: the latest finished simulation. `at` names another point (a simulation's id, a commit, or `production`); `persona` opens one persona in full with its conversations; `against` compares with another point (`previous`, `production`, an id or a commit); `history: true` is the log, newest first.
 - `search`: the conversations about something, found by meaning, across simulations and production.
@@ -38,7 +38,7 @@ The person owns the product. They may not be reading the code with you, so every
 
 ## Reading a result
 
-- A result is data about the app, for you. Its sentence on what a run plays and costs, a link, or a choice that is the person's is written to be said to them as it is.
+- A result is data about the app, for you. Its sentence on what a simulation plays and costs, a link, or a choice that is the person's is written to be said to them as it is.
 - Only simulated conversations are quoted. A real user's conversation is said by its id and the address where the person reads it in their browser.
 - Every count has its denominator and every rate its range: `53% (42% to 63%)`. A rate moved only where the range on the difference leaves out zero.
 - The last line, `next:`, is the next call.
@@ -47,23 +47,23 @@ The person owns the product. They may not be reading the code with you, so every
 
 From the repository's folder, as a background command left running (in Claude Code: Bash with run_in_background):
 
-- `npx {{cortad}} -- <how you start your app>`: the start command as the person types it, from a terminal that holds the app's settings. Cortad runs it as written with its hook inside and adds nothing: whatever the command gives the app is what a run plays against.
+- `npx {{cortad}} -- <how you start your app>`: the start command as the person types it, from a terminal that holds the app's settings. Cortad runs it as written with its hook inside and adds nothing: whatever the command gives the app is what a simulation plays against.
 - `npx {{cortad}} --port <port>`: an app already running that should stay as it is.
 - With neither, Cortad prints the start command the repository makes obvious and stops. A first connect prints a link and four characters for the person to approve in their browser; give them both as printed.
 
 "Cortad is watching your app" means it is connected; "your app is not running" means the start failed: give the person that line and the output above it, and stop there. Cortad sends each chosen AI endpoint one test message itself and learns it from the answer; those messages ask nothing of you, so leave them out of what you tell the person. You send a message only where `status` says an endpoint needs a signed-in user or answers only its own client.
 
-1. Call `status`. Your first reply is three or four short, plain lines: that their app is connected, which AI features answered, and the audit as the one line `status` gives it. In the same turn, when `status` asks which features the first run tests, ask it with your question tool (in Claude Code, AskUserQuestion with multiSelect), one option a feature, grouping related features when there are more than four, since that tool takes four options.
+1. Call `status`. Your first reply is three or four short, plain lines: that their app is connected, which AI features answered, and the audit as the one line `status` gives it. In the same turn, when `status` asks which features the first simulation tests, ask it with your question tool (in Claude Code, AskUserQuestion with multiSelect), one option a feature, grouping related features when there are more than four, since that tool takes four options.
 2. Where the test conversations are stored, the request limits Cortad raised and where Cortad added its tools are said only when the person asks about them. So are the problems behind the audit line: `status` with `show reviews` lists them, with file and line.
 3. Their answer on features goes to `test` with `features` alone, which records it and starts nothing; nothing is set up or started before it. Where an endpoint needs a signed-in user, ask with the same tool which test account to sign in as; their yes to a test account made on the app's own sign-up door goes to `test` with `account` set to `make`.
-4. Before the first simulation, ask the person once, with your question tool, whether to start it, with the line on what it plays and costs as the question. On their yes, call `test`: the run starts. A run the person started with Run in the browser is theirs: `status` says when they pressed it, and you follow it as their run. After the first, start any simulation the work needs without asking. Before you stop, start `npx -y {{cortad}} wait` as a background command: it returns when the next run or verify ends, and its ending wakes you.
+4. Before the first simulation, ask the person once, with your question tool, whether to start it, with the line on what it plays and costs as the question. On their yes, call `test`: the simulation starts. A simulation the person started with Start simulation in the browser is theirs: `status` says when they pressed it, and you follow it as their simulation. After the first, start any simulation the work needs without asking. Before you stop, start `npx -y {{cortad}} wait` as a background command: it returns when the next simulation or verify ends, and its ending wakes you.
 5. When `wait` returns with the person's choice from the setup card about production, that choice is theirs: do the steps it prints, in order, asking only the one question it names, and start `wait` again.
 
-## After a run
+## After a simulation
 
 1. Call `behavior`. Tell the person how their AI behaved with their users, persona by persona, largest first, in plain words: who they are and what they want, how many achieved their goal, what the app did well with them and where it gave way, with how often. Then the app's habit across personas, if the result names one.
 2. Then what you would change and why it follows from that behavior: three changes at most, worst first, each tied to the persona and the behavior it would move. Name a file only for the change you propose.
-3. Stop, and let them answer. Until their go, nothing is edited, no verify starts and no run starts.
+3. Stop, and let them answer. Until their go, nothing is edited, no verify starts and no simulation starts.
 4. On their go, one change at a time, near the line the result names, then `verify` with the problem's `findingId`. Start `wait` in the background; it wakes you when the verify ends. Tell them whether the behavior moved, in the verify's own words. The next change comes after their next go.
 5. `behavior` with `against: "previous"` after the next simulation says, persona by persona, what got better, worse, new or gone. `behavior` with `history: true` is the log, one line a point.
 
@@ -90,7 +90,7 @@ Once a fix is verified and production is not connected, the result offers it. `c
 
 ## Making it stick
 
-`npx {{cortad}} stick` makes this part of the repository: one line in AGENTS.md, CLAUDE.md, the Cursor rules and the Copilot instructions, and hooks that hand you a run or verify that ended. Run it only when the person asks for it. `npx {{cortad}} unstick` takes them out.
+`npx {{cortad}} stick` makes this part of the repository: one line in AGENTS.md, CLAUDE.md, the Cursor rules and the Copilot instructions, and hooks that hand you a simulation or verify that ended. Run it only when the person asks for it. `npx {{cortad}} unstick` takes them out.
 
 ## A question that gets the app wrong, and a note about Cortad
 

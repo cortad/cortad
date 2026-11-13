@@ -6,23 +6,23 @@ The last line of a run_status result is the next call. A plan line names what th
 
 ## wait
 
-`npx {{cortad}} wait` returns when the next run ends. It prints what `run_status` prints for that finished run, and its last line is `next: behavior <jobId>`. When the connect command has been stopped for a minute it ends with `The connect command stopped, so no run can start from the browser.`; after six hours with no run, with `No run ended in 6 hours.`
+`npx {{cortad}} wait` returns when the next simulation ends. It prints what `run_status` prints for that finished run, and its last line is `next: behavior <jobId>`. When the connect command has been stopped for a minute it ends with `The connect command stopped, so no simulation can start from the browser.`; after six hours with no simulation, with `No simulation ended in 6 hours.`
 
 ## status
 
-Right after a connect, while Cortad is still studying your code:
+Right after a connect, while Cortad is still studying your AI:
 
 ```
 Repository: tutor-app.
-Free: 1 of 1 run left this month; 60 verify conversations left. Pro $99 a month: runs and reruns included, 100,000 production replies analyzed.
+Free: 1 of 1 simulation left this month; 60 verify conversations left. Pro $99 a month: simulations and reruns included, 100,000 production replies analyzed.
 App: Your app is starting on this machine.
 ```
 
-Once a request of your own has reached the model through an endpoint, two messages on the chat, and before any run:
+Once a request of your own has reached the model through an endpoint, two messages on the chat, and before any simulation:
 
 ```
 Repository: tutor-app.
-Free: 1 of 1 run left this month; 60 verify conversations left. Pro $99 a month: runs and reruns included, 100,000 production replies analyzed.
+Free: 1 of 1 simulation left this month; 60 verify conversations left. Pro $99 a month: simulations and reruns included, 100,000 production replies analyzed.
 App: Your app answered on port 3100.
 Endpoints that answered (1):
   POST /api/chat: 2 requests reached gpt-4o-mini, 2 model calls each, 3.1 seconds a reply.
@@ -35,11 +35,11 @@ Endpoints found in your code that Cortad has seen no answer from yet (2):
   POST /api/homework/explain  apps/api/src/routes/homework.ts:18  Cortad's test request was answered with HTTP 500.
   POST /api/progress/summary  apps/api/src/routes/progress.ts:9  Needs a signed-in user.
 Once a failure above is fixed, call test with endpoints to send its test request again.
-One of them refused a visitor: ask the person for a test account to sign in as (an existing one; Cortad makes none), or whether to leave it out of the first run.
+One of them refused a visitor: ask the person for a test account to sign in as (an existing one; Cortad makes none), or whether to leave it out of the first simulation.
 An endpoint that hands back a turn and answers afterwards stays on this list until Cortad has seen the answer its model wrote: the first reply alone does not take it off.
-Which of these the first run tests is the person's choice: ask them now with your question tool (in Claude Code, AskUserQuestion with multiSelect), one option a feature, and record the answer with test and features; or they tick them on the card in the browser.
-A run plays 36 simulated users in about 6 minutes. About $0.38 on your OpenAI key.
-A run starts when the person presses Run simulation on the card in the browser or asks you for one; if they say they pressed it, call test rather than ask them again.
+Which of these the first simulation tests is the person's choice: ask them now with your question tool (in Claude Code, AskUserQuestion with multiSelect), one option a feature, and record the answer with test and features; or they tick them on the card in the browser.
+A simulation plays 36 simulated users in about 6 minutes. About $0.38 on your OpenAI key.
+A simulation starts when the person presses Run simulation on the card in the browser or asks you for one; if they say they pressed it, call test rather than ask them again.
 ```
 
 Before the person has said yes on the card, the last line before the link is the one question asked of them:
@@ -49,11 +49,11 @@ Test conversations use your app as it is: they write where it wrote during your 
 The person sees this at https://cortad.com/lab
 ```
 
-Once a run is playing, what Cortad found in your code and the run:
+Once a simulation is playing, what Cortad found in your code and the simulation:
 
 ```
 Repository: tutor-app.
-Free: this month's 1 run is used; 60 verify conversations left. Pro $99 a month: runs and reruns included, 100,000 production replies analyzed.
+Free: this month's 1 simulation is used; 60 verify conversations left. Pro $99 a month: simulations and reruns included, 100,000 production replies analyzed.
 App: Your app answered on port 3100.
 What Cortad found in your code:
 Rules in the code: 46, in 5 files. 3 of them:
@@ -65,7 +65,7 @@ Simulated users (3): student in grade 9; parent paying for the plan; teacher che
 Engineering standards: your code misses 3 of the 38 Cortad standards. Each problem is listed by status with show standards.
 Conversations set aside:
   POST /api/homework/upload: 7 conversations, on the app's side: the route needs a signed file URL, and no test account can make one
-Latest run 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b: running, 14 of 51 conversations played.
+Latest simulation 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b: running, 14 of 51 conversations played.
 Production: not connected.
 The person sees this at https://cortad.com/lab
 next: run_status 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b
@@ -109,26 +109,26 @@ next: status
 The app is up:
 
 ```
-Run started: 9a10b3d2-7c8d-4e9f-8a1b-2c3d4e5f6a7b.
+Simulation started: 9a10b3d2-7c8d-4e9f-8a1b-2c3d4e5f6a7b.
 next: run_status 9a10b3d2-7c8d-4e9f-8a1b-2c3d4e5f6a7b
 ```
 
-The app is still starting. `run_status` holds until the run has an id:
+The app is still starting. `run_status` holds until the simulation has an id:
 
 ```
-Starting your app for the run. Call run_status; it answers as soon as the run has an id.
+Starting your app for the simulation. Call run_status; it answers as soon as the simulation has an id.
 ```
 
 The plan is spent, and nothing ran:
 
 ```
-Refused: 1 of 1 run used on the Free plan.
-Last run 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b: 3 findings, 51 of 51 conversations played.
-2 fixes verified since that run:
+Refused: 1 of 1 simulation used on the Free plan.
+Last simulation 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b: 3 findings, 51 of 51 conversations played.
+2 fixes verified since that simulation:
   apps/api/src/agent/prompt.ts:41 (finding:1): gone; 0 of 3 replays failed, against 3 of 3 before; on the conversations saved to test the fix, 1 of 2 failed before, 0 of 2 after, not beyond chance.
   apps/api/src/agent/system.ts:12 (finding:2): gone; 0 of 7 replays failed, against 4 of 4 before; the fix made the failure worse on the conversations saved to test the fix (0 of 8 failed before, 6 of 8 after).
-The next run would play 58 conversations, 7 saved to test fixes, 5 new from the changes.
-The Pro plan, $99 a month, includes 10 runs.
+The next simulation would play 58 conversations, 7 saved to test fixes, 5 new from the changes.
+The Pro plan, $99 a month, includes 10 simulations.
 Production: not connected.
 Nothing ran.
 Plans and checkout are at https://cortad.com/pricing?checkout=ship
@@ -139,18 +139,18 @@ Plans and checkout are at https://cortad.com/pricing?checkout=ship
 Playing. The call waited up to 45 seconds:
 
 ```
-Run 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b: running, 14 of 51 conversations played.
+Simulation 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b: running, 14 of 51 conversations played.
 14 of 51 conversations done.
 next: run_status 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b
 ```
 
-Finished, the first run on a repository: its baseline. In order: what ran; the simulated users and how many of their conversations completed the request; each journey and the checks that failed most there; the checks that passed in every conversation; what failed, found only by running the app, each with how many conversations it failed in, the line that wrote the failing reply, the tools behind it, where the fix belongs and the exchange it failed on; open routes; what a code review would also find; what the numbers leave out; the run's model, time and cost; one line on production. Every rate has its range. The first findings are shown in full, the rest one line each; findings shows them all.
+Finished, the first simulation on a repository: its baseline. In order: what ran; the simulated users and how many of their conversations completed the request; each journey and the checks that failed most there; the checks that passed in every conversation; what failed, found only by running the app, each with how many conversations it failed in, the line that wrote the failing reply, the tools behind it, where the fix belongs and the exchange it failed on; open routes; what a code review would also find; what the numbers leave out; the simulation's model, time and cost; one line on production. Every rate has its range. The first findings are shown in full, the rest one line each; findings shows them all.
 
 A finding that sends customers away counts, for one journey or one endpoint, the conversations whose last reply declined the customer or sent them elsewhere, or where they asked for a person and were not handed on. A conversation where the customer got what they asked for is never counted. It names the prompt line, or the tool the model had and never called, that at least half of the replies read point to (at least two, from up to 8 read); when neither is clear it says where the fix belongs is not known. It shows what the customer said next. The same cut comes as structured data beside the text:
 
 ```
-Run 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b: finished, 51 of 51 conversations played.
-This was the first run, the baseline: 51 conversations written from your code. All of them came from the 3 simulated users below.
+Simulation 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b: finished, 51 of 51 conversations played.
+This was the first simulation, the baseline: 51 conversations written from your code. All of them came from the 3 simulated users below.
 The simulated users, as Cortad found them in your code:
   student in grade 9: Finish tonight's algebra homework without being caught out in class tomorrow. Writes short lowercase messages, typos, sometimes Spanish. 27 conversations; 23 of 27 completed fully or partly (16 fully): 85% (68% to 94%, the likely range).
   parent paying for the plan: Know what the plan costs and whether it can be cancelled this week. Writes full sentences, asks again when unsure. 14 conversations; 8 of 14 completed fully or partly (5 fully): 57% (33% to 79%).
@@ -171,7 +171,7 @@ finding:1  Does the reply state a refund policy the product does not publish?
   Failed in 9 of 12 conversations: 75% (47% to 91%); 9 of its 10 breaks at reply 2.
   Harm: wrong answer.
   At apps/api/src/agent/prompt.ts:41
-  Written by: the model call at apps/api/src/agent/answer.ts:58, which wrote 61 of the 138 replies the run traced, none with a tool.
+  Written by: the model call at apps/api/src/agent/answer.ts:58, which wrote 61 of the 138 replies the simulation traced, none with a tool.
   Tools that ran behind these replies: none.
   Fix in the routing: the reply was written at apps/api/src/agent/answer.ts:58 with no tool after apps/api/src/agent/route.ts:22 chose where the ask went; the fix is that choice, so this ask reaches a step with the tool.
   Sent: "Can I get my money back if I cancel this week?"
@@ -181,7 +181,7 @@ finding:2  Is the reply written in a language other than the one the student wro
   Failed in 4 of 6 conversations: 67% (30% to 90%).
   Harm: tone.
   At apps/api/src/agent/system.ts:12
-  Written by: the model call at apps/api/src/agent/answer.ts:58, which wrote 61 of the 138 replies the run traced, none with a tool.
+  Written by: the model call at apps/api/src/agent/answer.ts:58, which wrote 61 of the 138 replies the simulation traced, none with a tool.
   Tools that ran behind these replies: search_lessons.
   Fix in the prompt: the model wrote this reply following its prompt, so the fix is the prompt at apps/api/src/agent/system.ts:12.
   Sent: "¿Me ayudas con esta ecuación? 2x + 3 = 11"
@@ -198,7 +198,7 @@ What the numbers leave out, and why:
   Set aside: 7 conversations (POST /api/homework/upload: the route needs a signed file URL, and no test account can make one).
   28 questions with no reply to check: 16 need a conversation past the first reply; 8 never met their condition (the parent asks what the plan costs); 4 have no conversation yet.
   No conversation reached this journey: account recovery.
-Your app answered on gpt-4o-mini. The run took 7 min 32 s and spent $0.41 on your key over 214 model calls.
+Your app answered on gpt-4o-mini. The simulation took 7 min 32 s and spent $0.41 on your key over 214 model calls.
 Replies took 3.1 s at the median and 11.4 s at the slowest, over 138 replies.
 3 of 4 tools your app offers its model ran; never ran: open_ticket.
 Connect production to see what your real users are doing as it happens and where your AI lets them down; connect has the steps.
@@ -207,28 +207,28 @@ Connect production to see what your real users are doing as it happens and where
   "Never state a refund policy the product does not publish." (apps/api/src/agent/prompt.ts:41): failed in 9 of 12 conversations.
   "Answer in the language the student writes in." (apps/api/src/agent/system.ts:12): failed in 2 of 26 conversations.
 Cortad could check 112 of its 140 questions.
-Free: this month's 1 run is used; 60 verify conversations left. Pro $99 a month: runs and reruns included, 100,000 production replies analyzed.
+Free: this month's 1 simulation is used; 60 verify conversations left. Pro $99 a month: simulations and reruns included, 100,000 production replies analyzed.
 The report is at https://cortad.com/lab
 next: behavior 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b
 ```
 
-A finding whose breaks have the same cause as an earlier finding (the request ended on the same tool, or the same call's output cap) prints `Same cause as finding:1: one fix covers both. Verify finding:1 after the fix; the next run rechecks this one.` in place of its fix and verify lines.
+A finding whose breaks have the same cause as an earlier finding (the request ended on the same tool, or the same call's output cap) prints `Same cause as finding:1: one fix covers both. Verify finding:1 after the fix; the next simulation rechecks this one.` in place of its fix and verify lines.
 
-A run after the first one plays what the files changed since the last run that played every conversation reach: those conversations again, each paired with its earlier self, and 8 to 12 new ones written for the change, opening the way production customers did where production is connected. It says what changed, what that reaches, and what it left out. Nothing changed, or no way to tell from this machine: it replays every conversation. While it plays:
+A simulation after the first one plays what the files changed since the last simulation that played every conversation reach: those conversations again, each paired with its earlier self, and 8 to 12 new ones written for the change, opening the way production customers did where production is connected. It says what changed, what that reaches, and what it left out. Nothing changed, or no way to tell from this machine: it replays every conversation. While it plays:
 
 ```
-Run 9a10b3d2-7c8d-4e9f-8a1b-2c3d4e5f6a7b: running, 9 of 34 conversations played.
-Since run 8f2a1c4e, 1 file changed (apps/api/src/agent/prompt.ts), touching the prompt in apps/api/src/agent/prompt.ts. They reach POST /api/chat. This run replays the 22 conversations there from that run, so each pairs with its earlier self, and adds 12 new conversations written for the change on billing question, order tracking (5 of them open the way your production customers did). Left out: 7 conversations on POST /api/homework/upload, which nothing that changed reaches.
+Simulation 9a10b3d2-7c8d-4e9f-8a1b-2c3d4e5f6a7b: running, 9 of 34 conversations played.
+Since run 8f2a1c4e, 1 file changed (apps/api/src/agent/prompt.ts), touching the prompt in apps/api/src/agent/prompt.ts. They reach POST /api/chat. This simulation replays the 22 conversations there from that simulation, so each pairs with its earlier self, and adds 12 new conversations written for the change on billing question, order tracking (5 of them open the way your production customers did). Left out: 7 conversations on POST /api/homework/upload, which nothing that changed reaches.
 9 of 34 conversations done.
 next: run_status 9a10b3d2-7c8d-4e9f-8a1b-2c3d4e5f6a7b
 ```
 
-Finished, it leads with what moved: each behavior whose failing count changed on the conversations both runs played, worse before better, whether the move is beyond chance, its file and line, and the conversation that turned, with what it said before and now. The rest is one line, then any new findings on the conversations written for the change, then the run cut open as above:
+Finished, it leads with what moved: each behavior whose failing count changed on the conversations both runs played, worse before better, whether the move is beyond chance, its file and line, and the conversation that turned, with what it said before and now. The rest is one line, then any new findings on the conversations written for the change, then the simulation cut open as above:
 
 ```
-Run 9a10b3d2-7c8d-4e9f-8a1b-2c3d4e5f6a7b: finished, 34 of 34 conversations played.
+Simulation 9a10b3d2-7c8d-4e9f-8a1b-2c3d4e5f6a7b: finished, 34 of 34 conversations played.
 "Does the reply state a refund policy the product does not publish?" went from 7 failing to 0 of 22. 12 new conversations on billing question, order tracking: nothing else broke.
-Since run 8f2a1c4e, 1 file changed (apps/api/src/agent/prompt.ts), touching the prompt in apps/api/src/agent/prompt.ts. They reach POST /api/chat. This run replays the 22 conversations there from that run, so each pairs with its earlier self, and adds 12 new conversations written for the change on billing question, order tracking (5 of them open the way your production customers did). Left out: 7 conversations on POST /api/homework/upload, which nothing that changed reaches.
+Since run 8f2a1c4e, 1 file changed (apps/api/src/agent/prompt.ts), touching the prompt in apps/api/src/agent/prompt.ts. They reach POST /api/chat. This simulation replays the 22 conversations there from that simulation, so each pairs with its earlier self, and adds 12 new conversations written for the change on billing question, order tracking (5 of them open the way your production customers did). Left out: 7 conversations on POST /api/homework/upload, which nothing that changed reaches.
 Better: "Does the reply state a refund policy the product does not publish?" went from 7 failing to 0 of 22 conversations, beyond chance.
   At apps/api/src/agent/prompt.ts:41
   Conversation 41c2e0b7, sent: "Can I get my money back if I cancel this week?"
@@ -237,11 +237,11 @@ Better: "Does the reply state a refund policy the product does not publish?" wen
 Better: "Does the reply answer in the language the student wrote in?" went from 2 failing to 1 of 22 conversations, not beyond chance at this count.
   At apps/api/src/agent/system.ts:12
 31 other behaviors did not move on the conversations both runs played; 2 of them fail in both.
-Your app answered on gpt-4o-mini. The run took 3 min 8 s and spent $0.19 on your key over 96 model calls.
+Your app answered on gpt-4o-mini. The simulation took 3 min 8 s and spent $0.19 on your key over 96 model calls.
 Replies took 2.9 s at the median and 9.8 s at the slowest, over 81 replies.
 Nothing broke that only running your app could show.
-The next run is compared with run 8f2a1c4e, the last run that played every conversation, with everything that changed since then in its scope.
-Pro: 8 of 10 runs left this month; 560 verify conversations left.
+The next simulation is compared with run 8f2a1c4e, the last simulation that played every conversation, with everything that changed since then in its scope.
+Pro: 8 of 10 simulations left this month; 560 verify conversations left.
 The report is at https://cortad.com/lab
 next: behavior 9a10b3d2-7c8d-4e9f-8a1b-2c3d4e5f6a7b
 ```
@@ -249,7 +249,7 @@ next: behavior 9a10b3d2-7c8d-4e9f-8a1b-2c3d4e5f6a7b
 Stopped early. Each stop and fault names the side it is on and what comes next:
 
 ```
-Run 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b: finished, 11 of 51 conversations played.
+Simulation 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b: finished, 11 of 51 conversations played.
 1 finding.
 Stopped at 11 of 51 conversations, on the app's side: your app stopped answering after 11 replies. Bring your app back up, then run again.
 Fault on the app's side: Your code names llama-3.1-8b-instant, which api.groq.com does not serve. Rename the model in your code, then run again.
@@ -272,15 +272,15 @@ Cortad could check 20 of its 40 questions.
 
 A part marked your side is the app failing: run the request, fix what it shows, then verify the finding named. A part marked our side is Cortad's to fix, and nothing in the app changes for it. A masked value (`<redacted>`) is the app's own sign-in or key; put it back before running the request.
 
-Your app stopped during the run and was started again: that is a finding of its own, `crash:1`, with the error your app printed and the turn it happened at. Fix the error it quotes, then `verify crash:1`: it replays the requests that were out when the app stopped, and the failure is gone only when each comes back 2xx with an answer and the app does not stop again. A `Data:` line says whether the run wrote to a copy of your app's database or into the real one.
+Your app stopped during the simulation and was started again: that is a finding of its own, `crash:1`, with the error your app printed and the turn it happened at. Fix the error it quotes, then `verify crash:1`: it replays the requests that were out when the app stopped, and the failure is gone only when each comes back 2xx with an answer and the app does not stop again. A `Data:` line says whether the simulation wrote to a copy of your app's database or into the real one.
 
 A verify replays the conversations the finding failed on, word for word, and decides with an exact test against those same conversations before the fix. It also plays, once, conversations saved to test the fix, judged against their own rate before it. The failure is gone, here and on the conversations saved to test the fix, and while production is not connected the verify ends with a line for the person that offers it:
 
 ```
 Verify 7c31e0aa-1b2c-4d3e-8f4a-5b6c7d8e9f0a: finished, 5 of 5 conversations played.
 Verify of finding:1 at apps/api/src/agent/prompt.ts:41.
-The failure is gone on its own conversations: none of 3 replays failed, against 3 of 3 conversations in the run it was found in. On the conversations saved to test the fix the failure is gone: 3 of 8 failed before the fix, 0 of 8 after, a fall beyond chance.
-Free: this month's 1 run is used; 55 verify conversations left. Pro $99 a month: runs and reruns included, 100,000 production replies analyzed.
+The failure is gone on its own conversations: none of 3 replays failed, against 3 of 3 conversations in the simulation it was found in. On the conversations saved to test the fix the failure is gone: 3 of 8 failed before the fix, 0 of 8 after, a fall beyond chance.
+Free: this month's 1 simulation is used; 55 verify conversations left. Pro $99 a month: simulations and reruns included, 100,000 production replies analyzed.
 The failure in finding:1 is gone on its replays. Connecting production shows what real users are doing as it happens; connect has the steps.
 The report is at https://cortad.com/lab
 next: status
@@ -291,18 +291,18 @@ Undecided after a round, it replays the failing conversations again by itself. T
 ```
 Verify 7c31e0aa-1b2c-4d3e-8f4a-5b6c7d8e9f0a: running, 3 of 3 conversations played.
 Verify of finding:1 at apps/api/src/agent/prompt.ts:41.
-Cannot tell yet: 1 of 3 replays failed, against 3 of 3 conversations in the run it was found in; 1 more clean conversation would show it failing less often. After the fix one conversation still failed: conversation 41c2e0b7 said "Refunds are processed within 3 business days of the request." at reply 2, where before the fix it said "Yes, refunds are processed within 3 business days.". Round 2 is playing now: the 3 failing conversations again.
+Cannot tell yet: 1 of 3 replays failed, against 3 of 3 conversations in the simulation it was found in; 1 more clean conversation would show it failing less often. After the fix one conversation still failed: conversation 41c2e0b7 said "Refunds are processed within 3 business days of the request." at reply 2, where before the fix it said "Yes, refunds are processed within 3 business days.". Round 2 is playing now: the 3 failing conversations again.
 next: run_status 7c31e0aa-1b2c-4d3e-8f4a-5b6c7d8e9f0a
 ```
 
-A fall beyond chance with some replays still failing is not gone: `The failure shows less often but is not gone: 3 of 20 replays failed, against 12 of 12 conversations in the run it was found in, a fall beyond chance.`, with the conversations still failing quoted beside how they failed before.
+A fall beyond chance with some replays still failing is not gone: `The failure shows less often but is not gone: 3 of 20 replays failed, against 12 of 12 conversations in the simulation it was found in, a fall beyond chance.`, with the conversations still failing quoted beside how they failed before.
 
 The failure stayed. The conversations still fail more than the same question does elsewhere in the app, and each one still failing is quoted beside what it said before the fix:
 
 ```
 Verify 7c31e0aa-1b2c-4d3e-8f4a-5b6c7d8e9f0a: finished, 4 of 4 conversations played.
 Verify of finding:4 at apps/api/src/agent/system.ts:12.
-The failure stayed: 4 of 4 replays failed, against 4 of 4 conversations in the run it was found in; the same question fails on 3 of 18 conversations elsewhere in your app, so these still stand out beyond chance. After the fix 4 conversations still failed: conversation 0b19a3f2 said "Sure! Let's solve this together." at reply 1, as it did before the fix; conversation 3e8d0c47 said "Sure! Let's solve this together." at reply 1, as it did before the fix; conversation a61f9b05 said "Sure! Let's solve this together." at reply 1, as it did before the fix; and 1 more.
+The failure stayed: 4 of 4 replays failed, against 4 of 4 conversations in the simulation it was found in; the same question fails on 3 of 18 conversations elsewhere in your app, so these still stand out beyond chance. After the fix 4 conversations still failed: conversation 0b19a3f2 said "Sure! Let's solve this together." at reply 1, as it did before the fix; conversation 3e8d0c47 said "Sure! Let's solve this together." at reply 1, as it did before the fix; conversation a61f9b05 said "Sure! Let's solve this together." at reply 1, as it did before the fix; and 1 more.
 The report is at https://cortad.com/lab
 next: status
 ```
@@ -322,7 +322,7 @@ Replies refused or failed on the replay come first. A refusal is not an answer, 
 ```
 Verify 7c31e0aa-1b2c-4d3e-8f4a-5b6c7d8e9f0a: finished, 5 of 5 conversations played.
 Verify of finding:2 at backend/tools/refunds.py.
-Your app refused 5 of 5 replays (HTTP 422), so they got no answer: the fix changed what the endpoint accepts. The failure stayed: 5 of 5 replays got no answer, against 5 of 5 conversations in the run it was found in; the same question fails on 2 of 16 conversations elsewhere in your app, so these still stand out beyond chance.
+Your app refused 5 of 5 replays (HTTP 422), so they got no answer: the fix changed what the endpoint accepts. The failure stayed: 5 of 5 replays got no answer, against 5 of 5 conversations in the simulation it was found in; the same question fails on 2 of 16 conversations elsewhere in your app, so these still stand out beyond chance.
 The report is at https://cortad.com/lab
 next: status
 ```
@@ -378,8 +378,8 @@ next: behavior with persona: "Asks for a summary" shows how that persona fared a
 What only running the app could show comes first, the findings that may lead before the rest, then the app stopping mid-run, then what a code review would also have found and the open gates last, each counted in conversations, at its endpoint, with its rate and range. A finding failed in two conversations or more. "Played again" counts the fresh conversations of the same ask that failed again. What the app's promises measured comes after the findings. A list longer than one page ends with `page 1 of 3, call findings with page 2`.
 
 ```
-Run 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b: 3 findings.
-The run took 7 min 32 s and spent $0.41 on your key over 214 model calls.
+Simulation 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b: 3 findings.
+The simulation took 7 min 32 s and spent $0.41 on your key over 214 model calls.
 
 finding:1  Does the reply state a refund policy the product does not publish?
   Failed in 9 of 12 conversations at POST /api/chat: 75% (47% to 91%).
@@ -427,7 +427,7 @@ Cortad could check 112 of its 140 questions.
 
 ## findings numbers
 
-Every number the run measured, one table per measurement and per question, each group on its own row: its counts in the order the table names, of how many conversations or replies, and the 95% interval on the share named. A group saved to test a fix shows its numbers and never its exchanges.
+Every number the simulation measured, one table per measurement and per question, each group on its own row: its counts in the order the table names, of how many conversations or replies, and the 95% interval on the share named. A group saved to test a fix shows its numbers and never its exchanges.
 
 ```
 Run 8f2a1c4e-5b6d-4e7f-9a0b-1c2d3e4f5a6b: every number it measured, 6 measurements and 112 questions over 51 conversations, 138 replies and 9,806 readings.
@@ -461,7 +461,7 @@ next: run_status 7c31e0aa-1b2c-4d3e-8f4a-5b6c7d8e9f0a
 ## feedback
 
 ```
-The Cortad team has the note and reads each one; an answer comes back under Send feedback on cortad.com. Nothing about the run or its questions changed.
+The Cortad team has the note and reads each one; an answer comes back under Send feedback on cortad.com. Nothing about the simulation or its questions changed.
 ```
 
 ## field_connect
