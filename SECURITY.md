@@ -18,7 +18,8 @@ deletes it.
 **The files around your AI.** On your machine, Cortad's parsers pick the prompts, the tools the model
 can call, the code that calls a model, the routes that reach it and the request shapes they accept,
 and your evals. A file your code reads from disk goes only when its name or folder says it is a
-prompt, and only after a check that it holds no secret and no personal details. Cortad's server can
+prompt. Every prompt file goes only after a check for secrets and for personal details: contact
+details, ids, dates of birth, and a person's name beside a health or family note. Cortad's server can
 later ask only for a file in that set. If you would rather choose the files yourself, your coding agent can pick and send
 them instead (see README.md).
 
