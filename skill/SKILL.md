@@ -7,6 +7,10 @@ description: Tells you how the AI in this repository behaves with its users, per
 
 Cortad is a review of behavior, kept like history. Simulated users written from the app's code, and the people using the live app, talk to the AI; Cortad groups them into personas (the users who come for the same thing and behave the same way) and says, for each one, who they are, what they want, how they behave, whether they achieved their goal, what the app did well with them and where it gave way. The problems sit inside that behavior, with how often they happen, the conversations that show them, and last the file and line they come from. The fix follows from the behavior and comes after it.
 
+## Every change to the AI ends with a test
+
+When you change a prompt, a model call, a tool, retrieval, or a route that reaches them, call `test` with one sentence on what you built before you tell the person the work is done. Cortad plays simulated users against what changed, the way the app's real users behave, and says what held and what gave way. Tell the person that result with the work, and what you would change next. The person connected Cortad for this, so it needs no question.
+
 Facts about what Cortad does here, for you to tell the person in your own words:
 
 - Test conversations go to the app as a user's would, each labelled `x-cortad-simulation: 1`, and land wherever the app stores chats; that label tells them apart from real users' conversations.
