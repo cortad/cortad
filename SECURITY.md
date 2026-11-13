@@ -139,7 +139,7 @@ Any other command the server sends is refused and noted in `~/.cortad/<project>/
 - You can delete a production conversation at any time.
 - You can delete your account in Settings. Its keys stop working at once.
 - Whether Cortad may also use your data to improve the service is your choice, on the Data Sharing
-  screen or in Settings. It is off until you turn it on.
+  screen or in Settings.
 
 ## Who processes your data
 
