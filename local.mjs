@@ -687,11 +687,11 @@ async function verb(job) {
       return { ok: true };
     }
     case "restart": return restartApp();
-    // Your own pages, read here rather than in a world's shell, with the settings your app runs on:
-    // its own env files as its loader reads them, and this terminal's own values over those. Handed
-    // the terminal's alone, the reader had no address for a store whose address their app keeps in a
-    // file, and said it was not set. Values stay here; only rows of short fields go back.
-    case "sample": return { report: noSamples ? { stores: [], off: true } : JSON.parse(mask(JSON.stringify(await sampleHere(b, modelHints(), root)))) };
+    // Your own pages, read here rather than in a world's shell, at the addresses your app's own env
+    // files hold. Never the terminal's: the server names the variables, and PWD or INIT_CWD there
+    // would hand it the whole project. A file is opened only if the upload could send it. Values
+    // stay here; only rows of short fields go back.
+    case "sample": return { report: noSamples ? { stores: [], off: true } : JSON.parse(mask(JSON.stringify(await sampleHere(b, appEnv(), root, mayOpen)))) };
     case "lock": return { locked: Array.isArray(b.hosts) ? b.hosts.length : 0 };
     // What your app spent on its providers, from the hook inside it. An app this command did not
     // start has no hook, and the empty answer says the meter is absent rather than that nothing was spent.
@@ -732,7 +732,8 @@ const answers = async (port) => {
 // this terminal's values, else the ones the repository's env files hold. Read here and handed to no
 // process: the proxy forwards each call to the address the app's own settings name, and the app is
 // handed only the proxy's address in their place (lib/proxy.mjs env).
-const modelHints = () => ({ ...Object.assign({}, ...envFiles.filter((f) => !/\.(example|sample)$/.test(f)).map((f) => { try { return parseEnv(readFileSync(f, "utf8"), process.env); } catch { return {}; } })), ...process.env });
+const appEnv = () => Object.assign({}, ...envFiles.filter((f) => !/\.(example|sample)$/.test(f)).map((f) => { try { return parseEnv(readFileSync(f, "utf8"), process.env); } catch { return {}; } }));
+const modelHints = () => ({ ...appEnv(), ...process.env });
 // Where their app runs inside this repository: where the person's command runs it.
 const appDir = root;
 
@@ -1058,6 +1059,12 @@ for (let i = files.length - 1; i >= 0; i -= 1) if (carriesKey(files[i])) kept.un
 // of the folder is never sent, and a read may not ask for it later (readable).
 const candidatesOf = (rels) => rels.flatMap((rel) => { let full; try { full = readFileSync(join(root, rel), "utf8"); } catch { return []; } return [{ path: rel, head: full.slice(0, 4000), size: Buffer.byteLength(full), full }]; });
 const isData = (rel, size) => DATA.test(rel) || (/\.json$/i.test(rel) && size > DATA_JSON);
+// What `sample` may open of the project: a file the upload's own walk kept, never data, never one with a key in it.
+let walked = null;
+const mayOpen = (rel) => {
+  if (!(walked ??= new Set(files)).has(rel) || !shareable(rel)) return false;
+  try { return !isData(rel, statSync(join(root, rel)).size) && !carriesKey(rel); } catch { return false; }
+};
 const toSend = () => {
   const candidates = candidatesOf(files);
   const chosen = layerOf(candidates);
