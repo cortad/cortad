@@ -1266,7 +1266,7 @@ if (layer.set.size || !picks) {
 // Unchanged code has already been read: coming back says so instead of claiming a second read.
 // Said of the account, never of the app: a bare "connected" here, above an app that could not take its
 // port, was read as the app being up (2026-11-12).
-stepDone(picks && !layer.set.size ? "connected to your Cortad account: it has none of your files yet, and your coding agent picks them" : moved ? "connected to your Cortad account: your change is in, and what Cortad read before still stands" : resumed ? "connected to your Cortad account: your code has not changed since last time" : "connected to your Cortad account");
+stepDone(picks && !layer.set.size ? "connected to your Cortad account: it has none of your files yet, and your coding agent picks them" : moved ? "connected to your Cortad account: your change is in, and what Cortad studied before still stands" : resumed ? "connected to your Cortad account: your code has not changed since last time" : "connected to your Cortad account");
 // One coding agent learns about Cortad for this project: the one running this command, whose setup
 // prompt asked the person first, or the one the person names here. A run started by an agent later
 // comes back through lib/cli.mjs.
@@ -1310,6 +1310,16 @@ const announce = async () => {
   const hooked = Boolean(proxy ? launched || proxy.seen() : launched && capture?.watching(app.port));
   return call("POST", `/local/${box}/app`, { port: doorPort(), cmd: shownCommand(app.cmd, mask), lifted: app.lifted ?? [], watching: hooked, metered: hooked, proves: hooked, reached: reachedNow() });
 };
+// Cortad's server for this account answers 503 while it wakes, and a dropped connection is the same
+// moment seen from here: the registration waits for it, about a minute in all, instead of ending the
+// session a coding agent started a simulation in.
+async function announceSteady() {
+  for (let wait = 1000; ; wait *= 2) {
+    const told = await announce().catch((err) => ({ ok: false, status: 0, data: { error: String(err?.message ?? err) } }));
+    if (told.ok || (told.status !== 503 && told.status !== 0) || wait > 32_000) return told;
+    await new Promise((r) => setTimeout(r, wait));
+  }
+}
 const reachedNow = () => (capture?.connections() ?? []).map((c) => `${c.host}:${c.port}`).slice(0, 40);
 
 // Your app's life beside this connection. It is started; if it stops, or never comes up, this stays
@@ -1330,7 +1340,7 @@ async function appLife(firstStart) {
     become("starting");
     say("saw your change, starting your app again");
   }
-  const told = await announce();
+  const told = await announceSteady();
   clearStep();
   if (!told.ok) return quit(told.data?.error ?? `could not register your app (${told.status})`);
   machineOf = () => (app ? {
