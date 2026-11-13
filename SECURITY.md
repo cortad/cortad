@@ -17,8 +17,7 @@ deletes it.
 
 **The files around your AI.** On your machine, Cortad's parsers pick the prompts, the tools the model
 can call, the code that calls a model, the routes that reach it and the request shapes they accept,
-and your evals. Nothing else in the repository is sent, and Cortad's server can later ask only for a
-file in that set. If you would rather choose the files yourself, your coding agent can pick and send
+and your evals. Cortad's server can later ask only for a file in that set. If you would rather choose the files yourself, your coding agent can pick and send
 them instead (see README.md).
 
 These are never sent:
@@ -65,8 +64,7 @@ output and in everything it sends.
 
 ## What Cortad's server can make your machine do
 
-- Send requests to your app's own port, and to no other port or host, the way a visitor of your app
-  does. The replies go to Cortad. Where an endpoint needs a signed-in user and you send it one message
+- Send requests to your app's own port, and to no other port or host. The replies go to Cortad. Where an endpoint needs a signed-in user and you send it one message
   yourself, later test messages to that endpoint carry that same sign-in. To learn the request your
   own page makes, the command may open that page on your machine in a headless browser; nothing the
   browser sees is sent.
