@@ -23,10 +23,9 @@ them instead (see README.md).
 
 These are never sent:
 
-- Env files (`.env`, `.env.*`, `*.env`, `.envrc`) and key or certificate files (`.pem`, `.key`,
-  `.p12`, `.pfx`, `.jks`, `.keystore`). A file your agent picks or Cortad's server asks for is also
-  refused when it is `id_rsa*`, `id_ed25519*` or `id_ecdsa*`, or sits in `.ssh`, `.gnupg`, `.aws`,
-  `.npmrc` or `.netrc`.
+- Env files (`.env`, `.env.*`, `*.env`, `.envrc`), key or certificate files (`.pem`, `.key`,
+  `.p12`, `.pfx`, `.jks`, `.keystore`, `id_rsa*`, `id_ed25519*`, `id_ecdsa*`), anything in `.ssh`,
+  `.gnupg` or `.aws`, and `.npmrc` and `.netrc`.
 - The `.git` folder and the commit history. Only the 40-character id of the commit you are on is
   sent, so a simulation is tied to the code it tested.
 - Files git ignores.
@@ -100,8 +99,9 @@ Any other command the server sends is refused and noted in `~/.cortad/<project>/
   app's JWT secret is made only after a yes given to your coding agent on this machine, kept in
   `~/.cortad`.
 - Cortad's tools and skill are added to one coding agent, inside this project only: the agent running
-  the connect, or on a plain terminal the one you name, or none. Nothing is written to your home
-  folder for any agent, and a Cortad skill an older version left there is removed. The command prints
+  the connect, or on a plain terminal the one you name, or none. For Claude Code its entry is the
+  per-project one in `~/.claude.json`, as `claude mcp add` writes it; nothing else is written to your
+  home folder for any agent, and a Cortad skill an older version left there is removed. The command prints
   every file it changed, `cortad unstick` removes the skill, and `README.md` lists every file it
   creates.
 
@@ -132,15 +132,14 @@ Any other command the server sends is refused and noted in `~/.cortad/<project>/
 - Code versions and the words of production conversations: Cloudflare R2, reached only through the
   Cortad API. Conversations brought in from your own store are kept in the database instead,
   encrypted with your account's key.
-- The Cortad API runs on Cloudflare Workers and Cloudflare Containers. The root key is held in
-  Google Cloud KMS, and the nightly jobs are started by Google Cloud Scheduler.
+- The Cortad API runs on Cloudflare Workers and Cloudflare Containers.
 - No route of the Cortad API stores a model-provider key.
 
 ## Encryption
 
 - In transit: HTTPS.
-- Per account: each account has its own 256-bit key, stored only wrapped (AES-256-GCM) by the root
-  key in Google Cloud KMS; the API in production refuses to start without it.
+- Per account: each account has its own 256-bit key, stored only wrapped (AES-256-GCM) by a root key
+  derived from a secret in the Cortad API's server configuration.
 - Each stored object is encrypted with its own data key (AES-256-GCM), made new every time it is
   written: each file's content in a code version, each code version's list of files, and each
   production conversation. The data key is wrapped by the account's key, and the object's storage
@@ -152,15 +151,14 @@ Any other command the server sends is refused and noted in `~/.cortad/<project>/
 ## Keeping and deleting
 
 - Each plan sets how long production conversations' words are kept: 7 days on Free, 90 days on Pro,
-  1 year on Ultra. Deleting them at the end of that time is switched off today, so they are kept
-  until you delete them or the account. When it is on, their words are deleted and counts, times and
+  1 year on Ultra. Words past that time are marked for deletion each night. Counts, times and
   outcomes stay for the life of the account.
 - Code versions are kept until the account is deleted. Test conversations are kept until you delete
   the case they belong to, or the account.
 - You can delete a production conversation at any time.
 - You can delete your account in Settings. Its app, ingest and machine keys stop working at once.
-  Seven days later, on that night's run, Cortad deletes its database rows, stored objects, sandboxes
-  and the account's key. You can keep the account during those seven days. Kept after it: a record
+  Seven days later it is due for deletion, and Cortad deletes its database rows, stored objects,
+  sandboxes and the account's key. You can keep the account during those seven days. Kept after it: a record
   that the deletion happened, with how many rows went; the account's audit log and notes, with your
   user id taken out; and purchase and billing records. Database backups are deleted as they rotate,
   within the thirty days the Privacy Policy states. An account a paid plan still bills cannot be
@@ -170,13 +168,7 @@ Any other command the server sends is refused and noted in `~/.cortad/<project>/
 
 ## Who processes your data
 
-The current list of subprocessors, with what each one does, is at `trust.cortad.com`. Of them, these
-receive conversation text and code: the model providers Cortad's own models run on (Fireworks, and
-Anthropic directly or through OpenRouter where Cortad's configuration names them), which study your
-AI, write simulated users and judge conversations; TypeSafe, which rules on simulation results and
-analyzes production conversations; and Cloudflare Workers AI, which groups failure text. Exa receives
-the web searches Cortad's model writes about your product's market. They keep what they receive under
-their own terms with Cortad.
+The current list of subprocessors, with what each one does, is at `trust.cortad.com`.
 
 ## Reporting a vulnerability
 
