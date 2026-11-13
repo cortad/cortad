@@ -439,10 +439,15 @@ function runOp(b) {
   if (verbose) say(`running ${b.op}`);
   return run();
 }
-function refused(b) {
-  const asked = mask(String(b.op ?? b.cmd ?? "")).replace(/\s+/g, " ").slice(0, 300);
-  say(`refused a command Cortad's server sent, since this machine runs only Cortad's own operations (${Object.keys(OPS).join(", ")}): ${asked}`);
+// Said in this terminal and kept in refused.log, masked and on one line.
+function noteRefused(what, why) {
+  const asked = mask(String(what)).replace(/\s+/g, " ").slice(0, 300);
+  say(`${why}: ${asked}`);
   try { mkdirSync(homeOf(project), { recursive: true, mode: 0o700 }); appendFileSync(join(homeOf(project), "refused.log"), `${new Date().toISOString()} ${asked}\n`, { mode: 0o600 }); } catch { /* said in this terminal */ }
+  return asked;
+}
+function refused(b) {
+  noteRefused(b.op ?? b.cmd ?? "", `refused a command Cortad's server sent, since this machine runs only Cortad's own operations (${Object.keys(OPS).join(", ")})`);
   return { success: false, exitCode: 126, stdout: "", stderr: `refused: this machine runs only Cortad's own operations (${Object.keys(OPS).join(", ")}), never a command it is sent` };
 }
 const OUTPUT_SENT = 20_000;
@@ -706,7 +711,7 @@ async function verb(job) {
     case "routes": return capture ? JSON.parse(maskRoutes(JSON.stringify(capture.registry(app?.port)))) : {};
     // A world is ended from this terminal, never from the cloud.
     case "destroy": return { ok: true };
-    default: return { ok: true };
+    default: return { error: `refused: this machine does not know the request ${noteRefused(`verb ${job.verb}`, "refused a request Cortad's server sent, since this machine does not know it")}` };
   }
 }
 
