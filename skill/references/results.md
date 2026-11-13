@@ -6,7 +6,7 @@ The last line of a simulation_status result is the next call. A plan line names 
 
 ## wait
 
-`npx {{cortad}} wait` returns when the next simulation or verify ends, including one the person starts with Start simulation, or with the person's choice on the setup card. It prints what `simulation_status` prints for that finished run, and its last line is `next: behavior <jobId>`. When the connect command has been stopped for a minute it ends with `The connect command stopped, so no simulation can start from the browser.`; after six hours with no simulation, with `No simulation ended in 6 hours.`
+`npx {{cortad}} wait` returns when the next simulation or verify ends, including one the person starts with Start simulation, or with the person's choice on the setup card. It prints what `simulation_status` prints for that finished run, and its last line is `next: behavior <jobId>`. When a simulation asked for while the app started could not start, it returns at once with the reason, as `simulation_status` says it, and `next: status`. When the connect command has been stopped for a minute it ends with `The connect command stopped, so no simulation can start from the browser.`; after six hours with no simulation, with `No simulation ended in 6 hours.`
 
 ## status
 
@@ -36,7 +36,7 @@ Endpoints found in your code that Cortad has seen no answer from yet (2):
   POST /api/homework/explain  apps/api/src/routes/homework.ts:18  Cortad's test request was answered with HTTP 500.
   POST /api/progress/summary  apps/api/src/routes/progress.ts:9  Needs a signed-in user.
 Once a failure above is fixed, call test with endpoints to send its test request again.
-One of them refused a visitor: ask the person first, with your question tool and the yes option first, whether Cortad may make one test account on the app's own sign-up or sign a token with the JWT secret in its env, kept in ~/.cortad on this machine; on their yes, call test with account make. The other options: an existing account to sign in as, or leaving it out of the first simulation.
+One of them needs a signed-in user: a simulation leaves it out unless the person sends it one message themselves, signed in. To confirm with the person: "May Cortad make one test account on your app's own sign-up, or sign a token with the JWT secret in its env, kept in ~/.cortad on this machine?" Yes, make one: test with account make / I send it one message myself / Leave it out
 An endpoint that hands back a turn and answers afterwards stays on this list until Cortad has seen the answer its model wrote: the first reply alone does not take it off.
 Which of these the first simulation tests is the person's choice: ask them now with your question tool (in Claude Code, AskUserQuestion with multiSelect), one option a feature, and record the answer with test and features; or they tick them on the card in the browser.
 A simulation plays 36 simulated users in about 6 minutes. About $0.38 on your OpenAI key.
@@ -155,10 +155,11 @@ Simulation started: 9a10b3d2-7c8d-4e9f-8a1b-2c3d4e5f6a7b.
 next: simulation_status 9a10b3d2-7c8d-4e9f-8a1b-2c3d4e5f6a7b
 ```
 
-The app is still starting. `simulation_status` holds until the simulation has an id:
+The app is still starting. The simulation is asked for once it answers; `wait` returns when it ends, or at once with the reason it could not start:
 
 ```
-Starting your app for the simulation. Call simulation_status; it answers as soon as the simulation has an id.
+Starting your app for the simulation. The simulation starts once your app answers.
+next: start `npx -y cortad wait` in the background now (in Claude Code, Bash with run_in_background); it returns when the simulation ends, or at once with the reason it could not start
 ```
 
 The plan is spent, and nothing ran:

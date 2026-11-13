@@ -12,7 +12,7 @@ import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 import { COMMANDS, main as face, unknownVerb, VERBS } from "./lib/cli.mjs";
 import { addNews, homeOf, projectOf, readPicked, readToken, writeApp, writeDigest, writePicked, writeToken } from "./lib/home.mjs";
-import { changesOf, commandText, RELOADER, sourceOf } from "./lib/fresh.mjs";
+import { changesOf, commandText, RELOADED, RELOADER, sourceOf } from "./lib/fresh.mjs";
 import { chainOf, elapsedMs, holderOf, listening, listenerOn, portInError, spawnTied, stopTree } from "./lib/proc.mjs";
 import { claimRunner, readRunner, releaseRunner, startedAtOf, writeRunner } from "./lib/runner.mjs";
 import { agentOf, AGENTS, askAgent, register } from "./lib/register.mjs";
@@ -34,7 +34,7 @@ import { ADMIN_CONTROL, SIMULATION_HEADER } from "./lib/reach.mjs";
 import { clientOriginOf, envOf, keysFromEnv } from "./lib/origins.mjs";
 import { forgetSignIn, keptSignIn, mintAfterYes, rememberSignIn, signUpAndIn, testAccount } from "./lib/sign-in.mjs";
 import { clientRequestOf } from "./lib/browser-rung.mjs";
-import { layerOf, layerSaid } from "./lib/layer.mjs";
+import { layerOf, layerSaid, setsSecret } from "./lib/layer.mjs";
 import { ignoredBy, rulesOf } from "./lib/gitignore.mjs";
 import { explainText } from "./lib/explain-text.mjs";
 import { sourcesIn } from "./lib/history/sources.mjs";
@@ -153,7 +153,7 @@ function holdProject() {
 if (viaToken) holdProject();
 else if (!explain) { const held = readRunner(project); if (held) fail(heldLine(held)); }
 
-const SKIP_DIR = /^(node_modules|\.git|dist|build|out|coverage|vendor|venv|\.venv|env|target|tmp|\.next|\.nuxt|\.turbo|\.cache|__pycache__|\.terraform|\.wrangler|\.svelte-kit|\.output|\.parcel-cache|\.idea|\.vscode|secrets?|\.secrets?|\.ssh|\.gnupg|\.aws)$/i;
+const SKIP_DIR = /^(node_modules|\.git|dist|build|out|coverage|vendor|venv|\.venv|env|target|tmp|\.next|\.nuxt|\.turbo|\.cache|__pycache__|\.terraform|\.wrangler|\.svelte-kit|\.output|\.parcel-cache|\.idea|\.vscode|secrets?|\.secrets?|\.ssh|\.gnupg|\.aws|\.?(?:[\w-]*[._-])?logs?)$/i;
 
 const SKIP_FILE = /^\.env(\..*)?$|^\.envrc$|\.env$|^\.(?:npmrc|netrc)$|^id_(?:rsa|ed25519|ecdsa)|\.(pem|key|p12|pfx|jks|keystore|sqlite|sqlite3|db|log|lock|map|zip|tar|gz|tgz|7z|rar|png|jpe?g|gif|webp|ico|svg|mp3|mp4|wav|mov|pdf|woff2?|ttf|otf|eot|bin|exe|dll|so|dylib|wasm|onnx|pt|pth|safetensors|numbers|DS_Store)$/i;
 
@@ -218,8 +218,13 @@ function shareable(rel, askGit = true) {
 let listed = null;
 
 let envKeys = [];
+
+const TEXT_FILE = /\.(?:md|txt|ya?ml|json|ini|toml|cfg|conf|properties)$/i;
+
 function carriesKey(rel) {
-  try { return holdsKeys(readFileSync(join(root, rel), "utf8"), envKeys); } catch { return false; }
+  let text; try { text = readFileSync(join(root, rel), "utf8"); } catch { return null; }
+  if (holdsKeys(text, envKeys)) return "it holds a value from your env";
+  return TEXT_FILE.test(rel) && setsSecret(text) ? "a line in it sets a password, key or token" : null;
 }
 
 let secrets = [];
@@ -655,13 +660,14 @@ function whyNot(up) {
 }
 
 let loaded = null;
+const loadedSince = () => loaded.reloadedAt ?? loaded.at;
 const noteApp = () => writeApp(project, loaded?.at
-  ? { runner: process.pid, own: loaded.own, startedAt: new Date(loaded.at).toISOString(), reloads: loaded.reloads, files: loaded.files }
+  ? { runner: process.pid, own: loaded.own, startedAt: new Date(loaded.at).toISOString(), ...(loaded.reloadedAt ? { reloadedAt: new Date(loaded.reloadedAt).toISOString() } : {}), files: loaded.files }
   : { runner: process.pid });
 async function noteAttached(port) {
   const pid = await listenerOn(port);
   const chain = pid ? await chainOf(pid).catch(() => []) : [];
-  loaded = { own: false, at: chain.length ? Date.now() - elapsedMs(chain[0].etime) : null, reloads: RELOADER.test(chain.map((p) => p.args).join("\n")), files: sourceOf(root, files, false) };
+  loaded = { own: false, at: chain.length ? Date.now() - elapsedMs(chain[0].etime) : null, files: sourceOf(root, files, false) };
   noteApp();
 }
 
@@ -733,7 +739,9 @@ async function start(waitMs) {
   let seen = "";
   const onData = (log) => (d) => {
     const s = d.toString(); log(d); seen = (seen + s).slice(-20_000); lastSaid = seen; lastOutputAt = Date.now(); if (verbose) process.stdout.write(s);
-    if (!note.reloads && RELOADER.test(s)) { note.reloads = true; if (note.answered && loaded === note) noteApp(); }
+    if (!note.reloads && RELOADER.test(s)) note.reloads = true;
+
+    if (RELOADED.test(s)) { note.reloadedAt = Date.now(); note.files = sourceOf(root, files); if (note.answered && loaded === note) noteApp(); }
   };
   mine.stdout.on("data", onData(logTo()));
   mine.stderr.on("data", onData(logTo()));
@@ -795,7 +803,7 @@ function restartOnce(work) {
   })();
   return restartDone;
 }
-const SAVED_CODE = "starting your app again so it runs the code you saved, since it does not reload by itself";
+const SAVED_CODE = "starting your app again so it runs the code you saved since it last started or reloaded";
 
 const SAVED_ENV = "starting your app again so it reads the value you saved in your env file, which your app reads only when it starts";
 
@@ -812,11 +820,11 @@ function restartApp(why = SAVED_CODE) {
 }
 
 const savedSinceStart = () => Boolean(loaded?.files) && changesOf({
-  root, app: { startedAt: new Date(loaded.at).toISOString(), files: loaded.files }, skip: writtenPaths(writesDirOf(homeOf(project))),
+  root, app: { startedAt: new Date(loadedSince()).toISOString(), files: loaded.files }, skip: writtenPaths(writesDirOf(homeOf(project))),
 }).changed.length > 0;
 
 const envSavedSinceStart = () => Boolean(loaded?.own && loaded.at) && envFiles.some((f) => {
-  try { return !/\.(example|sample)$/.test(f) && statSync(f).mtimeMs > loaded.at; } catch { return false; }
+  try { return !/\.(example|sample)$/.test(f) && statSync(f).mtimeMs > loadedSince(); } catch { return false; }
 });
 
 const whyRestart = () => (savedSinceStart() ? SAVED_CODE : envSavedSinceStart() ? SAVED_ENV : null);
@@ -881,8 +889,8 @@ for (const named of envFilesNamedIn(typed, appDir)) if (!envFiles.includes(named
 const shellSecrets = environmentSecrets(process.env);
 secrets = secretValues(envFiles, shellSecrets);
 envKeys = [...secretEnvValues(envFiles, (f) => readFileSync(f, "utf8")), ...shellSecrets];
-const kept = [];
-for (let i = files.length - 1; i >= 0; i -= 1) if (carriesKey(files[i])) kept.unshift(...files.splice(i, 1));
+const keyed = [];
+for (let i = files.length - 1; i >= 0; i -= 1) if (carriesKey(files[i])) keyed.unshift(...files.splice(i, 1));
 
 const candidatesOf = (rels) => rels.flatMap((rel) => { let full; try { full = readFileSync(join(root, rel), "utf8"); } catch { return []; } return [{ path: rel, head: full.slice(0, 4000), size: Buffer.byteLength(full), full }]; });
 const isData = (rel, size) => DATA.test(rel) || (/\.json$/i.test(rel) && size > DATA_JSON);
@@ -892,12 +900,19 @@ const mayOpen = (rel) => {
   if (!(walked ??= new Set(files)).has(rel) || !shareable(rel)) return false;
   try { return !isData(rel, statSync(join(root, rel)).size) && !carriesKey(rel); } catch { return false; }
 };
+
 const toSend = () => {
-  const candidates = candidatesOf(files);
+  const candidates = candidatesOf([...files, ...keyed]);
   const chosen = layerOf(candidates);
   const size = new Map(candidates.map((c) => [c.path, c.size]));
-  const kept = chosen.files.filter((rel) => !isData(rel, size.get(rel)));
-  return { ...chosen, files: kept, why: new Map(kept.map((rel) => [rel, chosen.why.get(rel)])), data: chosen.files.filter((rel) => !kept.includes(rel)) };
+  const key = (rel) => keyed.includes(rel);
+  const kept = chosen.files.filter((rel) => !isData(rel, size.get(rel)) && !key(rel));
+
+  const sentBefore = readPicked(project).filter((rel) => !kept.includes(rel) && !judged(rel).why);
+  const all = [...kept, ...sentBefore];
+  const why = new Map([...kept.map((rel) => [rel, chosen.why.get(rel)]), ...sentBefore.map((rel) => [rel, "sent"])]);
+  const held = [...chosen.held, ...[...chosen.files, ...chosen.fed].filter(key).map((path) => ({ path, why: "secret" }))].sort((a, b) => a.path.localeCompare(b.path));
+  return { ...chosen, files: all, why, data: chosen.files.filter((rel) => !kept.includes(rel) && !key(rel)), fed: chosen.fed.filter((rel) => !all.includes(rel) && !key(rel)), held };
 };
 
 const pickedLayer = (rels) => {
@@ -915,8 +930,7 @@ const refusalOf = (rel) => {
   const { size } = statSync(join(root, rel));
   if (isData(rel, size)) return "a data file (CSV, JSON Lines, Parquet, a spreadsheet or JSON over 64 KB), and data files never leave";
   if (size > MAX_FILE) return "too large";
-  if (carriesKey(rel)) return "it holds a value from your env";
-  return null;
+  return carriesKey(rel);
 };
 const judged = (arg) => {
   let landed; try { landed = realpathSync(resolve(root, String(arg))); } catch { return { arg, why: "no such file in this folder" }; }
@@ -931,14 +945,15 @@ const judged = (arg) => {
 const pickedSet = (args) => {
   const asked = args.map(judged);
   const refused = asked.filter((j) => j.why).map(({ arg, why }) => ({ arg, why }));
-  const before = readPicked(project).filter((rel) => !judged(rel).why);
-  const all = [...new Set([...before, ...asked.filter((j) => j.rel).map((j) => j.rel)])];
+  const files = [...new Set(asked.filter((j) => j.rel).map((j) => j.rel))];
+  const picked = [...new Set([...readPicked(project).filter((rel) => !judged(rel).why), ...files])];
+  const all = [...new Set([...(picks ? [] : layer?.set ?? []), ...picked])];
   const chosen = pickedLayer(all);
-  return { files: [...new Set(asked.filter((j) => j.rel).map((j) => j.rel))], all, why: chosen.why, prompts: chosen.pack.prompts, chosen, refused };
+  return { files, picked, all, why: chosen.why, prompts: chosen.pack.prompts, chosen, refused };
 };
 
 if (explain) {
-  console.log(explainText(toSend(), files.length));
+  console.log(explainText(toSend(), files.length + keyed.length));
   process.exit(0);
 }
 mkdirSync(work, { recursive: true });
@@ -973,6 +988,8 @@ key = attach.data.key;
 {
   const chosen = picks ? pickedSet([]).chosen : toSend();
   layer = { ...layerSaid(chosen), set: new Set(chosen.files) };
+
+  if (!picks) me.fed = chosen.fed;
 }
 if (!viaToken && (picks || keptStart.picks)) keepStart({ picks });
 if (!viaToken && (noSamples || keptStart.noSamples)) keepStart({ noSamples });
@@ -1049,7 +1066,7 @@ if (layer.set.size || !picks) {
   if (found.length) void reportLive({ apiBase: api, token: readToken(project) }, { found });
 }
 
-stepDone(picks && !layer.set.size ? "connected to your Cortad account: it has none of your files yet, and your coding agent picks them" : moved ? "connected to your Cortad account: your change is in, and what Cortad read before still stands" : resumed ? "connected to your Cortad account: your code has not changed since last time" : "connected to your Cortad account");
+stepDone(picks && !layer.set.size ? "connected to your Cortad account: it has none of your files yet, and your coding agent picks them" : moved ? "connected to your Cortad account: your change is in, and what Cortad studied before still stands" : resumed ? "connected to your Cortad account: your code has not changed since last time" : "connected to your Cortad account");
 
 if (!viaToken && process.env.CORTAD_NO_REGISTER !== "1") {
   const agent = agentOf() ?? await askAgent();
@@ -1084,6 +1101,14 @@ const announce = async () => {
   const hooked = Boolean(proxy ? launched || proxy.seen() : launched && capture?.watching(app.port));
   return call("POST", `/local/${box}/app`, { port: doorPort(), cmd: shownCommand(app.cmd, mask), lifted: app.lifted ?? [], watching: hooked, metered: hooked, proves: hooked, reached: reachedNow() });
 };
+
+async function announceSteady() {
+  for (let wait = 1000; ; wait *= 2) {
+    const told = await announce().catch((err) => ({ ok: false, status: 0, data: { error: String(err?.message ?? err) } }));
+    if (told.ok || (told.status !== 503 && told.status !== 0) || wait > 32_000) return told;
+    await new Promise((r) => setTimeout(r, wait));
+  }
+}
 const reachedNow = () => (capture?.connections() ?? []).map((c) => `${c.host}:${c.port}`).slice(0, 40);
 
 async function appLife(firstStart) {
@@ -1099,7 +1124,7 @@ async function appLife(firstStart) {
     become("starting");
     say("saw your change, starting your app again");
   }
-  const told = await announce();
+  const told = await announceSteady();
   clearStep();
   if (!told.ok) return quit(told.data?.error ?? `could not register your app (${told.status})`);
   machineOf = () => (app ? {
@@ -1248,8 +1273,9 @@ async function sendPicked(args, go, spec) {
   layer = { ...layerSaid(set.chosen), set: new Set(set.all) };
   const sent = await upload(set.all);
   if (!sent.ok) { layer = before; return `Nothing was sent: ${sent.err ? `could not reach ${origin.host}` : sent.data?.error ?? `the upload failed (${sent.status})`}.\nnext: npx -y ${spec} send --yes ${args.join(" ")}`; }
-  writePicked(project, set.all);
+  writePicked(project, set.picked);
   me.picked = set.all.length;
+  if (me.fed) me.fed = me.fed.filter((rel) => !layer.set.has(rel));
   if (became) become(became.state, became.fields);
   if (app?.port) await announce().catch(() => {});
   clearStep();
@@ -1266,7 +1292,7 @@ async function sendLoop() {
     try { SEND.answer(homeOf(project), ask.id, text); } catch {  }
   }
 }
-if (picks) void sendLoop();
+void sendLoop();
 
 let reachedBox = "";
 async function reachLoop() {

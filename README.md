@@ -38,7 +38,7 @@ cortad intelligence site <address>   the one site the page key answers
 cortad intelligence --wait           return when the history is read, with what it found
 ```
 
-Before anything is written or sent, Cortad's rules take out of every message, tool call and tool result: keys, emails (in any script), phone numbers in local and international formats, national ID and exam seat numbers, dates of birth, social handles and addresses, with Arabic-Indic and Persian digits read as digits. Conversation and user ids are pseudonymized with an HMAC whose salt is made on this computer at first use and never sent. Names written in a message are not removed by Cortad's rules. To remove them, add `--redact-with "<command>"`: your command runs on every message first, reads one JSON line per text (`{"text": "..."}`) on its input and writes the same lines back, in order; if it fails, nothing is sent.
+Before anything is written or sent, Cortad's rules take out of every message, tool call and tool result: keys, emails (in any script), phone numbers in local and international formats, national ID and exam seat numbers, dates of birth, social handles and addresses, with Arabic-Indic and Persian digits read as digits. Conversation and user ids are pseudonymized with an HMAC whose salt is made on this computer at first use and never sent. `--redact-with "<command>"` runs your own redaction command on every message first. The command takes one JSON line per text (`{"text": "..."}`) on its input and writes the same lines back, in order; if it fails, nothing is sent.
 
 ## Your coding agent
 

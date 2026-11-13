@@ -17,7 +17,10 @@ deletes it.
 
 **The files around your AI.** On your machine, Cortad's parsers pick the prompts, the tools the model
 can call, the code that calls a model, the routes that reach it and the request shapes they accept,
-and your evals. Cortad's server can later ask only for a file in that set. If you would rather choose the files yourself, your coding agent can pick and send
+and your evals. A file your code reads from disk goes only when its name or folder says it is a
+prompt. Every prompt file goes only after a check for secrets and for personal details: contact
+details, ids, dates of birth, and a person's name beside a health or family note. Cortad's server can
+later ask only for a file in that set. If you would rather choose the files yourself, your coding agent can pick and send
 them instead (see README.md).
 
 These are never sent:
@@ -42,8 +45,9 @@ These are never sent:
 
 - **Test conversations.** Simulated users send messages to your app on your machine, each labelled
   with the header `x-cortad-simulation: 1`. Your app's replies go to Cortad. Your app stores the
-  conversations wherever it stores its own chats. A simulation starts only after your yes, given in
-  the browser or to your coding agent.
+  conversations wherever it stores its own chats. Your first simulation starts after your yes, given in
+  the browser or to your coding agent. After that, your coding agent starts one to test each change it
+  makes to your AI.
 - **Your app's model calls.** What your app sent its model while answering a test message, and what
   the model answered.
 - **Your app's routes,** as your app lists them.
@@ -139,7 +143,7 @@ Any other command the server sends is refused and noted in `~/.cortad/<project>/
 - You can delete a production conversation at any time.
 - You can delete your account in Settings. Its keys stop working at once.
 - Whether Cortad may also use your data to improve the service is your choice, on the Data Sharing
-  screen or in Settings. It is off until you turn it on.
+  screen or in Settings.
 
 ## Who processes your data
 
