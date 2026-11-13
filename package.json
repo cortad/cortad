@@ -104,7 +104,6 @@
     "lib/history/db/postgrest.mjs",
     "lib/history/db/chroma.mjs",
     "lib/history/db/weaviate.mjs",
-    "lib/history/db/pending.mjs",
     "lib/history/db/index.mjs",
     "lib/history/db/milvus.mjs",
     "lib/history/db/dynamo.mjs",
@@ -112,6 +111,7 @@
     "lib/history/db/firestore.mjs",
     "lib/history/db/pinecone.mjs",
     "lib/history/db/cassandra.mjs",
+    "lib/history/db/astra.mjs",
     "lib/py/dbread.py"
   ],
   "scripts": {
