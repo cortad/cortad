@@ -202,7 +202,7 @@ else if (!explain) { const held = readRunner(project); if (held) fail(heldLine(h
 const SKIP_DIR = /^(node_modules|\.git|dist|build|out|coverage|vendor|venv|\.venv|env|target|tmp|\.next|\.nuxt|\.turbo|\.cache|__pycache__|\.terraform|\.wrangler|\.svelte-kit|\.output|\.parcel-cache|\.idea|\.vscode|secrets?|\.secrets?)$/i;
 // Env files by any name (scripts/books.env is one), keys, credentials, media and compiled output.
 const SKIP_FILE = /^\.env(\..*)?$|^\.envrc$|\.env$|\.(pem|key|p12|pfx|jks|keystore|sqlite|sqlite3|db|log|lock|map|zip|tar|gz|tgz|7z|rar|png|jpe?g|gif|webp|ico|svg|mp3|mp4|wav|mov|pdf|woff2?|ttf|otf|eot|bin|exe|dll|so|dylib|wasm|onnx|pt|pth|safetensors|numbers|DS_Store)$/i;
-// Data, not code: sent only where the AI layer chose the file as an eval definition and git tracks it.
+// Data, not code: never sent, whatever git tracks and whatever the AI layer would choose it for.
 const DATA = /\.(?:csv|tsv|jsonl|ndjson|parquet|xlsx?|arrow|feather|avro)$/i;
 const DATA_JSON = 64_000;
 const MAX_FILE = 25_000_000;
@@ -246,9 +246,9 @@ function envsIn(dir, envs) {
   } catch { /* a folder we may not read holds nothing for us */ }
 }
 
-// What git lists here: tracked files and new ones it would pick up, never an ignored one, and which of
-// them it tracks. A folder that is not a git repository has no such list and is read by the rules
-// above and its own .gitignore files.
+// What git lists here: tracked files and new ones it would pick up, never an ignored one. A folder
+// that is not a git repository has no such list and is read by the rules above and its own
+// .gitignore files.
 function gitListed() {
   if (!existsSync(join(root, ".git")) && !onPath("git")) return null;
   let inside = false;
@@ -257,9 +257,7 @@ function gitListed() {
   // A repository whose list cannot be read is not read by guesswork: it stops here.
   try {
     const out = execFileSync("git", ["-C", root, "ls-files", "-z", "-t", "--cached", "--others", "--exclude-standard"], { maxBuffer: 256 * 1024 * 1024, stdio: ["ignore", "pipe", "ignore"] });
-    const entries = out.toString().split("\0").filter(Boolean).map((e) => [e[0], e.slice(2)]);
-    tracked = new Set(entries.filter(([tag]) => tag !== "?").map(([, rel]) => rel));
-    return new Set(entries.map(([, rel]) => rel));
+    return new Set(out.toString().split("\0").filter(Boolean).map((e) => e.slice(2)));
   } catch (e) { fail(`could not list this repository's files with git: ${e.message}`); }
 }
 // One rule for every file that could leave: the upload, and a read the engine asks for later.
@@ -274,7 +272,6 @@ function shareable(rel, askGit = true) {
   try { execFileSync("git", ["-C", root, "check-ignore", "-q", rel], { stdio: "ignore" }); return false; } catch (e) { return e.status === 1; }
 }
 let listed = null;
-let tracked = new Set();
 // Read the same way for the upload and for any read the engine asks for later.
 let envKeys = [];
 function carriesKey(rel) {
@@ -413,7 +410,7 @@ const readable = (p) => {
   if (!landed.startsWith(home + sep) || ENV_FILE.test(basename(landed)) || SECRET_PATH.test(landed)) return null;
   const rel = relative(home, landed);
   if (!layer?.set.has(rel)) return null;
-  return shareable(rel) && !carriesKey(rel) ? landed : null;
+  return shareable(rel) && !isData(rel, statSync(landed).size) && !carriesKey(rel) ? landed : null;
 };
 // An operation runs with a plain environment: the app's own process reads its .env itself, and no
 // operation inherits this terminal's keys.
@@ -1041,24 +1038,23 @@ envKeys = [...secretEnvValues(envFiles, (f) => readFileSync(f, "utf8")), ...shel
 const kept = [];
 for (let i = files.length - 1; i >= 0; i -= 1) if (carriesKey(files[i])) kept.unshift(...files.splice(i, 1));
 // What a connect sends, and all --explain prints, from this one function: the AI layer the read's own
-// parsers choose (lib/layer.mjs), less any data file the layer did not choose as an eval definition
-// git tracks. The rest of the folder is never sent, and a read may not ask for it later (readable).
+// parsers choose (lib/layer.mjs), less every data file, which --explain names as held back. The rest
+// of the folder is never sent, and a read may not ask for it later (readable).
 const candidatesOf = (rels) => rels.flatMap((rel) => { let full; try { full = readFileSync(join(root, rel), "utf8"); } catch { return []; } return [{ path: rel, head: full.slice(0, 4000), size: Buffer.byteLength(full), full }]; });
-// A data file leaves only as an eval definition git tracks.
-const dataRefused = (rel, why, size) => (DATA.test(rel) || (/\.json$/i.test(rel) && size > DATA_JSON)) && !(why === "eval" && tracked.has(rel));
+const isData = (rel, size) => DATA.test(rel) || (/\.json$/i.test(rel) && size > DATA_JSON);
 const toSend = () => {
   const candidates = candidatesOf(files);
   const chosen = layerOf(candidates);
   const size = new Map(candidates.map((c) => [c.path, c.size]));
-  const kept = chosen.files.filter((rel) => !dataRefused(rel, chosen.why.get(rel), size.get(rel)));
-  return { ...chosen, files: kept, why: new Map(kept.map((rel) => [rel, chosen.why.get(rel)])) };
+  const kept = chosen.files.filter((rel) => !isData(rel, size.get(rel)));
+  return { ...chosen, files: kept, why: new Map(kept.map((rel) => [rel, chosen.why.get(rel)])), data: chosen.files.filter((rel) => !kept.includes(rel)) };
 };
 // The files the agent picked, with the reason the AI layer's parsers give each, read across the
 // whole set so a route is seen reaching a model call in another file.
 const pickedLayer = (rels) => {
   const candidates = candidatesOf(rels);
   const chosen = layerOf(candidates);
-  return { ...chosen, files: candidates.map((c) => c.path), size: new Map(candidates.map((c) => [c.path, c.size])) };
+  return { ...chosen, files: candidates.map((c) => c.path) };
 };
 // Why a file the agent named may not leave this machine, or null: the automatic path's rules, said
 // per file.
@@ -1068,7 +1064,9 @@ const refusalOf = (rel) => {
   if (SECRET_PATH.test(rel)) return "a key or credential file";
   if (rel.split(sep).slice(0, -1).some((d) => SKIP_DIR.test(d)) || SKIP_FILE.test(name)) return "not source code: dependencies, build output, media, archives and keys never leave";
   if (!shareable(rel)) return "git ignores it";
-  if (statSync(join(root, rel)).size > MAX_FILE) return "too large";
+  const { size } = statSync(join(root, rel));
+  if (isData(rel, size)) return "a data file (CSV, JSON Lines, Parquet, a spreadsheet or JSON over 64 KB), and data files never leave";
+  if (size > MAX_FILE) return "too large";
   if (carriesKey(rel)) return "it holds a value from your env";
   return null;
 };
@@ -1082,18 +1080,14 @@ const judged = (arg) => {
   return why ? { arg, why } : { arg, rel };
 };
 // The set the agent has sent, with what one more send adds. `files`: this send's files that may go.
-// `all`: the whole set Cortad holds after it. A data file goes only as an eval definition git tracks.
+// `all`: the whole set Cortad holds after it.
 const pickedSet = (args) => {
   const asked = args.map(judged);
   const refused = asked.filter((j) => j.why).map(({ arg, why }) => ({ arg, why }));
   const before = readPicked(project).filter((rel) => !judged(rel).why);
   const all = [...new Set([...before, ...asked.filter((j) => j.rel).map((j) => j.rel)])];
-  const first = pickedLayer(all);
-  const data = new Set(all.filter((rel) => dataRefused(rel, first.why.get(rel), first.size.get(rel))));
-  for (const j of asked) if (data.has(j.rel)) refused.push({ arg: j.arg, why: "a data file; one leaves only as an eval file git tracks" });
-  const kept = all.filter((rel) => !data.has(rel));
-  const chosen = data.size ? pickedLayer(kept) : first;
-  return { files: [...new Set(asked.filter((j) => j.rel && !data.has(j.rel)).map((j) => j.rel))], all: kept, why: chosen.why, prompts: chosen.pack.prompts, chosen, refused };
+  const chosen = pickedLayer(all);
+  return { files: [...new Set(asked.filter((j) => j.rel).map((j) => j.rel))], all, why: chosen.why, prompts: chosen.pack.prompts, chosen, refused };
 };
 // No network, no app started, nothing written.
 if (explain) {
