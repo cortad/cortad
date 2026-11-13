@@ -30,7 +30,7 @@ import { downLine, makeHealth } from "./lib/health.mjs";
 import { markRun, writesDirOf, writtenPaths } from "./lib/writes.mjs";
 import { makeHeld } from "./lib/held.mjs";
 import { answerAsk, ASK, makeAutoReach, takeAsk } from "./lib/auto-reach.mjs";
-import { SIMULATION_HEADER } from "./lib/reach.mjs";
+import { ADMIN_CONTROL, SIMULATION_HEADER } from "./lib/reach.mjs";
 import { clientOriginOf, envOf, keysFromEnv } from "./lib/origins.mjs";
 import { forgetSignIn, keptSignIn, mintAfterYes, rememberSignIn, signUpAndIn, testAccount } from "./lib/sign-in.mjs";
 import { clientRequestOf } from "./lib/browser-rung.mjs";
@@ -353,10 +353,15 @@ function runOp(b) {
   if (verbose) say(`running ${b.op}`);
   return run();
 }
-function refused(b) {
-  const asked = mask(String(b.op ?? b.cmd ?? "")).replace(/\s+/g, " ").slice(0, 300);
-  say(`refused a command Cortad's server sent, since this machine runs only Cortad's own operations (${Object.keys(OPS).join(", ")}): ${asked}`);
+
+function noteRefused(what, why) {
+  const asked = mask(String(what)).replace(/\s+/g, " ").slice(0, 300);
+  say(`${why}: ${asked}`);
   try { mkdirSync(homeOf(project), { recursive: true, mode: 0o700 }); appendFileSync(join(homeOf(project), "refused.log"), `${new Date().toISOString()} ${asked}\n`, { mode: 0o600 }); } catch {  }
+  return asked;
+}
+function refused(b) {
+  noteRefused(b.op ?? b.cmd ?? "", `refused a command Cortad's server sent, since this machine runs only Cortad's own operations (${Object.keys(OPS).join(", ")})`);
   return { success: false, exitCode: 126, stdout: "", stderr: `refused: this machine runs only Cortad's own operations (${Object.keys(OPS).join(", ")}), never a command it is sent` };
 }
 const OUTPUT_SENT = 20_000;
@@ -393,6 +398,14 @@ async function verb(job) {
       const port = Number(b.port) || doorPort();
       if (!app || (port !== app.port && port !== doorPort())) return { error: `refused: port ${port} is not your app` };
       const path = typeof b.path === "string" && b.path.startsWith("/") ? b.path : "/";
+      const method = String(b.method ?? "GET").toUpperCase();
+      const door = `${method} ${path.split("?")[0]}`;
+
+      if (!/^(?:GET|POST|GRPC)$/.test(method)) return { error: `refused: this machine sends your app GET and POST requests only, not ${method.slice(0, 20)}` };
+
+      let pathname = null;
+      try { pathname = decodeURIComponent(new URL(path, "http://app").pathname); } catch {  }
+      if (pathname === null || ADMIN_CONTROL.test(pathname)) return { error: "refused: its address says it administers your app" };
       const headers = {};
       for (const [k, v] of Object.entries(b.headers ?? {})) if (!/^(host|content-length|connection)$/i.test(k)) headers[k] = String(v);
 
@@ -415,12 +428,11 @@ async function verb(job) {
         delete headers[marker];
         if (role === CAPTURED || role.startsWith(`${CAPTURED}:`)) {
           spokenAs = role;
-          const theirs = capture?.headers(role);
+          const theirs = capture?.headers(role, door);
           for (const [name, value] of Object.entries(theirs ?? {})) { for (const k of Object.keys(headers)) if (k.toLowerCase() === name) delete headers[k]; headers[name] = value; }
         }
       }
       headers[SIMULATION_HEADER] = "1";
-      const method = String(b.method ?? "GET").toUpperCase();
 
       if (method === "GRPC") {
         try {
@@ -447,7 +459,6 @@ async function verb(job) {
       const { [cookieAt ?? ""]: given = "", ...cookieless } = headers;
       const cookie = () => [...new Map([...given.split(/;\s*/), ...jar.split(/;\s*/)].filter(Boolean).map((pair) => [pair.split("=")[0].trim(), pair])).values()].join("; ");
 
-      const door = `${method} ${path.split("?")[0]}`;
       const fresh = Boolean(trial && given && !trialJars.has(trial) && !ownSession.has(door));
       const visitor = async () => {
         const res = await fetch(url, { method: "GET", headers: cookieless, redirect: "manual", signal: AbortSignal.any([letGo, AbortSignal.timeout(15_000)]) }).catch(() => null);
@@ -578,7 +589,7 @@ async function verb(job) {
     case "routes": return capture ? JSON.parse(maskRoutes(JSON.stringify(capture.registry(app?.port)))) : {};
 
     case "destroy": return { ok: true };
-    default: return { ok: true };
+    default: return { error: `refused: this machine does not know the request ${noteRefused(`verb ${job.verb}`, "refused a request Cortad's server sent, since this machine does not know it")}` };
   }
 }
 
@@ -1197,7 +1208,7 @@ const autoReach = makeAutoReach({
   waiting: async () => (gate ? "Your app is being started again." : null),
 
   origin: () => { const port = app?.port ?? null; if (clientOrigin.port !== port) clientOrigin = { port, value: clientOriginOf(root, { port }) ?? (port ? `http://localhost:${port}` : null) }; return clientOrigin.value; },
-  keys: () => keysFromEnv(root),
+  keys: (m) => keysFromEnv(root, m?.file),
 
   mint: async () => (signInYes ? mintAfterYes(homeOf(project), envOf(root)) : null),
 
@@ -1213,7 +1224,7 @@ const autoReach = makeAutoReach({
   },
   account: async (auth) => (app?.port ? signUpAndIn({ origin: `http://${appHost === "::1" ? "[::1]" : appHost ?? "127.0.0.1"}:${app.port}` }, auth, testAccount(homeOf(project)), countedFetch, { origin: clientOrigin.value }) : null),
 
-  signIn: async () => { const theirs = capture?.headers(CAPTURED); const name = theirs && Object.keys(theirs).find((k) => /^(?:authorization|cookie)$/i.test(k)); return name ? { name: name.toLowerCase(), value: theirs[name] } : null; },
+  signIn: async (m) => { const theirs = m?.request && capture?.headers(CAPTURED, `${String(m.request.method).toUpperCase()} ${String(m.request.path).split("?")[0]}`); const name = theirs && Object.keys(theirs).find((k) => /^(?:authorization|cookie)$/i.test(k)); return name ? { name: name.toLowerCase(), value: theirs[name] } : null; },
   stampOf: (m) => { try { return m.file ? String(statSync(join(root, m.file)).mtimeMs) : ""; } catch { return ""; } },
 
   asked: () => existsSync(join(homeOf(project), ASK)),
