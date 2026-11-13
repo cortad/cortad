@@ -1,4 +1,4 @@
-# Publishes @cortad/connector from this repository through npm trusted publishing (OIDC): triggered
+# Publishes cortad from this repository through npm trusted publishing (OIDC): triggered
 # by a version tag, with no npm token anywhere. npm makes no provenance for a private repository.
 #
 # npm answers "your package is being processed" and exits 0 long before the version exists: 0.4.7 and

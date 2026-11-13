@@ -1,22 +1,22 @@
-# @cortad/connector
+# cortad
 
 Runs Cortad's test conversations against the AI app on your machine, gives your coding agent the tools to run them, and sets up Cortad Intelligence for the live app. The command it installs is `cortad`.
 
 ```
-npx @cortad/connector <code>
+npx cortad <code>
 ```
 
 Run it in your app's folder with the code from cortad.com and your own start command after `--`: Cortad runs that command as you typed it, with its hook inside and nothing else added, connects the app, and adds Cortad to Claude Code, Codex, Cursor and Copilot on this machine. Cortad then sends each AI endpoint you choose one test request from this machine and learns the endpoint from the answer; you send one message yourself only where an endpoint needs a signed-in user. Runs start when you press Run simulation in the browser or ask your agent for one. Ctrl-C disconnects.
 
 ```
-npx @cortad/connector <code> -- npm run dev     your command, as you start it, from the terminal that holds its settings
-npx @cortad/connector <code> --port 3000        an app already running: its replies are seen, its model calls are not
+npx cortad <code> -- npm run dev     your command, as you start it, from the terminal that holds its settings
+npx cortad <code> --port 3000        an app already running: its replies are seen, its model calls are not
 ```
 
 ## Cortad Intelligence
 
 ```
-npx @cortad/connector intelligence
+npx cortad intelligence
 ```
 
 Run it in your app's folder, or let your coding agent run it from the prompt on cortad.com/live. Each run says what is done and the one next step, with the question for you where one is yours. On a computer it has not seen, it first prints a link and four characters to approve in your browser.
