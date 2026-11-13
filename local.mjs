@@ -23,7 +23,7 @@ import { startCause } from "./lib/start-cause.mjs";
 import { spawn, execFile, execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { appendFileSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, watch, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 import { COMMANDS, main as face, unknownVerb, VERBS } from "./lib/cli.mjs";
@@ -57,6 +57,7 @@ import { sourcesIn } from "./lib/history/sources.mjs";
 import { report as reportLive } from "./lib/setup-live.mjs";
 import { previewText, SEND, sentText } from "./lib/picks.mjs";
 import { grpcCall } from "./lib/grpc.mjs";
+import { relativePaths } from "./lib/paths.mjs";
 
 // A count with its noun agreeing: 1 prompt, 3 prompts.
 
@@ -362,11 +363,13 @@ async function paired() {
   fail("the link was not approved within ten minutes. Run npx cortad again for a new one.");
 }
 
+// Every body this machine sends goes through here, so every path in it, a traceback's or an
+// error's, leaves relative to the project (lib/paths.mjs).
 async function call(method, path, body, { raw = false, timeoutMs = 60_000, headers = {} } = {}) {
   const res = await fetch(`${api}${path}`, {
     method,
     headers: { ...(key ? { "x-local-key": key } : {}), "content-type": raw ? "application/octet-stream" : "application/json", ...headers },
-    body: body === undefined ? undefined : raw ? body : JSON.stringify(body),
+    body: body === undefined ? undefined : raw ? body : relativePaths(JSON.stringify(body), { root, home: homedir() }),
     signal: AbortSignal.timeout(timeoutMs),
   });
   const text = await res.text();
@@ -643,7 +646,7 @@ async function verb(job) {
     // Cortad makes no accounts in your sign-in system: the request your agent sent carries the one it uses.
     case "mint": return { identities: [] };
     // The last of what your app printed, for a reply it failed: the traceback a developer reads.
-    // Masked like everything else, at most LOG_MAX bytes, and the folder named so its paths can be read as your files.
+    // Masked like everything else, at most LOG_MAX bytes, its paths relative to the project like every body sent (call).
     case "log": {
       const want = Math.min(Math.max(Number(b.bytes) || LOG_MAX, 1), LOG_MAX);
       try {
@@ -653,8 +656,8 @@ async function verb(job) {
         const text = wide.slice(-want);
         // A JVM stack names a class, not a path: the source files it could be are sent with it, from what was sent already.
         const jvm = /\bat\s+[\w$.]+\([\w$]+\.(?:java|kt|scala|groovy):\d+\)/.test(text);
-        return { text, root, size: all.length, ...(jvm ? { files: [...(layer?.set ?? [])].filter((f) => /\.(?:java|kt|scala|groovy)$/.test(f)).slice(0, 20_000) } : {}) };
-      } catch { return { text: "", root, size: 0 }; }
+        return { text, size: all.length, ...(jvm ? { files: [...(layer?.set ?? [])].filter((f) => /\.(?:java|kt|scala|groovy)$/.test(f)).slice(0, 20_000) } : {}) };
+      } catch { return { text: "", size: 0 }; }
     }
     // The person changed what they said yes to while this command runs.
     // Said in the terminal: an agent that read "one question for the person" here told them the run

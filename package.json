@@ -37,6 +37,7 @@
     "lib/mcp.mjs",
     "lib/numbers-text.mjs",
     "lib/origins.mjs",
+    "lib/paths.mjs",
     "lib/picks.mjs",
     "lib/proc.mjs",
     "lib/proof.mjs",
