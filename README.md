@@ -69,7 +69,7 @@ To make checking with Cortad part of the repository:
 
 ```
 cortad stick     one line in AGENTS.md, CLAUDE.md, .cursor/rules and .github/copilot-instructions.md, and two hooks for Claude Code and Codex
-cortad unstick   takes them out
+cortad unstick   takes them out, and the skill a connect added to this project
 ```
 
 The hooks run after an edit and on your next message: the first names the prompt and tool files you changed since the last run, and both tell the agent of a run that ended while it was not looking. Both commands print every file they changed. Neither touches git.
@@ -112,7 +112,7 @@ Your app gets this terminal's environment and its request-rate and concurrency l
 ## Files it creates
 
 - `~/.cortad/<project>/`     the key, the start command, the last tree digest, which process holds your app up, your app's output in `app.log`, after your yes to test sign-ins the sign-ins Cortad's test requests used, in `refused.log` any command Cortad's server sent that this machine refused to run, the run it asked for last, in `news.txt` the line a finished run left for your agent, removed once the agent has it, in `heard.txt` the ids of the runs your agent has read, and in `pairing.json` a link waiting for your approval
-- for this project, the MCP entry of the one coding agent: in `~/.claude.json` under this folder for Claude Code, else `.codex/config.toml`, `.cursor/mcp.json` or `.mcp.json` here
+- Cortad's tools and skill, added to one coding agent, inside this project only: for Claude Code `.mcp.json` and `.claude/skills/cortad/`, for Codex `.codex/config.toml` and `.agents/skills/cortad/`, for Cursor `.cursor/mcp.json` and `.cursor/skills/cortad/`, for Copilot `.mcp.json` and `.github/skills/cortad/`. Nothing is written to your home folder for any agent, and a Cortad skill an older version left in `~/.claude/skills`, `~/.agents/skills` or `~/.copilot/skills` is removed. `cortad unstick` removes the skill from this project
 - `~/.cortad/<project>/pseudonym.salt`   the salt that pseudonymizes your conversation and user ids, readable only by you; it never leaves this computer
 - `~/.cortad/<project>/history-dry-run.jsonl`   what a dry run would have sent, readable only by you
 - your app's env file (`.env.local`, `.env` or `.dev.vars`, whichever it loads)   Cortad's lines alone: `CORTAD_INGEST_KEY`, `CORTAD_PUBLIC_KEY` and `CORTAD_ENV=development`; only when git ignores the file
