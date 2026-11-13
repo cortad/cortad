@@ -6,7 +6,7 @@ Runs Cortad's test conversations against the AI app on your machine, gives your 
 npx cortad <code>
 ```
 
-Run it in your app's folder with the code from cortad.com and your own start command after `--`: Cortad runs that command as you typed it, with its hook inside and nothing else added, connects the app, and adds Cortad to the coding agent running the command (Claude Code, Codex, Cursor or Copilot), or to each of them on this machine when it is run from a plain terminal. Cortad then sends each AI endpoint you choose one test request from this machine and learns the endpoint from the answer; you send one message yourself only where an endpoint needs a signed-in user. Runs start when you press Run simulation in the browser or ask your agent for one. Ctrl-C disconnects.
+Run it in your app's folder with the code from cortad.com and your own start command after `--`: Cortad runs that command as you typed it, with its hook inside and nothing else added, connects the app, and adds Cortad for this project to the coding agent running the command (Claude Code, Codex, Cursor or Copilot), or, from a plain terminal, to the one you name when it asks, or to none. Cortad then sends each AI endpoint you choose one test request from this machine and learns the endpoint from the answer; you send one message yourself only where an endpoint needs a signed-in user. Runs start when you press Run simulation in the browser or ask your agent for one. Ctrl-C disconnects.
 
 ```
 npx cortad <code> -- npm run dev     your command, as you start it, from the terminal that holds its settings
@@ -21,10 +21,13 @@ npx cortad intelligence
 
 Run it in your app's folder, or let your coding agent run it from the prompt on cortad.com/live. Each run says what is done and the one next step, with the question for you where one is yours. On a computer it has not seen, it first prints a link and four characters to approve in your browser.
 
-1. Your recent conversations. It asks where they are: a tool your app already sends its traces to, or your own database through a read-only export your agent writes. It sends the newest whole conversations from the last 30 days, up to 2,500 messages, and they count against nothing.
+1. Your recent conversations. It asks where they are: a tool your app already sends its traces to, or your app's own database. For a database it first reads only the names of its tables and fields, never a row, and proposes the table the conversations are in, with one question for you; only your yes reads that table, read-only, on this computer. It sends the newest whole conversations from the last 30 days, up to 2,500 messages, counted as your app's replies, and they count against nothing.
 2. Cortad in your code. It writes `CORTAD_INGEST_KEY` and `CORTAD_PUBLIC_KEY` to your git-ignored env file, then prints the change: the SDK around the one model call that writes the reply, and the page tag. Your agent makes the change and you review it. It edits no code itself.
 
 ```
+cortad intelligence history          find the table your conversations are in from table and field names alone, and ask
+cortad intelligence history --store postgres --table messages
+                                     read that table, the one you said yes to, and no other
 cortad intelligence history --from langfuse|langsmith|helicone|braintrust|phoenix|opik
                                      read from that tool on this computer with the keys already in your env
 cortad intelligence history --stdin  read your own export, one JSON line per conversation
@@ -34,6 +37,8 @@ cortad intelligence key --to vercel|cloudflare|fly|github
 cortad intelligence site <address>   the one site the page key answers
 cortad intelligence --wait           return when the history is read, with what it found
 ```
+
+Before anything is written or sent, Cortad's rules take out of every message, tool call and tool result: keys, emails (in any script), phone numbers in local and international formats, national ID and exam seat numbers, dates of birth, social handles and addresses, with Arabic-Indic and Persian digits read as digits. Conversation and user ids are pseudonymized with an HMAC whose salt is made on this computer at first use and never sent. Names written in a message are not removed by Cortad's rules. To remove them, add `--redact-with "<command>"`: your command runs on every message first, reads one JSON line per text (`{"text": "..."}`) on its input and writes the same lines back, in order; if it fails, nothing is sent.
 
 ## Your coding agent
 
@@ -79,17 +84,23 @@ The hooks run after an edit and on your next message: the first names the prompt
 --from <tool>        intelligence history: the tool your conversations are read from
 --stdin              intelligence history: read your own export from standard input
 --skip               intelligence history: start from the next deploy
---dry-run            intelligence history: write what would be sent to ~/.cortad and stop
+--store <kind>       intelligence history: the database you chose (postgres, mongo, qdrant and the rest)
+--table <names>      intelligence history: the tables you chose, comma-separated; rows are read from these alone
+--redact-with "<command>"  intelligence history: your own redaction, run on every message before anything is written or sent
+--dry-run            intelligence history: write exactly what would be sent to ~/.cortad/<project>/history-dry-run.jsonl, readable only by you, print a few of its messages, and send nothing
 --anyway             intelligence history: send what looks like a development copy
 --to <host>          intelligence key: the production host
 --wait               intelligence: return when the history is read
 ```
 
-Your app gets this terminal's environment and its request limits raised while Cortad tests it, so its simulated users are not blocked. Test conversations write where your app writes, after your yes in the browser.
+Your app gets this terminal's environment and its request-rate and concurrency limits raised while Cortad tests it (never a spend or budget limit), so its simulated users are not blocked. Test conversations write where your app writes, after your yes in the browser.
 
 ## Files it creates
 
-- `~/.cortad/<project>/`     the key, the start command, the last tree digest, which process holds your app up, your app's output in `app.log`, the sign-in your own request carried, the run it asked for last, in `news.txt` the line a finished run left for your agent, removed once the agent has it, in `heard.txt` the ids of the runs your agent has read, and in `pairing.json` a link waiting for your approval
+- `~/.cortad/<project>/`     the key, the start command, the last tree digest, which process holds your app up, your app's output in `app.log`, after your yes to test sign-ins the sign-ins Cortad's test requests used, in `refused.log` any command Cortad's server sent that this machine refused to run, the run it asked for last, in `news.txt` the line a finished run left for your agent, removed once the agent has it, in `heard.txt` the ids of the runs your agent has read, and in `pairing.json` a link waiting for your approval
+- for this project, the MCP entry of the one coding agent: in `~/.claude.json` under this folder for Claude Code, else `.codex/config.toml`, `.cursor/mcp.json` or `.mcp.json` here
+- `~/.cortad/<project>/pseudonym.salt`   the salt that pseudonymizes your conversation and user ids, readable only by you; it never leaves this computer
+- `~/.cortad/<project>/history-dry-run.jsonl`   what a dry run would have sent, readable only by you
 - your app's env file (`.env.local`, `.env` or `.dev.vars`, whichever it loads)   Cortad's lines alone: `CORTAD_INGEST_KEY`, `CORTAD_PUBLIC_KEY` and `CORTAD_ENV=development`; only when git ignores the file
 - `$TMPDIR/cortad-<pid>/`    removed on exit
 

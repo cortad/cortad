@@ -23,6 +23,7 @@
     "lib/explain-text.mjs",
     "lib/failed-text.mjs",
     "lib/files.mjs",
+    "lib/gitignore.mjs",
     "lib/fresh.mjs",
     "lib/grpc.mjs",
     "lib/health.mjs",

@@ -4,15 +4,17 @@
 //   npx cortad ABCD2345 -- <how you start your app>      your command, run here with Cortad's hook inside it
 //   npx cortad ABCD2345 --port 3000                      an app already running: its replies are seen, its model calls are not
 //
-// What it does: signs in with the code, uploads your source files once (never .env, never
-// node_modules) so your code can be read, runs your start command as you typed it with nothing
-// added but the hook, then holds one outbound connection open and does what a run asks: a request to
-// your app, a file read, a shell line. It guesses nothing about your environment: your command
-// decides the settings, the databases and the services, and nothing is copied or started beside it. The shell is locked by the operating system (lib/lock.mjs) and cannot write your code;
-// nothing here writes your files at all. It also makes Cortad known to the coding agents on this
-// machine (lib/register.mjs): an MCP entry and a skill, so `npx cortad mcp` answers them from then
-// on with the key this connect leaves in ~/.cortad. Nothing here touches git. Your environment
-// never leaves this machine. Ctrl-C ends everything.
+// What it does: signs in with the code, uploads the AI layer of your code once (never .env, never a
+// file git ignores; `--explain` lists it), runs your start command as you typed it with nothing added
+// but the hook, then holds one outbound connection open and does what a run asks: a request to your
+// app, a read of a file it was sent, one of the few operations written here (OPS). A command the
+// server writes is never run. It guesses nothing about your environment: your command decides the
+// settings, the databases and the services, and nothing is copied or started beside it. Operations
+// are locked by the operating system (lib/lock.mjs) and cannot write your code or reach the network;
+// nothing here writes your files at all. With your yes it makes Cortad known to one coding agent for
+// this project (lib/register.mjs): an MCP entry and a skill, so `npx cortad mcp` answers it from then
+// on with the key this connect leaves in ~/.cortad. Nothing here touches git. Your environment never
+// leaves this machine. Ctrl-C ends everything.
 
 import { notAnApp, withoutStores } from "./lib/app-port.mjs";
 import { holdsKeys, secretEnvValues } from "./lib/keys.mjs";
@@ -21,7 +23,7 @@ import { startCause } from "./lib/start-cause.mjs";
 import { spawn, execFile, execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { appendFileSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, watch, writeFileSync } from "node:fs";
-import { hostname, tmpdir } from "node:os";
+import { tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 import { COMMANDS, main as face, unknownVerb, VERBS } from "./lib/cli.mjs";
@@ -29,7 +31,7 @@ import { addNews, homeOf, projectOf, readToken, writeApp, writeDigest, writeToke
 import { changesOf, commandText, RELOADER, sourceOf } from "./lib/fresh.mjs";
 import { chainOf, elapsedMs, holderOf, listening, listenerOn, portInError, spawnTied, stopTree } from "./lib/proc.mjs";
 import { claimRunner, readRunner, releaseRunner, startedAtOf, writeRunner } from "./lib/runner.mjs";
-import { registerAll } from "./lib/register.mjs";
+import { agentOf, AGENTS, askAgent, register } from "./lib/register.mjs";
 import { CONNECTED, connectedText, NOT_RUNNING } from "./lib/read-text.mjs";
 import { VERSION } from "./lib/spec.mjs";
 import { credentialShaped, environmentSecrets, maskedLines, maskWith, secretValues } from "./lib/env-secrets.mjs";
@@ -49,6 +51,7 @@ import { clientOriginOf, envOf, keysFromEnv } from "./lib/origins.mjs";
 import { forgetSignIn, keptSignIn, mintJwt, rememberSignIn, signUpAndIn, testAccount } from "./lib/sign-in.mjs";
 import { clientRequestOf } from "./lib/browser-rung.mjs";
 import { layerOf, layerSaid } from "./lib/layer.mjs";
+import { ignoredBy, rulesOf } from "./lib/gitignore.mjs";
 import { explainText } from "./lib/explain-text.mjs";
 import { sourcesIn } from "./lib/history/sources.mjs";
 import { report as reportLive } from "./lib/setup-live.mjs";
@@ -190,21 +193,26 @@ else if (!explain) { const held = readRunner(project); if (held) fail(heldLine(h
 const SKIP_DIR = /^(node_modules|\.git|dist|build|out|coverage|vendor|venv|\.venv|env|target|tmp|\.next|\.nuxt|\.turbo|\.cache|__pycache__|\.terraform|\.wrangler|\.svelte-kit|\.output|\.parcel-cache|\.idea|\.vscode|secrets?|\.secrets?)$/i;
 // Env files by any name (scripts/books.env is one), keys, credentials, media and compiled output.
 const SKIP_FILE = /^\.env(\..*)?$|^\.envrc$|\.env$|\.(pem|key|p12|pfx|jks|keystore|sqlite|sqlite3|db|log|lock|map|zip|tar|gz|tgz|7z|rar|png|jpe?g|gif|webp|ico|svg|mp3|mp4|wav|mov|pdf|woff2?|ttf|otf|eot|bin|exe|dll|so|dylib|wasm|onnx|pt|pth|safetensors|numbers|DS_Store)$/i;
-const EVALS = /(?:^|\/)(?:evals?|evaluations?|benchmarks?|gold(?:ens?)?|red[-_]?team)\/|(?:^|[\/._-])(?:evals?|evaluations?|gold(?:en)?|benchmarks?|fidelity|red[-_]?team|cases)(?:[._-][^\/]*)?$/i;
+// Data, not code: sent only where the AI layer chose the file as an eval definition and git tracks it.
+const DATA = /\.(?:csv|tsv|jsonl|ndjson|parquet|xlsx?|arrow|feather|avro)$/i;
+const DATA_JSON = 64_000;
 const MAX_FILE = 25_000_000;
 const MAX_TOTAL = 256_000_000;
 // Any file dotenv and its kind read: .env and its suffixes, .envrc, and the api.env shape a folder
 // of per-service files uses. Read here only, to hide its values in what leaves; never sent.
 const ENV_FILE = /^\.env(\..+)?$|^[\w-]+\.env$|^\.envrc$/;
 
-function walk(dir, depth, out, envs, total) {
+// `rules`: the .gitignore rules above this folder, read here only when git is not (lib/gitignore.mjs).
+function walk(dir, depth, out, envs, total, rules = []) {
   let entries;
   try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return total; }
+  if (listed === null) { try { rules = [...rules, ...rulesOf(readFileSync(join(dir, ".gitignore"), "utf8"), relative(root, dir).split(sep).join("/"))]; } catch { /* none here */ } }
   for (const e of entries) {
     const full = join(dir, e.name);
     if (e.isSymbolicLink()) continue;
+    if (listed === null && ignoredBy(rules, relative(root, full).split(sep).join("/"), e.isDirectory())) continue;
     if (e.isDirectory()) {
-      if (depth < 12 && !SKIP_DIR.test(e.name)) total = walk(full, depth + 1, out, envs, total);
+      if (depth < 12 && !SKIP_DIR.test(e.name)) total = walk(full, depth + 1, out, envs, total, rules);
       else envsIn(full, envs);
       continue;
     }
@@ -229,8 +237,9 @@ function envsIn(dir, envs) {
   } catch { /* a folder we may not read holds nothing for us */ }
 }
 
-// What git lists here: tracked files and new ones it would pick up, never an ignored one. A folder
-// that is not a git repository has no such list and is read by the rules above alone.
+// What git lists here: tracked files and new ones it would pick up, never an ignored one, and which of
+// them it tracks. A folder that is not a git repository has no such list and is read by the rules
+// above and its own .gitignore files.
 function gitListed() {
   if (!existsSync(join(root, ".git")) && !onPath("git")) return null;
   let inside = false;
@@ -238,15 +247,17 @@ function gitListed() {
   if (!inside) return null;
   // A repository whose list cannot be read is not read by guesswork: it stops here.
   try {
-    const out = execFileSync("git", ["-C", root, "ls-files", "-z", "--cached", "--others", "--exclude-standard"], { maxBuffer: 256 * 1024 * 1024, stdio: ["ignore", "pipe", "ignore"] });
-    return new Set(out.toString().split("\0").filter(Boolean));
+    const out = execFileSync("git", ["-C", root, "ls-files", "-z", "-t", "--cached", "--others", "--exclude-standard"], { maxBuffer: 256 * 1024 * 1024, stdio: ["ignore", "pipe", "ignore"] });
+    const entries = out.toString().split("\0").filter(Boolean).map((e) => [e[0], e.slice(2)]);
+    tracked = new Set(entries.filter(([tag]) => tag !== "?").map(([, rel]) => rel));
+    return new Set(entries.map(([, rel]) => rel));
   } catch (e) { fail(`could not list this repository's files with git: ${e.message}`); }
 }
 // One rule for every file that could leave: the upload, and a read the engine asks for later.
 function shareable(rel, askGit = true) {
   const parts = rel.split(sep);
   if (parts.slice(0, -1).some((d) => SKIP_DIR.test(d)) || SKIP_FILE.test(parts.at(-1))) return false;
-  if (listed === null || listed.has(rel) || EVALS.test(parts.join("/"))) return true;
+  if (listed === null || listed.has(rel)) return true;
   // Off the list git gave a moment ago: ignored, or inside a nested checkout. The walk takes git's
   // word for it; asking per file was one process each, two minutes on a repository with a worktree
   // inside it. A read asked later, of a file made after the list was taken (an agent edit), asks.
@@ -254,6 +265,7 @@ function shareable(rel, askGit = true) {
   try { execFileSync("git", ["-C", root, "check-ignore", "-q", rel], { stdio: "ignore" }); return false; } catch (e) { return e.status === 1; }
 }
 let listed = null;
+let tracked = new Set();
 // Read the same way for the upload and for any read the engine asks for later.
 let envKeys = [];
 function carriesKey(rel) {
@@ -261,6 +273,11 @@ function carriesKey(rel) {
 }
 
 let secrets = [];
+// The person's yes, on the setup card or to their agent (`test` with `account: "make"`), to Cortad
+// signing its own test requests in: an account made on the app's sign-up door, a token signed with the
+// JWT secret the app's env holds, and the sign-ins kept in ~/.cortad for the next connect. Until the
+// server says it was given, none of the three happens.
+let signInYes = false;
 // The AI layer this folder sends in place of its tree (lib/layer.mjs), once chosen: what it held and
 // the set of files, which is also every file a read may ask this machine for afterwards.
 let layer = null;
@@ -316,15 +333,17 @@ const maskRoutes = (text) => maskWith(String(text ?? ""), secrets.filter(credent
 // ---- the wire
 let box = "";
 let key = "";
+// The folder's name is all this machine says of itself, for the account's list of connected apps:
+// never its hostname, never a path.
+const folderName = basename(root).replace(/[^\w.-]/g, "-").slice(0, 80);
 // The browser approves this computer: a link to open where the person is signed in, and four
 // characters the page shows too. The terminal waits, and is handed a code once it is approved.
 async function paired() {
-  const machine = hostname().replace(/[^\w.-]/g, "-").slice(0, 80);
-  const opened = await call("POST", "/local/pair", { name: basename(root).replace(/[^\w.-]/g, "-").slice(0, 80), machine }).catch(unreachable);
+  const opened = await call("POST", "/local/pair", { name: folderName }).catch(unreachable);
   if (!opened.ok) fail(opened.data?.error ?? `could not start connecting (${opened.status})`);
   const link = `${origin.origin}/approve/${opened.data.id}`;
   say(`approve this computer in your browser, where you are signed in to Cortad: ${link}`);
-  say(`the page shows ${opened.data.words} and ${machine}; approve only if both match`);
+  say(`the page shows ${opened.data.words}; approve only if it matches`);
   if (process.stdout.isTTY) {
     const opener = process.platform === "darwin" ? "open" : process.platform === "win32" ? "explorer" : "xdg-open";
     try { spawn(opener, [link], { stdio: "ignore", detached: true }).on("error", () => {}).unref(); } catch { /* the link is printed */ }
@@ -351,8 +370,8 @@ async function call(method, path, body, { raw = false, timeoutMs = 60_000, heade
 }
 
 // ---- the box on this machine: your folder, read where it stands
+// Made once --explain has left: it creates nothing.
 const work = join(tmpdir(), `cortad-${process.pid}`);
-mkdirSync(work, { recursive: true });
 // What the app printed this session, beside the project's other records rather than in a temp folder
 // the agent is never told of. Emptied once this process holds the project (holdProject), so a second
 // command in the same folder never empties a live session's output. Masked once more at the end of
@@ -363,6 +382,8 @@ const MASKED_AT_END_MAX = 64 * 1024 * 1024;
 // its own (lib/proof.mjs). Masked before either keeps it, and never cut inside a value.
 const printed = [];
 const PRINTED = 2000;
+// The most of your app's output a run may read back at once.
+const LOG_MAX = 2000;
 const logTo = () => maskedLines(() => secrets, (text) => {
   try { appendFileSync(bootLog, text, { mode: 0o600 }); } catch { /* still kept in memory */ }
   printed.push({ at: Date.now(), text });
@@ -382,40 +403,56 @@ const readable = (p) => {
   const home = realpathSync(root);
   if (!landed.startsWith(home + sep) || ENV_FILE.test(basename(landed)) || SECRET_PATH.test(landed)) return null;
   const rel = relative(home, landed);
-  if (layer && !layer.set.has(rel)) return null;
+  if (!layer?.set.has(rel)) return null;
   return shareable(rel) && !carriesKey(rel) ? landed : null;
 };
-// A shell line runs with a plain environment: the app's own process reads its .env itself, and
-// nothing a world sends inherits this terminal's keys.
+// An operation runs with a plain environment: the app's own process reads its .env itself, and no
+// operation inherits this terminal's keys.
 const plainEnv = { PATH: process.env.PATH, HOME: process.env.HOME, LANG: process.env.LANG ?? "C.UTF-8", TMPDIR: work, TERM: "dumb" };
 let lock = null;
+
+// What Cortad's server may ask this machine to run: these operations, written here, and nothing else.
+// A command the server writes is never run, from whatever source; it is refused and noted on this
+// machine. Each runs locked (lib/lock.mjs): no network, no env file, the plain environment above.
+const OPS = {
+  // Your app, started again with your own start command.
+  start: async () => { const r = await restartApp(); return { success: !r.error, exitCode: r.error ? 1 : 0, stdout: "", stderr: r.error ?? "" }; },
+  // Your project's own test command, as its package.json declares it.
+  test: () => (testDeclared() ? runLocked("npm test") : { success: false, exitCode: 127, stdout: "", stderr: "this project declares no test command in its package.json" }),
+};
+const testDeclared = () => { try { const t = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).scripts?.test; return typeof t === "string" && !/no test specified/.test(t); } catch { return false; } };
+function runOp(b) {
+  const run = Object.hasOwn(OPS, b.op) ? OPS[b.op] : null;
+  if (!run) return refused(b);
+  if (verbose) say(`running ${b.op}`);
+  return run();
+}
+function refused(b) {
+  const asked = mask(String(b.op ?? b.cmd ?? "")).replace(/\s+/g, " ").slice(0, 300);
+  say(`refused a command Cortad's server sent, since this machine runs only Cortad's own operations (${Object.keys(OPS).join(", ")}): ${asked}`);
+  try { mkdirSync(homeOf(project), { recursive: true, mode: 0o700 }); appendFileSync(join(homeOf(project), "refused.log"), `${new Date().toISOString()} ${asked}\n`, { mode: 0o600 }); } catch { /* said in this terminal */ }
+  return { success: false, exitCode: 126, stdout: "", stderr: `refused: this machine runs only Cortad's own operations (${Object.keys(OPS).join(", ")}), never a command it is sent` };
+}
+function runLocked(cmd) {
+  if (!lock) return { success: false, exitCode: 126, stdout: "", stderr: "refused: this machine has no sandbox tool (sandbox-exec or bubblewrap), so nothing is run here" };
+  const { file, args } = lock.wrap(cmd);
+  return new Promise((done) => {
+    const child = spawn(file, args, { cwd: root, env: plainEnv, stdio: ["ignore", "pipe", "pipe"] });
+    let out = "", err = "";
+    const cap = (s, chunk) => (s.length < 2_000_000 ? s + chunk : s);
+    child.stdout.on("data", (d) => { out = cap(out, d.toString()); });
+    child.stderr.on("data", (d) => { err = cap(err, d.toString()); });
+    const timer = setTimeout(() => child.kill("SIGKILL"), 280_000);
+    child.on("close", (code) => { clearTimeout(timer); done({ success: code === 0, exitCode: code ?? 1, stdout: mask(out), stderr: mask(err) }); });
+    child.on("error", (e) => { clearTimeout(timer); done({ success: false, exitCode: 127, stdout: "", stderr: String(e.message) }); });
+  });
+}
 
 let app = null;
 async function verb(job) {
   const b = job.body ?? {};
   switch (job.verb) {
-    case "exec": {
-      const cmd = translate(b.cmd);
-      if (verbose) say(`$ ${cmd.slice(0, 160)}`);
-      // No lock, no shell: a world never gets an unlocked one on this machine.
-      if (!lock) return { success: false, exitCode: 126, stdout: "", stderr: "refused: this machine has no sandbox tool (sandbox-exec or bubblewrap), so no shell line is run here" };
-      // A world's command (opts.app) runs as the app: with this terminal's settings, which are the
-      // app's own where the person started it from here, and with the app's reach on the network,
-      // since it runs the app's own AI against the app's model provider.
-      const asApp = b.opts?.app === true;
-      const { file, args } = lock.wrap(cmd, { network: asApp });
-      const env = asApp ? { ...process.env, ...plainEnv } : plainEnv;
-      return new Promise((done) => {
-        const child = spawn(file, args, { cwd: root, env, stdio: ["ignore", "pipe", "pipe"] });
-        let out = "", err = "";
-        const cap = (s, chunk) => (s.length < 20_000_000 ? s + chunk : s);
-        child.stdout.on("data", (d) => { out = cap(out, d.toString()); });
-        child.stderr.on("data", (d) => { err = cap(err, d.toString()); });
-        const timer = setTimeout(() => child.kill("SIGKILL"), Math.min(Number(b.opts?.timeout) || 180_000, 280_000));
-        child.on("close", (code) => { clearTimeout(timer); done({ success: code === 0, exitCode: code ?? 1, stdout: mask(out), stderr: mask(err) }); });
-        child.on("error", (e) => { clearTimeout(timer); done({ success: false, exitCode: 127, stdout: "", stderr: String(e.message) }); });
-      });
-    }
+    case "exec": return runOp(b);
     case "fetch": {
       // Only the app's own port: this machine's other services are not the world.
       const port = Number(b.port) || doorPort();
@@ -600,15 +637,17 @@ async function verb(job) {
     // Cortad makes no accounts in your sign-in system: the request your agent sent carries the one it uses.
     case "mint": return { identities: [] };
     // The last of what your app printed, for a reply it failed: the traceback a developer reads.
-    // Masked like everything else, and the folder named so its paths can be read as your files.
+    // Masked like everything else, at most LOG_MAX bytes, and the folder named so its paths can be read as your files.
     case "log": {
-      const want = Math.min(Math.max(Number(b.bytes) || 16_000, 1), 200_000);
+      const want = Math.min(Math.max(Number(b.bytes) || LOG_MAX, 1), LOG_MAX);
       try {
         const all = readFileSync(bootLog);
-        const text = mask(all.subarray(Math.max(0, all.length - want)).toString("utf8").replace(/\x1b\[[0-9;]*[A-Za-z]/g, ""));
-        // A JVM stack names a class, not a path: the source files it could be are sent with it.
+        // Masked before it is cut, so a value is never cut in two where the mask could no longer see it.
+        const wide = mask(all.subarray(Math.max(0, all.length - want - 4096)).toString("utf8").replace(/\x1b\[[0-9;]*[A-Za-z]/g, ""));
+        const text = wide.slice(-want);
+        // A JVM stack names a class, not a path: the source files it could be are sent with it, from what was sent already.
         const jvm = /\bat\s+[\w$.]+\([\w$]+\.(?:java|kt|scala|groovy):\d+\)/.test(text);
-        return { text, root, size: all.length, ...(jvm ? { files: files.filter((f) => /\.(?:java|kt|scala|groovy)$/.test(f)).slice(0, 20_000) } : {}) };
+        return { text, root, size: all.length, ...(jvm ? { files: [...(layer?.set ?? [])].filter((f) => /\.(?:java|kt|scala|groovy)$/.test(f)).slice(0, 20_000) } : {}) };
       } catch { return { text: "", root, size: 0 }; }
     }
     // The person changed what they said yes to while this command runs.
@@ -690,10 +729,10 @@ async function startApp() {
     return { port: wantedPort, cmd: null };
   }
   const sourceFiles = files.map((f) => join(root, f));
-  // Only its own request limits: who the app lets in is never touched.
+  // Only its own request-rate and concurrency limits: who the app lets in and what it may spend are never touched.
   const lifted = liftedLimits(sourceFiles);
   const raised = Object.keys(lifted);
-  if (raised.length) say(`raising your app's request limits while Cortad tests it, so its simulated users are not blocked: ${raised.join(", ")}`);
+  if (raised.length) say(`raising your app's request-rate and concurrency limits while Cortad tests it, so its simulated users are not blocked: ${raised.join(", ")}. Spend and budget limits are left as they are`);
   launched = { cmd: typed, lifted };
   if (proxyAsked || !hookable(appDir, typed)) await useProxy();
   step(`starting your app with: ${shownCommand(typed, mask)}${fromSaved ? " (saved from your last connect)" : ""}`);
@@ -992,24 +1031,29 @@ secrets = secretValues(envFiles, shellSecrets);
 envKeys = [...secretEnvValues(envFiles, (f) => readFileSync(f, "utf8")), ...shellSecrets];
 const kept = [];
 for (let i = files.length - 1; i >= 0; i -= 1) if (carriesKey(files[i])) kept.unshift(...files.splice(i, 1));
-// --explain: the files this folder would give, one line, for the check that keys and ignored files
-// stay out (lib/sent-files.test.mjs). No network, no app started, nothing written.
-// The files a connect sends: the AI layer the read's own parsers choose (lib/layer.mjs).
-const layerFiles = () => {
+// What a connect sends, and all --explain prints, from this one function: the AI layer the read's own
+// parsers choose (lib/layer.mjs), less any data file the layer did not choose as an eval definition
+// git tracks. The rest of the folder is never sent, and a read may not ask for it later (readable).
+const toSend = () => {
   const candidates = [];
   for (const rel of files) { let full; try { full = readFileSync(join(root, rel), "utf8"); } catch { continue; } candidates.push({ path: rel, head: full.slice(0, 4000), size: Buffer.byteLength(full), full }); }
-  return layerOf(candidates);
+  const chosen = layerOf(candidates);
+  const size = new Map(candidates.map((c) => [c.path, c.size]));
+  const data = (rel) => DATA.test(rel) || (/\.json$/i.test(rel) && size.get(rel) > DATA_JSON);
+  const kept = chosen.files.filter((rel) => !data(rel) || (chosen.why.get(rel) === "eval" && tracked.has(rel)));
+  return { ...chosen, files: kept, why: new Map(kept.map((rel) => [rel, chosen.why.get(rel)])) };
 };
+// No network, no app started, nothing written.
 if (explain) {
-  console.log(explainText(layerFiles(), files.length));
-  console.log(`looked at   ${files.slice(0, 8).join(", ")}${files.length > 8 ? ", ..." : ""}`);
+  console.log(explainText(toSend(), files.length));
   process.exit(0);
 }
+mkdirSync(work, { recursive: true });
 const keepSecret = (v) => { if (v && v.length >= 12 && !secrets.includes(v)) secrets.push(v); };
 // A real request that reached their model proves its door (lib/proof.mjs). What it proved goes up,
 // masked like everything else, and nothing goes up that the mask could not read; the sign-in each
 // request carried stays here.
-capture = makeCapture({ work, keepSecret, signIns: join(homeOf(projectOf(root)), "sign-ins.json"), writes: join(homeOf(projectOf(root)), "writes"), root, files: () => files, appFolder: () => relative(root, appDir), printed: printedBetween, onProof: (proof) => {
+capture = makeCapture({ work, keepSecret, signIns: join(homeOf(projectOf(root)), "sign-ins.json"), signInsKept: () => signInYes, writes: join(homeOf(projectOf(root)), "writes"), root, files: () => [...(layer?.set ?? [])], appFolder: () => relative(root, appDir), printed: printedBetween, onProof: (proof) => {
   let masked;
   try { masked = JSON.parse(mask(JSON.stringify(proof))); } catch { return; }
   call("POST", `/local/${box}/proof`, masked).catch(() => {});
@@ -1026,31 +1070,26 @@ if (viaToken && !stored) fail("this project has no stored key. Run npx cortad in
 const unreachable = (err) => fail(`could not reach ${origin.host}: ${err?.name === "TimeoutError" ? "it did not answer in time" : "the connection failed"}. Check your connection and run the command again.`);
 // The key goes up beside a code too: a code that has lapsed while this project's key still holds is
 // the same person coming back, and the server signs them in by the key instead of refusing.
-let attach = !code && !viaToken && !stored ? null : await call("POST", "/local/attach", { ...(viaToken ? {} : { code }), name: basename(root), project },
+let attach = !code && !viaToken && !stored ? null : await call("POST", "/local/attach", { ...(viaToken ? {} : { code }), name: folderName, project },
   stored ? { headers: { authorization: `Bearer ${stored}` } } : {}).catch(unreachable);
 // No code and no key that still signs in: the person approves this computer in their browser.
 if (!viaToken && !code && !attach?.ok) {
   if (attach && stored) { say("the key this folder kept no longer signs in, so this computer is connected again"); stored = null; }
   code = await paired();
-  attach = await call("POST", "/local/attach", { code, name: basename(root), project }).catch(unreachable);
+  attach = await call("POST", "/local/attach", { code, name: folderName, project }).catch(unreachable);
 }
 if (!attach.ok) fail(attach.data?.error ?? `could not sign in (${attach.status})`);
 box = attach.data.box;
 key = attach.data.key;
-// What this folder sends. A folder that sent its whole tree before goes on doing so: its read, its code
-// versions and its history stay as they are. A new one sends its AI layer: the prompts, the evals, the
-// code that calls the model, the routes that reach it and the shapes they read, chosen by the read's
-// own parsers (lib/layer.mjs). The rest of the folder is never sent, and a read may not ask for it
-// later (readable). None of this is narrated: the person agreed to it before connecting, and a count
-// of files sent read to them as alarm.
-// Only on the server's word: a server from before this answer sends none, and that is the tree.
-if (attach.data.upload === "layer") {
-  const chosen = layerFiles();
-  const said = layerSaid(chosen);
-  layer = { ...said, set: new Set(chosen.files) };
+// What this folder sends: its AI layer (toSend), whatever the server answers and whatever it sent
+// before. None of this is narrated: the person agreed to it before connecting, and a count of files
+// sent read to them as alarm.
+{
+  const chosen = toSend();
+  layer = { ...layerSaid(chosen), set: new Set(chosen.files) };
 }
 // What goes up. `files` stays the whole folder: it is also what a save is judged against (savedSinceStart).
-const sending = layer ? files.filter((rel) => layer.set.has(rel)) : files;
+const sending = files.filter((rel) => layer.set.has(rel));
 // Taken once the code is accepted: a mistyped one never ends a runner that was working.
 if (!viaToken) holdProject();
 writeFileSync(bootLog, "", { mode: 0o600 });
@@ -1101,8 +1140,8 @@ async function sendTree() {
     // row exists, kept in ~/.cortad for the runs a coding agent asks for on later days. A connect by a
     // code asks too, since the code may be another account's: the key kept from the account before
     // signed the coding agent's tools into that one, its runs and its counts.
-    const put = await call("PUT", `/local/${box}/tree?part=${Math.floor(off / PART)}&last=${last ? 1 : 0}${last ? `&digest=${treeDigest}${head ? `&head=${head}` : ""}${layer ? `&layer=1&files=${layer.files}&prompts=${layer.prompts}&calls=${layer.modelCalls}&evals=${layer.evals}` : ""}` : ""}`, bytes.subarray(off, off + PART),
-      { raw: true, timeoutMs: 120_000, ...(last && !viaToken && (!stored || code) ? { headers: { "x-cortad-machine": hostname().slice(0, 80) } } : {}) }).catch((err) => ({ ok: false, status: 0, err }));
+    const put = await call("PUT", `/local/${box}/tree?part=${Math.floor(off / PART)}&last=${last ? 1 : 0}${last ? `&digest=${treeDigest}${head ? `&head=${head}` : ""}&layer=1&files=${layer.files}&prompts=${layer.prompts}&calls=${layer.modelCalls}&evals=${layer.evals}` : ""}`, bytes.subarray(off, off + PART),
+      { raw: true, timeoutMs: 120_000, ...(last && !viaToken && (!stored || code) ? { headers: { "x-cortad-machine": folderName } } : {}) }).catch((err) => ({ ok: false, status: 0, err }));
     if (!put.ok) return put;
     if (last) {
       resumed = put.data?.resumed === true;
@@ -1129,20 +1168,20 @@ if (!sent.ok) sent.err ? unreachable(sent.err) : fail(sent.data?.error ?? `uploa
 // Said of the account, never of the app: a bare "connected" here, above an app that could not take its
 // port, was read as the app being up (2026-11-12).
 stepDone(moved ? "connected to your Cortad account: your change is in, and what Cortad read before still stands" : resumed ? "connected to your Cortad account: your code has not changed since last time" : "connected to your Cortad account");
-// The coding agents on this machine learn about Cortad now, once: an MCP entry and a skill in each
-// one's own home folder. A run started by an agent later comes back through lib/cli.mjs.
-// CORTAD_NO_REGISTER=1 leaves the coding agents' global skill and MCP entries alone: a stack under
-// test on this machine must never repoint the person's own agents at an unpublished build.
+// One coding agent learns about Cortad for this project: the one running this command, whose setup
+// prompt asked the person first, or the one the person names here. A run started by an agent later
+// comes back through lib/cli.mjs.
+// CORTAD_NO_REGISTER=1 leaves the coding agents alone: a stack under test on this machine must never
+// repoint the person's own agents at an unpublished build.
 if (!viaToken && process.env.CORTAD_NO_REGISTER !== "1") {
-  const got = await registerAll().catch((err) => { if (verbose) say(`could not register with your coding agents: ${err?.message ?? err}`); return { clients: [], changed: [] }; });
-  const and = (list) => new Intl.ListFormat("en", { type: "conjunction" }).format(list);
-  const where = got.changed.map((f) => `~/${f}`).join(", ");
-  if (got.changed.length) say(got.agent ? `Cortad's tools and skill were added to ${got.agent}, the coding agent running this command: ${where}.` : `Cortad's tools and skill were added to ${and(got.clients)}: ${where}.`);
+  const agent = agentOf() ?? await askAgent();
+  const got = agent ? await register(agent, { root }).catch((err) => { if (verbose) say(`could not register with ${AGENTS[agent]}: ${err?.message ?? err}`); return null; }) : null;
+  if (got?.changed.length) say(`Cortad's tools and skill were added to ${got.agent} for this project: ${got.changed.join(", ")}.`);
 }
 
-lock = await makeLock({ root, work });
+lock = await makeLock({ root, work, envFiles });
 if (lock && !lockHolds(lock, root)) lock = null;
-if (!lock) say("shell commands are off on this machine (no sandbox-exec or bubblewrap). Everything else works.");
+if (!lock) say("running your tests is off on this machine (no sandbox-exec or bubblewrap). Everything else works.");
 
 // A change to their own files, settled: what "I fixed it" looks like from here. Folders an app
 // writes to by itself are not a fix.
@@ -1308,6 +1347,7 @@ const autoReach = makeAutoReach({
   status: async () => {
     const token = readToken(project);
     const res = token ? await call("GET", "/mcp/status?quiet=1", undefined, { headers: { authorization: `Bearer ${token}` } }).catch(() => null) : null;
+    if (res?.ok) signInYes = res.data?.account?.make === true;
     return res?.ok ? res.data : null;
   },
   runner: () => (became?.state === "up" && !restarting ? { state: "up", ...became.fields } : null),
@@ -1316,12 +1356,12 @@ const autoReach = makeAutoReach({
   // port, from this folder, never sent on), else the app's own origin.
   origin: () => { const port = app?.port ?? null; if (clientOrigin.port !== port) clientOrigin = { port, value: clientOriginOf(root, { port }) ?? (port ? `http://localhost:${port}` : null) }; return clientOrigin.value; },
   keys: () => keysFromEnv(root),
-  // The sign-ins Cortad can make on this machine, his yes of 2026-10-24: a token signed with the
+  // The sign-ins Cortad can make on this machine, each only after signInYes: a token signed with the
   // app's own secret from its env, then one test account on the app's own sign-up and sign-in doors.
-  mint: async () => mintJwt(envOf(root)),
+  mint: async () => (signInYes ? mintJwt(envOf(root)) : null),
   // The sign-in that worked last time, kept in this folder's ~/.cortad so a restart costs no endpoint a request again.
-  kept: async () => keptSignIn(homeOf(project)),
-  onSignedIn: (as) => rememberSignIn(homeOf(project), as),
+  keptSignIn: async () => (signInYes ? keptSignIn(homeOf(project)) : null),
+  onSignedIn: (as) => { if (signInYes) rememberSignIn(homeOf(project), as); },
   onKeptRefused: () => forgetSignIn(homeOf(project)),
   // The last rung: the request the app's own frontend makes, captured once per connection in a
   // headless browser on this machine, when that frontend answers at the client origin.
@@ -1413,7 +1453,7 @@ async function deliver(id, out) {
 async function reattach() {
   for (let wait = 2000, until = Date.now() + 300_000; ; wait = Math.min(wait * 2, 30_000)) {
     const timeoutMs = Math.max(5_000, Math.min(120_000, until - Date.now()));
-    const back = await call("POST", "/local/reattach", { box, name: basename(root), project }, { timeoutMs }).catch(() => null);
+    const back = await call("POST", "/local/reattach", { box, name: folderName, project }, { timeoutMs }).catch(() => null);
     if (back && (back.ok || back.status === 404)) return back;
     if (Date.now() >= until || closing) return back;
     await new Promise((r) => setTimeout(r, wait / 2 + Math.random() * (wait / 2)));
