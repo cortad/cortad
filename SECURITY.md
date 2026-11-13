@@ -44,9 +44,7 @@ These are never sent:
 - **Test conversations.** Simulated users send messages to your app on your machine, each labelled
   with the header `x-cortad-simulation: 1`. Your app's replies go to Cortad. Your app stores the
   conversations wherever it stores its own chats. A simulation starts only after your yes, given in
-  the browser or to your coding agent; the one test request Cortad sends each endpoint to learn it
-  waits for the same yes. Without it, Cortad still sends your app a `GET /health` to see that it
-  answers, and sends again a request you signed in with to check the sign-in still works.
+  the browser or to your coding agent.
 - **Your app's model calls.** What your app sent its model while answering a test message, including
   anything it retrieved, and what the model answered.
 - **Your app's routes,** as your app lists them.
@@ -67,18 +65,15 @@ These are never sent:
 
 ## How secrets are masked
 
-The command collects the values in your env files, in the env files your start command names, and in
-environment variables whose names mark them as credentials. In your app's output and in every reply
-the command sends, each of them is replaced with `[masked]`, except a value under 8 characters, a
-plain setting (`true`, `false`, `localhost`, `development`, `production`, a number) and a model name;
-from the environment, only values of 12 characters or more are collected.
+The command collects the secret values in your env files, in the env files your start command names,
+and in environment variables named as credentials, and replaces each with `[masked]` in your app's
+output and in everything it sends.
 
 ## What Cortad's server can make your machine do
 
-- Send requests to your app's own port, and to no other port or host. They can use any method and
-  path your app serves, as a visitor of your app can, and the replies go to Cortad. Where an endpoint
-  needs a signed-in user and you send it one message yourself, later test messages to that endpoint
-  carry that same sign-in. To learn the request your own page makes, the command may open that page
+- Send requests to your app's own port, and to no other port or host, the way a visitor of your app
+  does. The replies go to Cortad. Where an endpoint needs a signed-in user and you send it one message
+  yourself, later test messages to that endpoint carry that same sign-in. To learn the request your own page makes, the command may open that page
   on your machine in a headless browser; nothing the browser sees is sent.
 - Get a copy of a file it was sent, and of no other.
 - Take samples of your app's stores, as above.
@@ -118,8 +113,8 @@ Any other command the server sends is refused and noted in `~/.cortad/<project>/
   international formats (Arabic-Indic and Persian digits counted as digits), national ID and exam seat
   numbers, dates of birth, social handles, street addresses, payment card numbers, IBANs, IP
   addresses, US Social Security numbers and values from your env files.
-- Names written in a message are not removed by these rules. `--redact-with "<command>"` runs your
-  own redaction on every text first; if it fails, nothing is sent.
+- `--redact-with "<command>"` runs your own redaction on every text first; if it fails, nothing is
+  sent.
 - Conversation and user ids are replaced with an HMAC whose salt is made on your computer and never
   sent.
 - `--dry-run` writes exactly what would be sent to `~/.cortad/<project>/history-dry-run.jsonl`,
@@ -138,31 +133,22 @@ Any other command the server sends is refused and noted in `~/.cortad/<project>/
 ## Encryption
 
 - In transit: HTTPS.
-- Per account: each account has its own 256-bit key, stored only wrapped (AES-256-GCM) by a root key
-  derived from a secret in the Cortad API's server configuration.
+- Per account: each account has its own 256-bit key, stored only wrapped (AES-256-GCM).
 - Each stored object is encrypted with its own data key (AES-256-GCM), made new every time it is
   written: each file's content in a code version, each code version's list of files, and each
   production conversation. The data key is wrapped by the account's key, and the object's storage
   address is bound into the encryption, so an object moved elsewhere does not decrypt.
 - Test conversations, simulation results, account records, and short quotes taken from production
-  conversations are in the database, which PlanetScale encrypts at rest. They are not encrypted with
-  the account's key. R2 also encrypts every object at rest (AES-256-GCM).
+  conversations are in the database, which PlanetScale encrypts at rest. R2 also encrypts every object
+  at rest (AES-256-GCM).
 
 ## Keeping and deleting
 
-- Each plan sets how long production conversations' words are kept: 7 days on Free, 90 days on Pro,
-  1 year on Ultra. Words past that time are marked for deletion each night. Counts, times and
-  outcomes stay for the life of the account.
-- Code versions are kept until the account is deleted. Test conversations are kept until you delete
-  the case they belong to, or the account.
+- Production conversations are kept for your plan's period: 7 days on Free, 90 days on Pro, 1 year on
+  Ultra.
 - You can delete a production conversation at any time.
-- You can delete your account in Settings. Its app, ingest and machine keys stop working at once.
-  Seven days later it is due for deletion, and Cortad deletes its database rows, stored objects,
-  sandboxes and the account's key. You can keep the account during those seven days. Kept after it: a record
-  that the deletion happened, with how many rows went; the account's audit log and notes, with your
-  user id taken out; and purchase and billing records. Database backups are deleted as they rotate,
-  within the thirty days the Privacy Policy states. An account a paid plan still bills cannot be
-  closed until the plan is cancelled.
+- You can delete your account in Settings. Its keys stop working at once, and its data is deleted
+  within the thirty days the Privacy Policy states. You can keep the account during the first seven.
 - Whether Cortad may also use your data to improve the service is your choice, on the Data Sharing
   screen or in Settings. It is off until you turn it on.
 
