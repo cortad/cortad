@@ -446,6 +446,7 @@ function refused(b) {
 const OUTPUT_SENT = 20_000;
 function runLocked(cmd) {
   if (!lock) return { success: false, exitCode: 126, stdout: "", stderr: "refused: this machine has no sandbox tool (sandbox-exec or bubblewrap), so nothing is run here" };
+  if (lock.refused) return { success: false, exitCode: 126, stdout: "", stderr: `refused: ${lock.refused}` };
   const { file, args } = lock.wrap(cmd);
   return new Promise((done) => {
     const child = spawn(file, args, { cwd: root, env: plainEnv, stdio: ["ignore", "pipe", "pipe"] });
@@ -1249,6 +1250,7 @@ if (!viaToken && process.env.CORTAD_NO_REGISTER !== "1") {
 lock = await makeLock({ root, work, envFiles });
 if (lock && !lockHolds(lock, root)) lock = null;
 if (!lock) say("running your tests is off on this machine (no sandbox-exec or bubblewrap). Everything else works.");
+else if (lock.refused) say(`${lock.refused} Everything else works.`);
 
 // A change to their own files, settled: what "I fixed it" looks like from here. Folders an app
 // writes to by itself are not a fix.
