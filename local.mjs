@@ -1045,10 +1045,16 @@ async function sendTree({ bytes, digest }) {
   }
   return { ok: true };
 }
+
+const waking = (sent) => !sent.ok && (sent.status === 503 || sent.status === 0);
 async function upload(rels) {
   const tree = await packed(rels);
   let sent = await sendTree(tree);
-  if (!sent.ok && sent.status !== 401 && sent.status !== 404) {
+  for (let wait = 2000; waking(sent) && wait <= 32_000; wait *= 2) {
+    await new Promise((r) => setTimeout(r, wait));
+    sent = await sendTree(tree);
+  }
+  if (!sent.ok && !waking(sent) && sent.status !== 401 && sent.status !== 404) {
     await new Promise((r) => setTimeout(r, 2000 + Math.random() * 3000));
     sent = await sendTree(tree);
   }
