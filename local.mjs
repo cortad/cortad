@@ -20,7 +20,6 @@ import { CONNECTED, connectedText, NOT_RUNNING } from "./lib/read-text.mjs";
 import { VERSION } from "./lib/spec.mjs";
 import { credentialShaped, environmentSecrets, maskedLines, maskWith, secretValues } from "./lib/env-secrets.mjs";
 import { finished, unseenText } from "./lib/text.mjs";
-import { lockHolds, makeLock } from "./lib/lock.mjs";
 import { AS_HEADER, CAPTURED, makeCapture } from "./lib/replay.mjs";
 import { sampleHere } from "./lib/sample.mjs";
 import { composePorts, forContainer, hookable, inContainer, passedThrough, publishedPorts, shownCommand, startPlan, workspaces } from "./lib/start.mjs";
@@ -32,7 +31,7 @@ import { makeHeld } from "./lib/held.mjs";
 import { answerAsk, ASK, makeAutoReach, takeAsk } from "./lib/auto-reach.mjs";
 import { ADMIN_CONTROL, SIMULATION_HEADER } from "./lib/reach.mjs";
 import { clientOriginOf, envOf, keysFromEnv } from "./lib/origins.mjs";
-import { forgetSignIn, keptSignIn, mintAfterYes, rememberSignIn, signUpAndIn, testAccount } from "./lib/sign-in.mjs";
+import { forgetSignIn, keptSignIn, rememberSignIn, signUpAndIn, testAccount } from "./lib/sign-in.mjs";
 import { clientRequestOf } from "./lib/browser-rung.mjs";
 import { layerOf, layerSaid, setsSecret } from "./lib/layer.mjs";
 import { ignoredBy, rulesOf } from "./lib/gitignore.mjs";
@@ -153,7 +152,7 @@ function holdProject() {
 if (viaToken) holdProject();
 else if (!explain) { const held = readRunner(project); if (held) fail(heldLine(held)); }
 
-const SKIP_DIR = /^(node_modules|\.git|dist|build|out|coverage|vendor|venv|\.venv|env|target|tmp|\.next|\.nuxt|\.turbo|\.cache|__pycache__|\.terraform|\.wrangler|\.svelte-kit|\.output|\.parcel-cache|\.idea|\.vscode|secrets?|\.secrets?|\.ssh|\.gnupg|\.aws|\.?(?:[\w-]*[._-])?logs?)$/i;
+const SKIP_DIR = /^(node_modules|\.git|dist|build|out|coverage(?:[-_.][\w.-]+)?|vendor|venv|\.venv|env|target|tmp|\.next|\.nuxt|\.turbo|\.cache|__pycache__|\.terraform|\.wrangler|\.svelte-kit|\.output|\.parcel-cache|\.idea|\.vscode|secrets?|\.secrets?|\.ssh|\.gnupg|\.aws|\.?(?:[\w-]*[._-])?logs?)$/i;
 
 const SKIP_FILE = /^\.env(\..*)?$|^\.envrc$|\.env$|^\.(?:npmrc|netrc)$|^id_(?:rsa|ed25519|ecdsa)|\.(pem|key|p12|pfx|jks|keystore|sqlite|sqlite3|db|log|lock|map|zip|tar|gz|tgz|7z|rar|png|jpe?g|gif|webp|ico|svg|mp3|mp4|wav|mov|pdf|woff2?|ttf|otf|eot|bin|exe|dll|so|dylib|wasm|onnx|pt|pth|safetensors|numbers|DS_Store)$/i;
 
@@ -343,15 +342,10 @@ const readable = (p) => {
 };
 
 const plainEnv = { PATH: process.env.PATH, HOME: process.env.HOME, LANG: process.env.LANG ?? "C.UTF-8", TMPDIR: work, TERM: "dumb" };
-let lock = null;
 
 const OPS = {
-
   start: async () => { const r = await restartApp(); return { success: !r.error, exitCode: r.error ? 1 : 0, stdout: "", stderr: r.error ?? "" }; },
-
-  test: () => (testDeclared() ? runLocked("npm test") : { success: false, exitCode: 127, stdout: "", stderr: "this project declares no test command in its package.json" }),
 };
-const testDeclared = () => { try { const t = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).scripts?.test; return typeof t === "string" && !/no test specified/.test(t); } catch { return false; } };
 function runOp(b) {
   const run = Object.hasOwn(OPS, b.op) ? OPS[b.op] : null;
   if (!run) return refused(b);
@@ -368,29 +362,6 @@ function noteRefused(what, why) {
 function refused(b) {
   noteRefused(b.op ?? b.cmd ?? "", `refused a command Cortad's server sent, since this machine runs only Cortad's own operations (${Object.keys(OPS).join(", ")})`);
   return { success: false, exitCode: 126, stdout: "", stderr: `refused: this machine runs only Cortad's own operations (${Object.keys(OPS).join(", ")}), never a command it is sent` };
-}
-const OUTPUT_SENT = 20_000;
-function runLocked(cmd) {
-  if (!lock) return { success: false, exitCode: 126, stdout: "", stderr: "refused: this machine has no sandbox tool (sandbox-exec or bubblewrap), so nothing is run here" };
-  if (lock.refused) return { success: false, exitCode: 126, stdout: "", stderr: `refused: ${lock.refused}` };
-  const { file, args } = lock.wrap(cmd);
-  return new Promise((done) => {
-    const child = spawn(file, args, { cwd: root, env: plainEnv, stdio: ["ignore", "pipe", "pipe"] });
-    let out = "", err = "";
-
-    const tail = (s, chunk) => (s + chunk).slice(-(OUTPUT_SENT + 4096));
-    child.stdout.on("data", (d) => { out = tail(out, d.toString()); });
-    child.stderr.on("data", (d) => { err = tail(err, d.toString()); });
-    const timer = setTimeout(() => child.kill("SIGKILL"), 280_000);
-    child.on("close", (code) => {
-      clearTimeout(timer);
-
-      const stderr = mask(err).slice(-OUTPUT_SENT);
-      const room = OUTPUT_SENT - stderr.length;
-      done({ success: code === 0, exitCode: code ?? 1, stdout: room > 0 ? mask(out).slice(-room) : "", stderr });
-    });
-    child.on("error", (e) => { clearTimeout(timer); done({ success: false, exitCode: 127, stdout: "", stderr: String(e.message) }); });
-  });
 }
 
 let app = null;
@@ -901,18 +872,21 @@ const mayOpen = (rel) => {
   try { return !isData(rel, statSync(join(root, rel)).size) && !carriesKey(rel); } catch { return false; }
 };
 
+const ACCESS = /(?:^|[/._-])(?:auth|oauth|login|signin|signup|token|secrets?|passwords?|credentials?|admin|entitlements?|licen[cs]e|billing|payments?|stripe|drm|vimeo|player)(?:[/._-]|$)/i;
+
 const toSend = () => {
   const candidates = candidatesOf([...files, ...keyed]);
   const chosen = layerOf(candidates);
   const size = new Map(candidates.map((c) => [c.path, c.size]));
   const key = (rel) => keyed.includes(rel);
-  const kept = chosen.files.filter((rel) => !isData(rel, size.get(rel)) && !key(rel));
+  const guarded = chosen.files.filter((rel) => ACCESS.test(rel) && !key(rel));
+  const kept = chosen.files.filter((rel) => !isData(rel, size.get(rel)) && !key(rel) && !guarded.includes(rel));
 
   const sentBefore = readPicked(project).filter((rel) => !kept.includes(rel) && !judged(rel).why);
   const all = [...kept, ...sentBefore];
   const why = new Map([...kept.map((rel) => [rel, chosen.why.get(rel)]), ...sentBefore.map((rel) => [rel, "sent"])]);
-  const held = [...chosen.held, ...[...chosen.files, ...chosen.fed].filter(key).map((path) => ({ path, why: "secret" }))].sort((a, b) => a.path.localeCompare(b.path));
-  return { ...chosen, files: all, why, data: chosen.files.filter((rel) => !kept.includes(rel) && !key(rel)), fed: chosen.fed.filter((rel) => !all.includes(rel) && !key(rel)), held };
+  const held = [...chosen.held, ...[...chosen.files, ...chosen.fed].filter(key).map((path) => ({ path, why: "secret" })), ...guarded.map((path) => ({ path, why: "access" }))].sort((a, b) => a.path.localeCompare(b.path));
+  return { ...chosen, files: all, why, data: chosen.files.filter((rel) => !kept.includes(rel) && !key(rel) && !guarded.includes(rel)), fed: chosen.fed.filter((rel) => !all.includes(rel) && !key(rel)), held };
 };
 
 const pickedLayer = (rels) => {
@@ -1080,11 +1054,6 @@ if (!viaToken && process.env.CORTAD_NO_REGISTER !== "1") {
   if (got?.changed.length) say(`Cortad's tools and skill were added to ${got.agent} for this project: ${got.changed.join(", ")}.`);
 }
 
-lock = await makeLock({ root, work, envFiles });
-if (lock && !lockHolds(lock, root)) lock = null;
-if (!lock) say("running your tests is off on this machine (no sandbox-exec or bubblewrap). Everything else works.");
-else if (lock.refused) say(`${lock.refused} Everything else works.`);
-
 const NOT_A_FIX = /(?:^|[\\/])(?:node_modules|\.git|\.next|\.nuxt|\.turbo|\.cache|dist|build|coverage|logs?|tmp|__pycache__|\.venv|venv)(?:[\\/]|$)|\.log$/;
 function sourceChanged() {
   return new Promise((resolve) => {
@@ -1240,8 +1209,6 @@ const autoReach = makeAutoReach({
 
   origin: () => { const port = app?.port ?? null; if (clientOrigin.port !== port) clientOrigin = { port, value: clientOriginOf(root, { port }) ?? (port ? `http://localhost:${port}` : null) }; return clientOrigin.value; },
   keys: (m) => keysFromEnv(root, m?.file),
-
-  mint: async () => (signInYes ? mintAfterYes(homeOf(project), envOf(root)) : null),
 
   keptSignIn: async () => (signInYes ? keptSignIn(homeOf(project)) : null),
   onSignedIn: (as) => { if (signInYes) rememberSignIn(homeOf(project), as); },

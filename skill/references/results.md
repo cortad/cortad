@@ -106,6 +106,7 @@ You pick the files Cortad gets, and none has been sent yet. Cortad needs:
 3. The routes that reach those calls, with their request and reply shapes, so simulated users can talk to the app.
 4. Tool definitions, so tool use is tested.
 5. Eval cases, so simulated users cover what the team already checks.
+Or, to keep the code on this machine, write cortad/spec.md: each AI route with its request and reply shapes, the tools the model can call, and how the AI should behave. Cortad reads it in place of the code, and sees the prompts as the app sends them to its model during a simulation.
 Show the person your list, then send only those files. Env files, keys, files git ignores and data files are refused.
 next: npx -y cortad send <file> <file> ...
 ```

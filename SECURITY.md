@@ -19,7 +19,8 @@ deletes it.
 can call, the code that calls a model, the routes that reach it and the request shapes they accept,
 and your evals. A file your code reads from disk goes only when its name or folder says it is a
 prompt. Every prompt file goes only after a check for secrets and for personal details: contact
-details, ids, dates of birth, and a person's name beside a health or family note. Cortad's server can
+details, ids, dates of birth, and a person's name beside a health or family note. Code that guards
+sign-in, admin or paid access stays on your machine unless your coding agent sends it. Cortad's server can
 later ask only for a file in that set. If you would rather choose the files yourself, your coding agent can pick and send
 them instead (see README.md).
 
@@ -75,21 +76,14 @@ output and in everything it sends.
 - Get a copy of a file it was sent, and of no other.
 - Take samples of your app's stores, as above.
 - Restart your app with your own start command.
-- Run your project's own test command, as its `package.json` declares it, inside the system sandbox
-  (`sandbox-exec` on macOS, bubblewrap on Linux) with no network beyond your machine and no env file
-  or key folder readable. Without a sandbox tool it runs nothing, and when the list of what the
-  sandbox must hide is too long for it, it runs nothing and says why. The last 20,000 characters of
-  its output are sent, masked.
 
-Any other command the server sends is refused and noted in `~/.cortad/<project>/refused.log`.
+Any command the server sends is refused and noted in `~/.cortad/<project>/refused.log`.
 
 ## What changes on your machine
 
 - While Cortad tests your app, the command raises your app's own request-rate and concurrency limits
   for that session, so simulated users are not turned away. It never raises a spend or budget limit.
-- Test accounts are made on your app's own sign-up only after your yes. A token signed with your
-  app's JWT secret is made only after a yes given to your coding agent on this machine, kept in
-  `~/.cortad`.
+- One test account is made on your app's own sign-up, only after your yes, and kept in `~/.cortad`.
 - Cortad's tools and skill are added to one coding agent, inside this project only: the agent running
   the connect, or on a plain terminal the one you name, or none. For Claude Code its entry is the
   per-project one in `~/.claude.json`, as `claude mcp add` writes it; nothing else is written to your
