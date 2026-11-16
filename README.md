@@ -13,6 +13,12 @@ npx cortad <code> -- npm run dev     your command, as you start it, from the ter
 npx cortad <code> --port 3000        an app already running: its replies are seen, its model calls are not
 ```
 
+
+**What Cortad gets is your choice.** By default, the files around your AI (`npx cortad --explain` lists
+them). To keep your code on your machine, connect with `--agent-picks` and have your coding agent write
+`cortad/spec.md`: each AI route with its request and reply shapes, the tools the model can call, and how
+the AI should behave. Cortad opens none of your app's databases or vector stores unless you add `--samples`.
+
 ## Cortad Intelligence
 
 ```
@@ -94,7 +100,7 @@ Cortad needs every prompt and prompt template, every place the code calls a mode
 --port 3000 -- <command>   start a container and watch the port it publishes; the model base URL to set inside it is printed
 --verbose            print your app's output
 --agent-picks        send no file at connect: your coding agent picks them with `npx cortad send`
---no-samples         open none of your app's search or vector stores for samples of its content (--agent-picks implies it)
+--samples            open your app's search and vector stores for samples of its content, so simulated users ask about it (off unless given)
 --explain            list every file a connect would send and why each was picked; connects to nothing and writes nothing
 --yes                send: send the files the preview listed
 --from <tool>        intelligence history: the tool your conversations are read from

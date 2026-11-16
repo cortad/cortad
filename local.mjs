@@ -48,7 +48,7 @@ const USAGE = `usage: npx cortad <code from the connect screen> -- <how you star
 {
   const dash = argv.indexOf("--");
   const own = dash >= 0 ? argv.slice(0, dash) : argv;
-  const FLAGS = new Set(["--port", "--start", "--explain", "--proxy", "--token", "--until-idle", "--verbose", "--agent-picks", "--no-samples"]);
+  const FLAGS = new Set(["--port", "--start", "--explain", "--proxy", "--token", "--until-idle", "--verbose", "--agent-picks", "--samples", "--no-samples"]);
   const unknownFlag = own.some((a, i) => a.startsWith("-") && !FLAGS.has(a) && !["--port", "--start"].includes(own[i - 1] ?? ""));
   if (["help", "-h", "--help"].includes(argv[0]) || (!COMMANDS.has(argv[0] ?? "") && unknownFlag)) {
     console.log(USAGE);
@@ -118,7 +118,8 @@ const fromSaved = !typedNow && Boolean(typed);
 
 const picks = own.includes("--agent-picks") || (!code && keptStart.picks === true);
 
-const noSamples = picks || own.includes("--no-samples") || (!code && keptStart.noSamples === true);
+const samples = !picks && !own.includes("--no-samples") && (own.includes("--samples") || (!code && keptStart.samples === true));
+const noSamples = !samples;
 
 const wantedPort = Number(flag("--port")) || (!typedNow ? Number(keptStart.port) || 0 : 0);
 const onPath = (bin) => (process.env.PATH ?? "").split(":").some((dir) => dir && existsSync(join(dir, bin)));
@@ -966,7 +967,7 @@ key = attach.data.key;
   if (!picks) me.fed = chosen.fed;
 }
 if (!viaToken && (picks || keptStart.picks)) keepStart({ picks });
-if (!viaToken && (noSamples || keptStart.noSamples)) keepStart({ noSamples });
+if (!viaToken && (samples || keptStart.samples)) keepStart({ samples });
 
 if (!viaToken) holdProject();
 writeFileSync(bootLog, "", { mode: 0o600 });

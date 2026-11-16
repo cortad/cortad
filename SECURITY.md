@@ -15,6 +15,11 @@ deletes it.
 
 ## What a connect sends
 
+You choose what Cortad gets: the files around your AI, picked on your machine (the default), or, with
+`--agent-picks`, only what your coding agent sends, such as a written `cortad/spec.md` of your AI's
+routes, request shapes, tools and rules in place of any code. Cortad never opens your app's databases
+or vector stores unless you connect with `--samples`.
+
 **The files around your AI.** On your machine, Cortad's parsers pick the prompts, the tools the model
 can call, the code that calls a model, the routes that reach it and the request shapes they accept,
 and your evals. A file your code reads from disk goes only when its name or folder says it is a
@@ -52,9 +57,9 @@ These are never sent:
 - **Your app's model calls.** What your app sent its model while answering a test message, and what
   the model answered.
 - **Your app's routes,** as your app lists them.
-- **Samples of your app's own content,** from the search or vector stores your app's env names,
+- **Samples of your app's own content,** only when you connect with `--samples`: from the search or vector stores your app's env names,
   opened on your machine, with personal details removed by the same rules as production history
-  below, so simulated users ask about your real content. `--no-samples` turns this off.
+  below, so simulated users ask about your real content.
 - **Your app's output,** masked: the first error line printed while answering each test message, up
   to 2,000 characters when Cortad asks for the log, and the last 2,000 characters when your app fails to
   start or stops answering. All of it stays on your machine in `~/.cortad/<project>/app.log` (file
